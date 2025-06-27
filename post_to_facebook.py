@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import feedparser
 
-# === EXTENDED BIBLICAL CONTENT ===
+# === INTERNAL FALLBACK VERSES ===
 BIBLE_VERSES = [
     {"verse": "I am the way and the truth and the life. No one comes to the Father except through me.", "ref": "John 14:6"},
     {"verse": "Come to me, all who are weary and burdened, and I will give you rest.", "ref": "Matthew 11:28"},
@@ -18,6 +18,7 @@ BIBLE_VERSES = [
     {"verse": "For whoever wants to save their life will lose it, but whoever loses their life for me will find it.", "ref": "Matthew 16:25"}
 ]
 
+# === OTHER CONTENT TYPES ===
 JESUS_QUOTES = [
     "With man this is impossible, but with God all things are possible.",
     "Do not let your hearts be troubled. Trust in God; trust also in me.",
@@ -63,7 +64,6 @@ RSS_FEEDS = [
     "https://www.esv.org/votd/feed/"
 ]
 
-# === UTILS ===
 def load_json(file, default):
     if not os.path.exists(file):
         return default
@@ -79,40 +79,32 @@ def fetch_image_url():
     url = f"https://pixabay.com/api/?key={PIXABAY_API_KEY}&q={keyword}&image_type=photo&per_page=30&safesearch=true"
     res = requests.get(url).json()
     images = res.get("hits", [])
-    if not images:
-        return None
-    return random.choice(images)["largeImageURL"]
+    return random.choice(images)["largeImageURL"] if images else None
 
 def fetch_rss_post():
     for feed_url in RSS_FEEDS:
         try:
             feed = feedparser.parse(feed_url)
-            print(f"DEBUG: Checked RSS feed {feed_url} with {len(feed.entries)} entries")
-            if feed.entries:
-                entry = feed.entries[0]
+            for entry in feed.entries:
                 title = entry.get("title", "").strip()
                 summary = entry.get("summary", "").strip()
                 print("DEBUG RSS title:", title)
                 print("DEBUG RSS summary:", summary)
-                if title and summary:
+                if title and summary and len(summary) > 30 and "verse of the day" not in summary.lower():
                     return f"📖 {title}\n\n{summary}"
         except Exception as e:
-            print("RSS error:", e)
+            print("❌ RSS error:", e)
     return None
 
 def get_random_post():
-    rss_post = fetch_rss_post()
-    if rss_post:
-        return rss_post
+    rss = fetch_rss_post()
+    if rss:
+        return rss
 
     choice = random.choice(["verse", "quote", "prayer", "declaration", "question"])
     if choice == "verse":
         v = random.choice(BIBLE_VERSES)
-        verse = v.get("verse", "").strip()
-        ref = v.get("ref", "").strip()
-        if not verse or not ref:
-            return "📖 Scripture unavailable today – please check again later."
-        return f"📖 \"{verse}\"\n— {ref}"
+        return f"📖 \"{v['verse']}\"\n— {v['ref']}"
     elif choice == "quote":
         return f"📣 Jesus says: \"{random.choice(JESUS_QUOTES)}\""
     elif choice == "prayer":
@@ -123,40 +115,31 @@ def get_random_post():
         return f"🖊️ {random.choice(QUESTIONS)}"
 
 def post_to_facebook(text, image_url):
-    img_path = "temp_image.jpg"
+    img_path = "temp.jpg"
     img_data = requests.get(image_url).content
     with open(img_path, "wb") as f:
         f.write(img_data)
 
-    caption = text + "\n\n#Jesus #Faith #BibleVerse #ChristianQuotes"
+    caption = f"{text}\n\n#Jesus #Faith #BibleVerse #ChristianQuotes"
 
     files = {'source': open(img_path, 'rb')}
-    params = {
-        'access_token': FB_PAGE_TOKEN,
-        'caption': caption
-    }
-
+    params = {'access_token': FB_PAGE_TOKEN, 'caption': caption}
     url = f"https://graph.facebook.com/{FB_PAGE_ID}/photos"
-    response = requests.post(url, files=files, data=params)
-    result = response.json()
-    print("✅ Posted to Facebook:", result)
-
+    res = requests.post(url, files=files, data=params)
+    print("✅ Facebook response:", res.json())
     os.remove(img_path)
-    return result.get("id")
 
-# === MAIN ===
 if __name__ == "__main__":
     log = load_json("jesus_post_log.json", {"posts": []})
     image_url = fetch_image_url()
-    if not image_url:
-        print("❌ No image found.")
-    else:
-        message = get_random_post()
-        fb_id = post_to_facebook(message, image_url)
+    if image_url:
+        post_text = get_random_post()
+        post_to_facebook(post_text, image_url)
         log["posts"].append({
             "time": datetime.utcnow().isoformat(),
-            "text": message,
-            "image_url": image_url,
-            "fb_post_id": fb_id
+            "text": post_text,
+            "image_url": image_url
         })
         save_json("jesus_post_log.json", log)
+    else:
+        print("❌ No image found.")

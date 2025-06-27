@@ -1,0 +1,30 @@
+name: Post Jesus Content Daily
+
+on:
+  schedule:
+    - cron: '0 14,20,2 * * *' # Run at 9AM, 3PM, and 9PM EST (converted to UTC)
+  workflow_dispatch: # Allows manual run
+
+jobs:
+  post-to-facebook:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install Dependencies
+      run: |
+        pip install requests feedparser
+
+    - name: Run Posting Script
+      env:
+        PIXABAY_KEY: ${{ secrets.PIXABAY_KEY }}
+        FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+        FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+      run: python post_to_facebook.py

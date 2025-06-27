@@ -14,7 +14,8 @@ BIBLE_VERSES = [
     {"verse": "Blessed are the pure in heart, for they will see God.", "ref": "Matthew 5:8"},
     {"verse": "You are the light of the world. A town built on a hill cannot be hidden.", "ref": "Matthew 5:14"},
     {"verse": "Be still, and know that I am God.", "ref": "Psalm 46:10"},
-    {"verse": "The Lord is my shepherd; I shall not want.", "ref": "Psalm 23:1"}
+    {"verse": "The Lord is my shepherd; I shall not want.", "ref": "Psalm 23:1"},
+    {"verse": "For whoever wants to save their life will lose it, but whoever loses their life for me will find it.", "ref": "Matthew 16:25"}
 ]
 
 JESUS_QUOTES = [
@@ -50,22 +51,19 @@ QUESTIONS = [
     "What is your favorite Psalm or Bible promise?"
 ]
 
-# === IMAGE SEARCH KEYWORDS ===
 IMAGE_KEYWORDS = ["Jesus", "peaceful nature", "cross", "sunrise", "Bible", "heavenly light"]
 
-# === ENVIRONMENT VARIABLES ===
 PIXABAY_API_KEY = os.getenv("PIXABAY_KEY")
 FB_PAGE_TOKEN = os.getenv("FB_PAGE_TOKEN")
 FB_PAGE_ID = os.getenv("FB_PAGE_ID")
 
-# === RSS FEEDS ===
 RSS_FEEDS = [
     "https://www.biblegateway.com/usage/votd/rss/votd.rdf",
     "https://odb.org/feed/",
     "https://www.esv.org/votd/feed/"
 ]
 
-# === UTILITIES ===
+# === UTILS ===
 def load_json(file, default):
     if not os.path.exists(file):
         return default
@@ -94,6 +92,8 @@ def fetch_rss_post():
                 entry = feed.entries[0]
                 title = entry.get("title", "").strip()
                 summary = entry.get("summary", "").strip()
+                print("DEBUG RSS title:", title)
+                print("DEBUG RSS summary:", summary)
                 if title and summary:
                     return f"📖 {title}\n\n{summary}"
         except Exception as e:
@@ -144,10 +144,9 @@ def post_to_facebook(text, image_url):
     os.remove(img_path)
     return result.get("id")
 
-# === MAIN SCRIPT ===
+# === MAIN ===
 if __name__ == "__main__":
     log = load_json("jesus_post_log.json", {"posts": []})
-
     image_url = fetch_image_url()
     if not image_url:
         print("❌ No image found.")

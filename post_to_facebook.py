@@ -89,13 +89,15 @@ def fetch_rss_post():
     for feed_url in RSS_FEEDS:
         try:
             feed = feedparser.parse(feed_url)
+            print(f"DEBUG: Checked RSS feed {feed_url} with {len(feed.entries)} entries")
             if feed.entries:
                 entry = feed.entries[0]
-                title = entry.get("title", "")
-                summary = entry.get("summary", "")
-                return f"📖 {title}\n\n{summary.strip()}"
-        except Exception:
-            continue
+                title = entry.get("title", "").strip()
+                summary = entry.get("summary", "").strip()
+                if title and summary:
+                    return f"📖 {title}\n\n{summary}"
+        except Exception as e:
+            print("RSS error:", e)
     return None
 
 def get_random_post():
@@ -106,7 +108,11 @@ def get_random_post():
     choice = random.choice(["verse", "quote", "prayer", "declaration", "question"])
     if choice == "verse":
         v = random.choice(BIBLE_VERSES)
-        return f"📖 \"{v['verse']}\"\n— {v['ref']}"
+        verse = v.get("verse", "").strip()
+        ref = v.get("ref", "").strip()
+        if not verse or not ref:
+            return "📖 Scripture unavailable today – please check again later."
+        return f"📖 \"{verse}\"\n— {ref}"
     elif choice == "quote":
         return f"📣 Jesus says: \"{random.choice(JESUS_QUOTES)}\""
     elif choice == "prayer":

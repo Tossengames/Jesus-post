@@ -2,10 +2,12 @@ import os
 import random
 import requests
 import json
-from datetime import datetime
 import feedparser
+import re
+from html import unescape
+from datetime import datetime
 
-# === INTERNAL FALLBACK VERSES ===
+# === FALLBACK CONTENT ===
 BIBLE_VERSES = [
     {"verse": "I am the way and the truth and the life. No one comes to the Father except through me.", "ref": "John 14:6"},
     {"verse": "Come to me, all who are weary and burdened, and I will give you rest.", "ref": "Matthew 11:28"},
@@ -18,7 +20,6 @@ BIBLE_VERSES = [
     {"verse": "For whoever wants to save their life will lose it, but whoever loses their life for me will find it.", "ref": "Matthew 16:25"}
 ]
 
-# === OTHER CONTENT TYPES ===
 JESUS_QUOTES = [
     "With man this is impossible, but with God all things are possible.",
     "Do not let your hearts be troubled. Trust in God; trust also in me.",
@@ -64,6 +65,8 @@ RSS_FEEDS = [
     "https://www.esv.org/votd/feed/"
 ]
 
+# === UTILITIES ===
+
 def load_json(file, default):
     if not os.path.exists(file):
         return default
@@ -73,6 +76,10 @@ def load_json(file, default):
 def save_json(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=2)
+
+def clean_html(text):
+    text = re.sub(r"<[^>]+>", "", text)
+    return unescape(text.strip())
 
 def fetch_image_url():
     keyword = random.choice(IMAGE_KEYWORDS)
@@ -86,8 +93,8 @@ def fetch_rss_post():
         try:
             feed = feedparser.parse(feed_url)
             for entry in feed.entries:
-                title = entry.get("title", "").strip()
-                summary = entry.get("summary", "").strip()
+                title = clean_html(entry.get("title", ""))
+                summary = clean_html(entry.get("summary", ""))
                 print("DEBUG RSS title:", title)
                 print("DEBUG RSS summary:", summary)
                 if title and summary and len(summary) > 30 and "verse of the day" not in summary.lower():
@@ -129,6 +136,7 @@ def post_to_facebook(text, image_url):
     print("✅ Facebook response:", res.json())
     os.remove(img_path)
 
+# === MAIN ===
 if __name__ == "__main__":
     log = load_json("jesus_post_log.json", {"posts": []})
     image_url = fetch_image_url()

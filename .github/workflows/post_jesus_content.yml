@@ -2,7 +2,7 @@ name: Post Jesus Content Daily
 
 on:
   schedule:
-    - cron: '0 14,20,2 * * *' # Run at 9AM, 3PM, and 9PM EST (converted to UTC)
+    #- cron: '0 14,20,2 * * *' # Run at 9AM, 3PM, and 9PM EST (converted to UTC)
   workflow_dispatch: # Allows manual run
 
 jobs:

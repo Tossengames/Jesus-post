@@ -266,12 +266,12 @@ def generate_kindness_message():
             # Generate content based on available SDK - USE CORRECT MODEL NAME
             if SDK_TYPE == "new":
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',
+                    model='gemini-2.5-flash',
                     contents=prompt,
                 )
                 response_text = response.text
             else:
-                model = genai.GenerativeModel('gemini-1.5-flash')  # Updated model name
+                model = genai.GenerativeModel('gemini-2.5-flash')  # Updated model name
                 response = model.generate_content(prompt)
                 response_text = response.text
             

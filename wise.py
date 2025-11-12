@@ -263,15 +263,15 @@ def generate_kindness_message():
             
             prompt += "\n\nFormat the response exactly with the component labels shown above."
             
-            # Generate content based on available SDK
+            # Generate content based on available SDK - USE CORRECT MODEL NAME
             if SDK_TYPE == "new":
                 response = client.models.generate_content(
-                    model='gemini-2.0-flash',
+                    model='gemini-1.5-flash',
                     contents=prompt,
                 )
                 response_text = response.text
             else:
-                model = genai.GenerativeModel('gemini-pro')
+                model = genai.GenerativeModel('gemini-1.5-flash')  # Updated model name
                 response = model.generate_content(prompt)
                 response_text = response.text
             
@@ -373,9 +373,371 @@ def generate_fallback_message():
     
     return tip_data
 
-# ... (Keep the existing image creation functions: create_gradient_background, get_pixabay_image, create_inspirational_image)
-# ... (Keep the existing caption creation function: create_facebook_caption)
-# ... (Keep the existing Facebook posting function: post_to_facebook)
+def create_gradient_background(width=1200, height=1200):
+    """Create a beautiful gradient background when Pixabay fails"""
+    # Peaceful color combinations
+    color_pairs = [
+        [('#87CEEB', '#98FB98'), ('#E6E6FA', '#FFFACD')],  # Sky blue + Pale green, Lavender + Lemon chiffon
+        [('#FFE4E1', '#F0FFF0'), ('#B0E0E6', '#FFEFD5')],  # Misty rose + Honeydew, Powder blue + Papaya whip
+        [('#F5F5DC', '#E0FFFF'), ('#FFF8DC', '#F0F8FF')],  # Beige + Azure, Cornsilk + Alice blue
+        [('#FFDAB9', '#E6E6FA'), ('#F0FFF0', '#FFE4E1')],  # Peach puff + Lavender, Honeydew + Misty rose
+    ]
+    
+    colors = random.choice(color_pairs)
+    start_color, end_color = colors[0], colors[1]
+    
+    # Convert hex to RGB
+    def hex_to_rgb(hex_color):
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    
+    start_rgb = hex_to_rgb(start_color)
+    end_rgb = hex_to_rgb(end_color)
+    
+    # Create gradient
+    background = Image.new('RGB', (width, height), start_rgb)
+    draw = ImageDraw.Draw(background)
+    
+    for y in range(height):
+        # Calculate gradient color
+        ratio = y / height
+        r = int(start_rgb[0] * (1 - ratio) + end_rgb[0] * ratio)
+        g = int(start_rgb[1] * (1 - ratio) + end_rgb[1] * ratio)
+        b = int(start_rgb[2] * (1 - ratio) + end_rgb[2] * ratio)
+        
+        draw.line([(0, y), (width, y)], fill=(r, g, b))
+    
+    # Add some gentle texture
+    for _ in range(1000):
+        x = random.randint(0, width-1)
+        y = random.randint(0, height-1)
+        brightness = random.randint(-10, 10)
+        pixel = background.getpixel((x, y))
+        new_pixel = (
+            max(0, min(255, pixel[0] + brightness)),
+            max(0, min(255, pixel[1] + brightness)),
+            max(0, min(255, pixel[2] + brightness))
+        )
+        draw.point((x, y), fill=new_pixel)
+    
+    # Apply slight blur for softness
+    background = background.filter(ImageFilter.GaussianBlur(1))
+    
+    return background
+
+def get_pixabay_image():
+    """Get a random peaceful or inspiring image from Pixabay API"""
+    try:
+        api_key = os.environ.get("PIXABAY_KEY")
+        if not api_key:
+            print("❌ PIXABAY_KEY not found in environment variables")
+            return None
+            
+        categories = ["nature", "peace", "sky", "flowers", "sunset", "sunrise", "landscape", "light", "hope", "serene"]
+        category = random.choice(categories)
+        
+        print(f"🌄 Searching Pixabay for: {category}")
+        
+        url = "https://pixabay.com/api/"
+        params = {
+            "key": api_key,
+            "q": category,
+            "image_type": "photo",
+            "orientation": "horizontal",
+            "per_page": 20,
+            "safesearch": "true",
+            "editors_choice": "true"
+        }
+        
+        response = requests.get(url, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data['hits']:
+                # Select a random image from the results
+                image_data = random.choice(data['hits'])
+                image_url = image_data["largeImageURL"]
+                
+                print(f"✅ Found Pixabay image: {image_url}")
+                
+                # Download the image
+                img_response = requests.get(image_url, timeout=15)
+                return BytesIO(img_response.content)
+            else:
+                print(f"❌ No images found for category: {category}")
+                return None
+        else:
+            print(f"❌ Pixabay API error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error fetching image from Pixabay: {e}")
+        return None
+
+def create_inspirational_image(tip_data):
+    """Create inspirational image with varied layouts and styles"""
+    width, height = 1200, 1200
+    
+    # Try to get a Pixabay image first
+    image_bytes = get_pixabay_image()
+    
+    if image_bytes:
+        try:
+            # Open and process the Pixabay image
+            background = Image.open(image_bytes)
+            background = background.resize((width, height), Image.LANCZOS)
+            
+            # Apply a slight darkening filter for better text readability
+            enhancer = ImageEnhance.Brightness(background)
+            background = enhancer.enhance(0.7)  # Darken slightly
+            
+            print("✅ Using Pixabay background image")
+            
+        except Exception as e:
+            print(f"❌ Error processing Pixabay image: {e}")
+            # Create gradient background instead
+            background = create_gradient_background(width, height)
+            print("✅ Created beautiful gradient background")
+    else:
+        # Create gradient background when Pixabay fails
+        background = create_gradient_background(width, height)
+        print("✅ Created beautiful gradient background")
+    
+    # Create drawing context
+    draw = ImageDraw.Draw(background)
+    
+    # Try to load fonts
+    try:
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        title_font = ImageFont.truetype(font_path, 64)
+        verse_font = ImageFont.truetype(font_path, 36)
+    except (IOError, OSError):
+        try:
+            title_font = ImageFont.truetype("arial.ttf", 64)
+            verse_font = ImageFont.truetype("arial.ttf", 36)
+        except (IOError, OSError):
+            title_font = ImageFont.load_default()
+            verse_font = ImageFont.load_default()
+    
+    # Choose random layout style
+    layout_style = random.choice(['centered', 'top_focus', 'with_verse'])
+    
+    # Generate random background color for text box - DIFFERENT EACH TIME
+    random_bg_color = (
+        random.randint(0, 255),
+        random.randint(0, 255), 
+        random.randint(0, 255),
+        180  # Alpha value for transparency
+    )
+    
+    if layout_style == 'centered':
+        # Centered main message only
+        wrapped_message = textwrap.fill(tip_data['main_message'], width=25)
+        bbox = draw.textbbox((0, 0), wrapped_message, font=title_font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        x = (width - text_width) // 2
+        y = (height - text_height) // 2
+        
+        # Semi-transparent background with RANDOM COLOR
+        padding = 40
+        draw.rectangle([
+            x - padding, y - padding,
+            x + text_width + padding, y + text_height + padding
+        ], fill=random_bg_color)
+        
+        draw.text((x, y), wrapped_message, fill=(255, 255, 255), font=title_font, align='center')
+        
+    elif layout_style == 'top_focus':
+        # Main message at top with more space
+        wrapped_message = textwrap.fill(tip_data['main_message'], width=22)
+        bbox = draw.textbbox((0, 0), wrapped_message, font=title_font)
+        text_width = bbox[2] - bbox[0]
+        x = (width - text_width) // 2
+        y = height // 4
+        
+        # Semi-transparent background with RANDOM COLOR
+        padding = 40
+        draw.rectangle([
+            x - padding, y - padding,
+            x + text_width + padding, y + bbox[3] - bbox[1] + padding
+        ], fill=random_bg_color)
+        
+        draw.text((x, y), wrapped_message, fill=(255, 255, 255), font=title_font, align='center')
+        
+    else:  # with_verse
+        # Main message with Bible verse below
+        wrapped_message = textwrap.fill(tip_data['main_message'], width=22)
+        wrapped_verse = textwrap.fill(tip_data.get('bible_verse', 'God is love.'), width=30)
+        
+        # Calculate positions
+        message_bbox = draw.textbbox((0, 0), wrapped_message, font=title_font)
+        verse_bbox = draw.textbbox((0, 0), wrapped_verse, font=verse_font)
+        
+        message_width = message_bbox[2] - message_bbox[0]
+        verse_width = verse_bbox[2] - verse_bbox[0]
+        
+        message_x = (width - message_width) // 2
+        verse_x = (width - verse_width) // 2
+        
+        total_height = (message_bbox[3] - message_bbox[1]) + (verse_bbox[3] - verse_bbox[1]) + 60
+        start_y = (height - total_height) // 2
+        
+        # Draw message with RANDOM COLOR
+        message_padding = 30
+        draw.rectangle([
+            message_x - message_padding, start_y - message_padding,
+            message_x + message_width + message_padding, start_y + (message_bbox[3] - message_bbox[1]) + message_padding
+        ], fill=random_bg_color)
+        
+        draw.text((message_x, start_y), wrapped_message, fill=(255, 255, 255), font=title_font, align='center')
+        
+        # Draw verse with slightly different random color
+        verse_bg_color = (
+            (random_bg_color[0] + 30) % 255,
+            (random_bg_color[1] + 30) % 255,
+            (random_bg_color[2] + 30) % 255,
+            150
+        )
+        verse_y = start_y + (message_bbox[3] - message_bbox[1]) + 40
+        verse_padding = 20
+        draw.rectangle([
+            verse_x - verse_padding, verse_y - verse_padding,
+            verse_x + verse_width + verse_padding, verse_y + (verse_bbox[3] - verse_bbox[1]) + verse_padding
+        ], fill=verse_bg_color)
+        
+        draw.text((verse_x, verse_y), wrapped_verse, fill=(255, 255, 240), font=verse_font, align='center')
+    
+    # Convert to bytes
+    output_buffer = BytesIO()
+    background.save(output_buffer, format="JPEG", quality=95)
+    return output_buffer.getvalue()
+
+def create_facebook_caption(tip_data):
+    """Create Facebook caption with varied formats and warm, personal tone"""
+    
+    # Different caption formats for variety
+    caption_formats = [
+        # Gentle teacher format
+        """
+My dear friend, {message}
+
+{explanation}
+
+{verse}
+
+💖 How is Love speaking to your heart today? I'd be blessed to hear your thoughts.
+
+{hashtags}
+        """,
+        
+        # Compassionate guide format
+        """
+Beloved, a gentle reminder for your heart:
+
+{message}
+
+{explanation}
+
+{verse}
+
+✨ Where have you seen grace today? Share your light with us.
+
+{hashtags}
+        """,
+        
+        # Wise mentor format
+        """
+Walking in love today means:
+
+{message}
+
+{explanation}
+
+{verse}
+
+🌱 What small act of kindness is calling you? You are loved.
+
+{hashtags}
+        """,
+        
+        # Gentle friend format
+        """
+For your heart today:
+
+{message}
+
+{explanation}
+
+{verse}
+
+🌟 Your presence makes this world more beautiful. Share your light.
+
+{hashtags}
+        """
+    ]
+    
+    # Choose random CTA endings
+    cta_endings = [
+        "You are loved more than you know. 💫",
+        "May peace fill your heart today. 🌿",
+        "Your kindness matters more than you realize. ❤️",
+        "The world needs exactly the love you have to give. 🌟",
+        "Rest in the knowledge that you are enough, just as you are. 🕊️"
+    ]
+    
+    format_template = random.choice(caption_formats)
+    cta_ending = random.choice(cta_endings)
+    
+    caption = format_template.format(
+        message=tip_data['main_message'],
+        explanation=tip_data['explanation'],
+        verse=tip_data.get('bible_verse', 'God is love.'),
+        hashtags=tip_data['hashtags'] + " " + " ".join([
+            '#Kindness', '#Jesus', '#Love', '#Compassion', '#Hope', 
+            '#Faith', '#Inspiration', '#Peace', '#Grace', '#MentalHealth'
+        ])
+    )
+    
+    return caption.strip() + f"\n\n{cta_ending}"
+
+def post_to_facebook(image_data, tip_data):
+    """Post the image to Facebook Page with inspirational caption"""
+    try:
+        page_id = os.environ.get("FB_PAGE_ID")
+        access_token = os.environ.get("FB_PAGE_TOKEN")
+        
+        if not page_id or not access_token:
+            print("❌ Facebook credentials not found in environment variables")
+            return False
+        
+        # Upload image to Facebook
+        url = f"https://graph.facebook.com/v19.0/{page_id}/photos"
+        
+        # Create caption
+        caption = create_facebook_caption(tip_data)
+        
+        files = {'source': ('kindness_post.jpg', image_data, 'image/jpeg')}
+        data = {'message': caption, 'access_token': access_token}
+        
+        response = requests.post(url, files=files, data=data, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            # Save to posted messages history to prevent duplicates
+            if save_posted_post(tip_data):
+                print(f"✅ Successfully posted to Facebook! Post ID: {result.get('id')}")
+            else:
+                print(f"⚠️ Posted to Facebook but failed to save to history: {result.get('id')}")
+            return True
+        else:
+            print(f"❌ Facebook API error: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error posting to Facebook: {e}")
+        return False
 
 def main():
     """Main function to run the entire process"""

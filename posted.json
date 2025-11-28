@@ -537,5 +537,16 @@
     "structure": "verse_message_application",
     "timestamp": "2025-11-27T20:20:51.261640",
     "message_hash": "2a9309d44f46f6f04c4304ddb8c5a68a"
+  },
+  {
+    "main_message": "It's okay not to be okay; healing is a journey, not a destination.",
+    "explanation": "Remember, small steps forward are still progress. Reach out, talk to someone, and allow yourself grace and compassion in difficult moments.",
+    "bible_verse": "\"Come to me, all you who are weary and burdened, and I will give you rest.\" - Matthew 11:28",
+    "hashtags": "#MentalHealthMatters #YouAreNotAlone #SelfCareIsntSelfish #FaithAndHealing",
+    "theme": "mental_health",
+    "tone": "compassionate_friend",
+    "structure": "challenge_encouragement_verse",
+    "timestamp": "2025-11-28T11:09:10.145675",
+    "message_hash": "e6999cd56209c983cc9721ceaceb73a9"
   }
 ]

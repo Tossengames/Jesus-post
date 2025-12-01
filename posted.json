@@ -658,5 +658,16 @@
     "structure": "story_lesson_application",
     "timestamp": "2025-12-01T16:30:07.241038",
     "message_hash": "cad1c7e578b0664e5c89757a5ad50e54"
+  },
+  {
+    "main_message": "Trust your worries to Jesus; His peace guards your mind.",
+    "explanation": "You are never alone in your mental health journey; Jesus offers a profound peace that transcends all understanding, ready to guard your heart and mind. Lean into His loving presence, knowing He holds you and gives strength for every step.",
+    "bible_verse": "Philippians 4:6-7 (NIV) - \"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.\"",
+    "hashtags": "#MentalHealthMatters #JesusHeals #PeaceBeyondUnderstanding #HopeInChrist",
+    "theme": "mental_health",
+    "tone": "encouraging_guide",
+    "structure": "verse_message_application",
+    "timestamp": "2025-12-01T20:22:13.418997",
+    "message_hash": "cfed34cb05126442e38b53f1d05cf953"
   }
 ]

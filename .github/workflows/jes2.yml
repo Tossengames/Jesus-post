@@ -107,8 +107,8 @@ jobs:
             echo "Selected: $PICKED"
           fi
 
-      - name: pick-bible-verse
-        id: verse
+      - name: pick-bible-content
+        id: bible
         timeout-minutes: 1
         run: |
           INPUT_CAPTION="${{ github.event.inputs.caption }}"
@@ -117,60 +117,76 @@ jobs:
             exit 0
           fi
           
-          VERSES=(
-            "Come to me, all you who are weary and burdened, and I will give you rest.\n\n- Matthew 11:28"
-            "I am with you always, to the very end of the age.\n\n- Matthew 28:20"
-            "Do not let your hearts be troubled. Trust in God; trust also in me.\n\n- John 14:1"
-            "Peace I leave with you; my peace I give you.\n\n- John 14:27"
-            "I am the way and the truth and the life.\n\n- John 14:6"
-            "Love your neighbor as yourself.\n\n- Mark 12:31"
-            "Do not worry about tomorrow, for tomorrow will worry about itself.\n\n- Matthew 6:34"
-            "Ask and it will be given to you; seek and you will find.\n\n- Matthew 7:7"
-            "I am the light of the world. Whoever follows me will never walk in darkness.\n\n- John 8:12"
-            "Your faith has healed you. Go in peace.\n\n- Mark 5:34"
-            "Do not be afraid; just believe.\n\n- Mark 5:36"
-            "Everything is possible for one who believes.\n\n- Mark 9:23"
-            "In this world you will have trouble. But take heart! I have overcome the world.\n\n- John 16:33"
-            "Peace be with you!\n\n- John 20:21"
-            "Blessed are the peacemakers, for they will be called children of God.\n\n- Matthew 5:9"
-            "You are the light of the world. Let your light shine before others.\n\n- Matthew 5:14-16"
-            "I have come that they may have life, and have it to the full.\n\n- John 10:10"
-            "What is impossible with man is possible with God.\n\n- Luke 18:27"
-            "I can do all things through Christ who strengthens me.\n\n- Philippians 4:13"
-            "Be strong and courageous. Do not be afraid.\n\n- Joshua 1:9"
-            "Trust in the Lord with all your heart.\n\n- Proverbs 3:5-6"
-            "The Lord is my shepherd; I shall not want.\n\n- Psalm 23:1"
-            "Be still, and know that I am God.\n\n- Psalm 46:10"
-            "I will strengthen you and help you.\n\n- Isaiah 41:10"
-            "My grace is sufficient for you.\n\n- 2 Corinthians 12:9"
-            "Nothing can separate us from the love of God.\n\n- Romans 8:39"
-            "Be kind and compassionate to one another.\n\n- Ephesians 4:32"
-            "Love is patient, love is kind.\n\n- 1 Corinthians 13:4"
-            "God is love.\n\n- 1 John 4:16"
-            "Cast all your anxiety on him because he cares for you.\n\n- 1 Peter 5:7"
-            "Jesus Christ is the same yesterday and today and forever.\n\n- Hebrews 13:8"
-            "Let the peace of Christ rule in your hearts.\n\n- Colossians 3:15"
-            "God is our refuge and strength.\n\n- Psalm 46:1"
-            "The Lord is close to the brokenhearted.\n\n- Psalm 34:18"
-            "Give thanks to the Lord, for he is good.\n\n- Psalm 118:1"
-            "I have loved you with an everlasting love.\n\n- Jeremiah 31:3"
-            "Do not conform to the pattern of this world.\n\n- Romans 12:2"
-            "We know that in all things God works for the good.\n\n- Romans 8:28"
-            "Let us not become weary in doing good.\n\n- Galatians 6:9"
-            "Do everything in love.\n\n- 1 Corinthians 16:14"
-            "Humble yourselves before the Lord, and he will lift you up.\n\n- James 4:10"
-            "How great is the love the Father has lavished on us.\n\n- 1 John 3:1"
-            "We love because he first loved us.\n\n- 1 John 4:19"
-            "Whatever you do, work at it with all your heart, as working for the Lord.\n\n- Colossians 3:23"
-            "Create in me a pure heart, O God.\n\n- Psalm 51:10"
-            "The heavens declare the glory of God.\n\n- Psalm 19:1"
-            "Wait for the Lord; be strong and take heart.\n\n- Psalm 27:14"
-            "I praise you because I am fearfully and wonderfully made.\n\n- Psalm 139:14"
-          )
+          # Short verses (15 words or less) with title and CTA
+          cat > bible_content.txt << 'EOF'
+          JESUS SAYS|Come to me, all you who are weary, and I will give you rest.|Matthew 11:28|🙏 Follow for daily encouragement
+          JESUS SAYS|I am with you always, to the very end.|Matthew 28:20|❤️ Share this with someone
+          JESUS SAYS|Do not let your hearts be troubled. Trust in me.|John 14:1|✨ Save this verse
+          GOD'S PROMISE|Peace I leave with you; my peace I give you.|John 14:27|🤍 Follow for more
+          JESUS SAYS|I am the way, the truth, and the life.|John 14:6|📖 Share this truth
+          JESUS SAYS|Your faith has healed you. Go in peace.|Mark 5:34|🙌 Tag someone who needs this
+          JESUS SAYS|Do not be afraid; just believe.|Mark 5:36|💪 Trust Him today
+          JESUS SAYS|Everything is possible for one who believes.|Mark 9:23|✨ Keep believing
+          JESUS SAYS|Love your neighbor as yourself.|Mark 12:31|💗 Share God's love
+          JESUS SAYS|I am the light of the world. Follow me.|John 8:12|🌟 Follow for light
+          JESUS SAYS|Take heart! I have overcome the world.|John 16:33|🏆 Victory in Jesus
+          JESUS SAYS|Peace be with you! I am sending you.|John 20:21|✝️ Share this peace
+          JESUS SAYS|What is impossible with man is possible with God.|Luke 18:27|🙏 Nothing is impossible
+          JESUS SAYS|I am the resurrection and the life.|John 11:25|🌅 Hope in Him
+          JESUS SAYS|Follow me, and I will make you new.|Matthew 4:19|🕊️ Start fresh today
+          JESUS SAYS|Blessed are the peacemakers.|Matthew 5:9|🕊️ Be a peacemaker
+          JESUS SAYS|You are the light of the world. Let your light shine.|Matthew 5:14|✨ Shine bright today
+          JESUS SAYS|Forgive, and you will be forgiven.|Luke 6:37|💝 Receive forgiveness
+          JESUS SAYS|I came to give life, life to the full.|John 10:10|🎉 Live abundantly
+          JESUS SAYS|Do not worry about tomorrow.|Matthew 6:34|🌅 Trust God today
+          JESUS SAYS|Ask and it will be given to you.|Matthew 7:7|🙏 Ask Him anything
+          JESUS SAYS|Let the children come to me.|Matthew 19:14|👶 His love is for all
+          JESUS SAYS|Your faith has healed you.|Luke 17:19|🩺 Receive your healing
+          JESUS SAYS|I am the good shepherd. I know my sheep.|John 10:14|🐑 He knows you by name
+          JESUS SAYS|If you forgive others, God will forgive you.|Matthew 6:14|💖 Walk in forgiveness
+          JESUS SAYS|Store up treasures in heaven.|Matthew 6:20|👑 Eternal rewards await
+          JESUS SAYS|No one can serve two masters.|Matthew 6:24|🎯 Choose God today
+          JESUS SAYS|Come with me and get some rest.|Mark 6:31|😴 Rest in His presence
+          JESUS SAYS|Get up, your faith has made you well.|Luke 17:19|💪 Rise up in faith
+          JESUS SAYS|I have prayed for you that your faith may not fail.|Luke 22:32|🛡️ He prays for you
+          JESUS SAYS|The Spirit is willing.|Mark 14:38|🔥 Let your spirit rise
+          JESUS SAYS|Today you will be with me in paradise.|Luke 23:43|✨ Heaven is waiting
+          JESUS SAYS|It is finished.|John 19:30|✓ Your debt is paid
+          JESUS SAYS|Feed my lambs. Take care of my sheep.|John 21:15|💝 Love His people
+          JESUS SAYS|I chose you to bear lasting fruit.|John 15:16|🍇 You will produce fruit
+          JESUS SAYS|My grace is enough for you.|2 Corinthians 12:9|✨ His grace covers you
+          JESUS SAYS|I can do all things through Christ who strengthens me.|Philippians 4:13|💪 You can do this
+          JESUS SAYS|Be strong and courageous. Do not be afraid.|Joshua 1:9|🦁 Be brave today
+          JESUS SAYS|Trust in the Lord with all your heart.|Proverbs 3:5|❤️ Trust Him completely
+          JESUS SAYS|The Lord is my shepherd; I shall not want.|Psalm 23:1|🐑 He provides for you
+          JESUS SAYS|Be still, and know that I am God.|Psalm 46:10|🌿 Rest in His presence
+          JESUS SAYS|I will strengthen you and help you.|Isaiah 41:10|💪 He's got your back
+          JESUS SAYS|Nothing can separate us from God's love.|Romans 8:39|💗 You are loved forever
+          JESUS SAYS|Be kind and compassionate to one another.|Ephesians 4:32|💝 Show kindness today
+          JESUS SAYS|Love is patient, love is kind.|1 Corinthians 13:4|💕 Love like Jesus
+          JESUS SAYS|God is love. Live in love.|1 John 4:16|💖 Love conquers all
+          JESUS SAYS|Cast all your anxiety on Him because He cares.|1 Peter 5:7|🎒 Give Him your worries
+          JESUS SAYS|Jesus Christ is the same yesterday, today, and forever.|Hebrews 13:8|🕊️ He never changes
+          JESUS SAYS|Let the peace of Christ rule in your hearts.|Colossians 3:15|🕊️ Let peace reign
+          JESUS SAYS|God is our refuge and strength.|Psalm 46:1|🛡️ Run to Him today
+          EOF
           
-          IDX=$((RANDOM % ${#VERSES[@]}))
-          PICKED="${VERSES[$IDX]}"
-          echo "caption=$PICKED" >> "$GITHUB_OUTPUT"
+          TOTAL=$(wc -l < bible_content.txt)
+          IDX=$((RANDOM % TOTAL + 1))
+          LINE=$(sed -n "${IDX}p" bible_content.txt)
+          
+          TITLE=$(echo "$LINE" | cut -d'|' -f1)
+          VERSE=$(echo "$LINE" | cut -d'|' -f2)
+          REF=$(echo "$LINE" | cut -d'|' -f3)
+          CTA=$(echo "$LINE" | cut -d'|' -f4)
+          
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "verse=$VERSE" >> "$GITHUB_OUTPUT"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "cta=$CTA" >> "$GITHUB_OUTPUT"
+          echo "caption=$VERSE - $REF" >> "$GITHUB_OUTPUT"
+          
+          echo "Selected: $TITLE - $VERSE"
 
       - name: process-video
         timeout-minutes: 5
@@ -179,12 +195,18 @@ jobs:
           START="${{ steps.vid.outputs.start }}"
           DUR="${{ steps.vid.outputs.clip }}"
           MUSIC_FILE="${{ steps.music.outputs.music_file }}"
-          VERSE="${{ steps.verse.outputs.caption }}"
+          TITLE="${{ steps.bible.outputs.title }}"
+          VERSE="${{ steps.bible.outputs.verse }}"
+          REF="${{ steps.bible.outputs.ref }}"
+          CTA="${{ steps.bible.outputs.cta }}"
           
           FETCH=$(echo "$DUR + 5" | bc)
           FADEOUT=$(echo "$DUR - 1.5" | bc)
-          TEXT_START=1.5
-          TEXT_FADE_DUR=0.8
+          
+          # Escape special characters for ffmpeg
+          VERSE_ESC=$(echo "$VERSE" | sed 's/:/\\:/g; s/'\''/\\'\''/g; s/&/\\&/g')
+          REF_ESC=$(echo "$REF" | sed 's/:/\\:/g; s/'\''/\\'\''/g')
+          CTA_ESC=$(echo "$CTA" | sed 's/:/\\:/g; s/'\''/\\'\''/g')
 
           echo "Downloading video..."
           timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -an -c copy source.mp4
@@ -199,9 +221,15 @@ jobs:
 
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
-          VFILTER="[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:10,setsar=1,fade=t=in:st=0:d=1,fade=t=out:st=${FADEOUT}:d=1.5,drawtext=text='${VERSE}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf:fontcolor=white:fontsize=52:borderw=3:bordercolor=black@0.8:x=(w-text_w)/2:y=(h-text_h)/2:alpha='if(lt(t,${TEXT_START}),0,if(lt(t,${TEXT_START}+${TEXT_FADE_DUR}),(t-${TEXT_START})/${TEXT_FADE_DUR},1))':line_spacing=15[out]"
+          # Complex drawtext with 3 sections: TITLE (top), VERSE (center with reference), CTA (bottom)
+          # Title at top (y=150)
+          # Verse centered (y=h/2 - 50)
+          # Reference below verse (y=h/2 + 80)
+          # CTA at bottom (y=1750)
+          
+          VFILTER="[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:10,setsar=1,fade=t=in:st=0:d=1.5,fade=t=out:st=${FADEOUT}:d=1.5,drawtext=text='${TITLE}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf:fontcolor=#FFD700:fontsize=65:borderw=2:bordercolor=black:x=(w-text_w)/2:y=150:alpha='if(lt(t,1),0,if(lt(t,2),(t-1)/1,1))',drawtext=text='${VERSE_ESC}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf:fontcolor=white:fontsize=55:borderw=3:bordercolor=black@0.9:x=(w-text_w)/2:y=(h/2)-80:alpha='if(lt(t,1.5),0,if(lt(t,2.5),(t-1.5)/1,1))':line_spacing=20,drawtext=text='${REF_ESC}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf:fontcolor=#FFD700:fontsize=40:borderw=2:bordercolor=black:x=(w-text_w)/2:y=(h/2)+20:alpha='if(lt(t,2),0,if(lt(t,3),(t-2)/1,1))',drawtext=text='${CTA_ESC}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf:fontcolor=white:fontsize=48:borderw=2:bordercolor=black:x=(w-text_w)/2:y=1750:alpha='if(lt(t,${FADEOUT}),0,min(1,(t-${FADEOUT})/1))'[out]"
 
-          timeout 180 ffmpeg -hide_banner -loglevel error -y -i source.mp4 -i music_clip.mp3 -filter_complex "${VFILTER};[1:a]volume=0.8,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[aout]" -map "[out]" -map "[aout]" -t "$DUR" -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k -movflags +faststart -pix_fmt yuv420p final.mp4
+          timeout 180 ffmpeg -hide_banner -loglevel error -y -i source.mp4 -i music_clip.mp3 -filter_complex "${VFILTER};[1:a]volume=0.7,afade=t=in:st=0:d=1.5,afade=t=out:st=${FADEOUT}:d=1.5[aout]" -map "[out]" -map "[aout]" -t "$DUR" -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k -movflags +faststart -pix_fmt yuv420p final.mp4
 
           ls -lh final.mp4
           
@@ -209,7 +237,7 @@ jobs:
           if [ -z "$HAS_AUDIO" ]; then
             echo "Warning: Final video has no audio"
           else
-            echo "Video created successfully with Bible verse in center"
+            echo "✅ Video created with title, verse, and CTA"
           fi
 
       - name: post-to-facebook
@@ -217,12 +245,24 @@ jobs:
         env:
           PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
-          CAPTION: ${{ steps.verse.outputs.caption }}
+          CAPTION: ${{ steps.bible.outputs.caption }}
+          VERSE: ${{ steps.bible.outputs.verse }}
+          REF: ${{ steps.bible.outputs.ref }}
         run: |
           set -e
           FILE="final.mp4"
           SIZE=$(stat -c%s "$FILE")
           API="https://graph.facebook.com/v19.0"
+          
+          FULL_CAPTION="${VERSE} — ${REF}
+          
+          💭 Let this word sink into your heart today.
+          
+          👉 Follow for daily encouragement and God's truth.
+          🙏 Share this with someone who needs to hear it.
+          ❤️ Like if this blessed you.
+          
+          #GodsWord #BibleVerse #JesusLovesYou #DailyEncouragement #Faith #Hope"
 
           for attempt in 1 2 3; do
             echo "Facebook post attempt $attempt..."
@@ -243,11 +283,11 @@ jobs:
               fi
 
               timeout 90 curl -sf -X POST "${API}/${PAGE_ID}/videos" -F "upload_phase=transfer" -F "upload_session_id=${SESSION}" -F "start_offset=${S_OFF}" -F "video_file_chunk=@${FILE};type=video/mp4" -F "access_token=${PAGE_TOKEN}" > /dev/null || true
-              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"upload_session_id\":\"${SESSION}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"upload_session_id\":\"${SESSION}\",\"description\":\"${FULL_CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
             else
               UPLOAD_URL=$(echo "$INIT" | jq -r '.upload_url' 2>/dev/null)
               timeout 90 curl -sf -X POST "$UPLOAD_URL" -H "Authorization: OAuth ${PAGE_TOKEN}" -H "offset: 0" -H "file_size: ${SIZE}" --data-binary "@${FILE}" > /dev/null || true
-              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"video_id\":\"${VID_ID}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"video_id\":\"${VID_ID}\",\"description\":\"${FULL_CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
             fi
 
             OK=$(echo "$FINISH" | jq -r '.success // .id // empty' 2>/dev/null)

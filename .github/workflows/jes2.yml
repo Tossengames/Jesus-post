@@ -39,7 +39,6 @@ jobs:
           VIDEO_URL=""
           VALID_VIDEO=0
 
-          # CHANGE 1: Removed animals, now only nature terms
           TERMS="nature| landscape| sky| clouds| forest| mountain| ocean| sunset| lake| river| stars| peaceful| scenic"
           IFS='|' read -ra TERM_ARR <<< "$TERMS"
 
@@ -96,13 +95,17 @@ jobs:
             [ -f "$t" ] && VALID+=("$t")
           done
           if [ ${#VALID[@]} -eq 0 ]; then
-            echo "No music files found"
-            exit 1
+            echo "No music files found, creating silent audio"
+            mkdir -p bgmusic
+            ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -q:a 9 -acodec libmp3lame bgmusic/silent.mp3 -y
+            echo "music_file=bgmusic/silent.mp3" >> "$GITHUB_OUTPUT"
+            echo "Using silent audio"
+          else
+            IDX=$((RANDOM % ${#VALID[@]}))
+            PICKED="${VALID[$IDX]}"
+            echo "music_file=$PICKED" >> "$GITHUB_OUTPUT"
+            echo "Selected: $PICKED"
           fi
-          IDX=$((RANDOM % ${#VALID[@]}))
-          PICKED="${VALID[$IDX]}"
-          echo "music_file=$PICKED" >> "$GITHUB_OUTPUT"
-          echo "Selected: $PICKED"
 
       - name: pick-bible-verse
         id: verse
@@ -113,89 +116,61 @@ jobs:
             echo "caption=$INPUT_CAPTION" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # CHANGE 2: Bible verses instead of hashtag captions
+          
           VERSES=(
-            "Come to me, all you who are weary and burdened, and I will give you rest. - Matthew 11:28"
-            "I am with you always, to the very end of the age. - Matthew 28:20"
-            "Do not let your hearts be troubled. Trust in God; trust also in me. - John 14:1"
-            "Peace I leave with you; my peace I give you. - John 14:27"
-            "I am the way and the truth and the life. - John 14:6"
-            "Love your neighbor as yourself. - Mark 12:31"
-            "Do not worry about tomorrow, for tomorrow will worry about itself. - Matthew 6:34"
-            "Ask and it will be given to you; seek and you will find. - Matthew 7:7"
-            "I am the light of the world. Whoever follows me will never walk in darkness. - John 8:12"
-            "Your faith has healed you. Go in peace. - Mark 5:34"
-            "Do not be afraid; just believe. - Mark 5:36"
-            "Everything is possible for one who believes. - Mark 9:23"
-            "Love your enemies and pray for those who persecute you. - Matthew 5:44"
-            "In this world you will have trouble. But take heart! I have overcome the world. - John 16:33"
-            "Peace be with you! As the Father has sent me, I am sending you. - John 20:21"
-            "Follow me, and I will make you fishers of men. - Matthew 4:19"
-            "Blessed are the peacemakers, for they will be called children of God. - Matthew 5:9"
-            "You are the light of the world. Let your light shine before others. - Matthew 5:14-16"
-            "Forgive, and you will be forgiven. - Luke 6:37"
-            "I have come that they may have life, and have it to the full. - John 10:10"
-            "My peace is the only peace that truly satisfies your soul. - John 14:27"
-            "Receive my love today and let it change everything about you. - John 15:9"
-            "You didn't choose me, I chose you. - John 15:16"
-            "What is impossible with man is possible with God. - Luke 18:27"
-            "The Son of Man came to seek and to save the lost. - Luke 19:10"
-            "I can do all things through Christ who strengthens me. - Philippians 4:13"
-            "Be strong and courageous. Do not be afraid. - Joshua 1:9"
-            "Trust in the Lord with all your heart. - Proverbs 3:5-6"
-            "The Lord is my shepherd; I shall not want. - Psalm 23:1"
-            "Be still, and know that I am God. - Psalm 46:10"
-            "Your word is a lamp to my feet and a light to my path. - Psalm 119:105"
-            "I will strengthen you and help you. - Isaiah 41:10"
-            "My grace is sufficient for you. - 2 Corinthians 12:9"
-            "Nothing can separate us from the love of God. - Romans 8:39"
-            "Faith is confidence in what we hope for. - Hebrews 11:1"
-            "Be kind and compassionate to one another. - Ephesians 4:32"
-            "Love is patient, love is kind. - 1 Corinthians 13:4"
-            "Be joyful always, pray continually. - 1 Thessalonians 5:16-17"
-            "God is love. Whoever lives in love lives in God. - 1 John 4:16"
-            "There is no fear in love. Perfect love drives out fear. - 1 John 4:18"
-            "Cast all your anxiety on him because he cares for you. - 1 Peter 5:7"
-            "Jesus Christ is the same yesterday and today and forever. - Hebrews 13:8"
-            "Let the peace of Christ rule in your hearts. - Colossians 3:15"
-            "God is our refuge and strength, an ever-present help in trouble. - Psalm 46:1"
-            "The Lord is close to the brokenhearted. - Psalm 34:18"
-            "I sought the Lord, and he answered me. - Psalm 34:4"
-            "Give thanks to the Lord, for he is good. - Psalm 118:1"
-            "Hope in the Lord; for with the Lord there is unfailing love. - Psalm 130:7"
-            "I have loved you with an everlasting love. - Jeremiah 31:3"
-            "Call to me and I will answer you. - Jeremiah 33:3"
-            "Do not conform to the pattern of this world. - Romans 12:2"
-            "We know that in all things God works for the good. - Romans 8:28"
-            "Let us not become weary in doing good. - Galatians 6:9"
-            "I have been crucified with Christ and I no longer live, but Christ lives in me. - Galatians 2:20"
-            "Do everything in love. - 1 Corinthians 16:14"
-            "Every good and perfect gift is from above. - James 1:17"
-            "Humble yourselves before the Lord, and he will lift you up. - James 4:10"
-            "How great is the love the Father has lavished on us. - 1 John 3:1"
-            "We love because he first loved us. - 1 John 4:19"
-            "Whatever you do, work at it with all your heart, as working for the Lord. - Colossians 3:23"
-            "Put on the full armor of God. - Ephesians 6:11"
-            "Create in me a pure heart, O God. - Psalm 51:10"
-            "The heavens declare the glory of God. - Psalm 19:1"
-            "Wait for the Lord; be strong and take heart. - Psalm 27:14"
-            "Taste and see that the Lord is good. - Psalm 34:8"
-            "I praise you because I am fearfully and wonderfully made. - Psalm 139:14"
-            "Let everything that has breath praise the Lord. - Psalm 150:6"
+            "Come to me, all you who are weary and burdened, and I will give you rest.\n\n- Matthew 11:28"
+            "I am with you always, to the very end of the age.\n\n- Matthew 28:20"
+            "Do not let your hearts be troubled. Trust in God; trust also in me.\n\n- John 14:1"
+            "Peace I leave with you; my peace I give you.\n\n- John 14:27"
+            "I am the way and the truth and the life.\n\n- John 14:6"
+            "Love your neighbor as yourself.\n\n- Mark 12:31"
+            "Do not worry about tomorrow, for tomorrow will worry about itself.\n\n- Matthew 6:34"
+            "Ask and it will be given to you; seek and you will find.\n\n- Matthew 7:7"
+            "I am the light of the world. Whoever follows me will never walk in darkness.\n\n- John 8:12"
+            "Your faith has healed you. Go in peace.\n\n- Mark 5:34"
+            "Do not be afraid; just believe.\n\n- Mark 5:36"
+            "Everything is possible for one who believes.\n\n- Mark 9:23"
+            "In this world you will have trouble. But take heart! I have overcome the world.\n\n- John 16:33"
+            "Peace be with you!\n\n- John 20:21"
+            "Blessed are the peacemakers, for they will be called children of God.\n\n- Matthew 5:9"
+            "You are the light of the world. Let your light shine before others.\n\n- Matthew 5:14-16"
+            "I have come that they may have life, and have it to the full.\n\n- John 10:10"
+            "What is impossible with man is possible with God.\n\n- Luke 18:27"
+            "I can do all things through Christ who strengthens me.\n\n- Philippians 4:13"
+            "Be strong and courageous. Do not be afraid.\n\n- Joshua 1:9"
+            "Trust in the Lord with all your heart.\n\n- Proverbs 3:5-6"
+            "The Lord is my shepherd; I shall not want.\n\n- Psalm 23:1"
+            "Be still, and know that I am God.\n\n- Psalm 46:10"
+            "I will strengthen you and help you.\n\n- Isaiah 41:10"
+            "My grace is sufficient for you.\n\n- 2 Corinthians 12:9"
+            "Nothing can separate us from the love of God.\n\n- Romans 8:39"
+            "Be kind and compassionate to one another.\n\n- Ephesians 4:32"
+            "Love is patient, love is kind.\n\n- 1 Corinthians 13:4"
+            "God is love.\n\n- 1 John 4:16"
+            "Cast all your anxiety on him because he cares for you.\n\n- 1 Peter 5:7"
+            "Jesus Christ is the same yesterday and today and forever.\n\n- Hebrews 13:8"
+            "Let the peace of Christ rule in your hearts.\n\n- Colossians 3:15"
+            "God is our refuge and strength.\n\n- Psalm 46:1"
+            "The Lord is close to the brokenhearted.\n\n- Psalm 34:18"
+            "Give thanks to the Lord, for he is good.\n\n- Psalm 118:1"
+            "I have loved you with an everlasting love.\n\n- Jeremiah 31:3"
+            "Do not conform to the pattern of this world.\n\n- Romans 12:2"
+            "We know that in all things God works for the good.\n\n- Romans 8:28"
+            "Let us not become weary in doing good.\n\n- Galatians 6:9"
+            "Do everything in love.\n\n- 1 Corinthians 16:14"
+            "Humble yourselves before the Lord, and he will lift you up.\n\n- James 4:10"
+            "How great is the love the Father has lavished on us.\n\n- 1 John 3:1"
+            "We love because he first loved us.\n\n- 1 John 4:19"
+            "Whatever you do, work at it with all your heart, as working for the Lord.\n\n- Colossians 3:23"
+            "Create in me a pure heart, O God.\n\n- Psalm 51:10"
+            "The heavens declare the glory of God.\n\n- Psalm 19:1"
+            "Wait for the Lord; be strong and take heart.\n\n- Psalm 27:14"
+            "I praise you because I am fearfully and wonderfully made.\n\n- Psalm 139:14"
           )
+          
           IDX=$((RANDOM % ${#VERSES[@]}))
           PICKED="${VERSES[$IDX]}"
           echo "caption=$PICKED" >> "$GITHUB_OUTPUT"
-
-      - name: pick-cta
-        id: cta
-        timeout-minutes: 1
-        run: |
-          CTAS=("Follow for more" "Share this blessing" "Save this verse" "Tag someone who needs this" "God bless you" "Keep trusting Him")
-          IDX=$((RANDOM % ${#CTAS[@]}))
-          PICKED="${CTAS[$IDX]}"
-          echo "cta=$PICKED" >> "$GITHUB_OUTPUT"
-          echo "Selected CTA: $PICKED"
 
       - name: process-video
         timeout-minutes: 5
@@ -204,33 +179,38 @@ jobs:
           START="${{ steps.vid.outputs.start }}"
           DUR="${{ steps.vid.outputs.clip }}"
           MUSIC_FILE="${{ steps.music.outputs.music_file }}"
-          CTA="${{ steps.cta.outputs.cta }}"
+          VERSE="${{ steps.verse.outputs.caption }}"
+          
           FETCH=$(echo "$DUR + 5" | bc)
           FADEOUT=$(echo "$DUR - 1.5" | bc)
-          CTA_START=$(echo "$DUR - 4" | bc)
+          TEXT_START=1.5
+          TEXT_FADE_DUR=0.8
 
           echo "Downloading video..."
-          # CHANGE 3: Added -an flag to remove original video audio
           timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -an -c copy source.mp4
 
-          HAS_VIDEO_AUDIO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 source.mp4 2>/dev/null || echo "")
           MDUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$MUSIC_FILE" 2>/dev/null | cut -d. -f1)
+          if [ -z "$MDUR" ] || [ "$MDUR" -lt 5 ]; then
+            MDUR=30
+          fi
           MMAX=$((MDUR - 5))
           [ "$MMAX" -le 5 ] && MMAX=5
           MSTART=$((RANDOM % MMAX))
 
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
-          # CHANGE 4: Added heavy blur (boxblur=25:10) to the filter chain
-          VFILTER="[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:10,setsar=1,fade=t=in:st=0:d=1,fade=t=out:st=${FADEOUT}:d=1.5,drawtext=text='${CTA}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf:fontcolor=white@1.0:fontsize=90:x=(w-text_w)/2:y=80:alpha='if(lt(t,${CTA_START}),0,min(1,(t-${CTA_START})/1.5))'[vout]"
+          VFILTER="[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:10,setsar=1,fade=t=in:st=0:d=1,fade=t=out:st=${FADEOUT}:d=1.5,drawtext=text='${VERSE}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf:fontcolor=white:fontsize=52:borderw=3:bordercolor=black@0.8:x=(w-text_w)/2:y=(h-text_h)/2:alpha='if(lt(t,${TEXT_START}),0,if(lt(t,${TEXT_START}+${TEXT_FADE_DUR}),(t-${TEXT_START})/${TEXT_FADE_DUR},1))':line_spacing=15[out]"
 
-          if [ -n "$HAS_VIDEO_AUDIO" ]; then
-            timeout 180 ffmpeg -hide_banner -loglevel error -y -i source.mp4 -i music_clip.mp3 -filter_complex "${VFILTER};[0:a]volume=1.0[va];[1:a]volume=0.3,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[ma];[va][ma]amix=inputs=2:duration=first[aout]" -map "[vout]" -map "[aout]" -t "$DUR" -c:v libx264 -preset medium -crf 16 -c:a aac -b:a 192k -movflags +faststart -pix_fmt yuv420p final.mp4
-          else
-            timeout 180 ffmpeg -hide_banner -loglevel error -y -i source.mp4 -i music_clip.mp3 -filter_complex "${VFILTER};[1:a]volume=1.0,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[aout]" -map "[vout]" -map "[aout]" -t "$DUR" -c:v libx264 -preset medium -crf 16 -c:a aac -b:a 192k -movflags +faststart -pix_fmt yuv420p final.mp4
-          fi
+          timeout 180 ffmpeg -hide_banner -loglevel error -y -i source.mp4 -i music_clip.mp3 -filter_complex "${VFILTER};[1:a]volume=0.8,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[aout]" -map "[out]" -map "[aout]" -t "$DUR" -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k -movflags +faststart -pix_fmt yuv420p final.mp4
 
           ls -lh final.mp4
+          
+          HAS_AUDIO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 final.mp4 2>/dev/null || echo "")
+          if [ -z "$HAS_AUDIO" ]; then
+            echo "Warning: Final video has no audio"
+          else
+            echo "Video created successfully with Bible verse in center"
+          fi
 
       - name: post-to-facebook
         timeout-minutes: 3
@@ -272,7 +252,7 @@ jobs:
 
             OK=$(echo "$FINISH" | jq -r '.success // .id // empty' 2>/dev/null)
             if [ -n "$OK" ]; then
-              echo "Posted! Video ID: $VID_ID"
+              echo "✅ Posted! Video ID: $VID_ID"
               exit 0
             fi
 

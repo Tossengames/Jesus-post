@@ -1,0 +1,455 @@
+name: gospel-encouragement-post
+
+"on":
+  workflow_dispatch:
+    inputs:
+      bible_text:
+        description: "Custom Bible verse (leave empty for random)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 6,18 * * *"
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install-deps
+        timeout-minutes: 3
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg bc jq python3 fonts-liberation
+          # Install additional font for better text rendering
+          sudo apt-get install -y fonts-noto-cjk
+
+      - name: find-nature-video
+        id: vid
+        timeout-minutes: 3
+        env:
+          PIXABAY_KEY: "50973339-3e27fd59ddfd9c68378e78753"
+        run: |
+          set -e
+          CLIP=15  # Longer clip for meaningful verses (was 10)
+          SKIP_HEAD=15
+          SKIP_TAIL=10
+          MIN_DUR=$((SKIP_HEAD + CLIP + SKIP_TAIL))
+          VIDEO_URL=""
+          VALID_VIDEO=0
+
+          # Nature-only search terms - no animals
+          NATURE_TERMS="nature landscape sky clouds forest mountain ocean sunset lake river field meadow stars aurora horizon peaceful calm scenic beautiful"
+          IFS=' ' read -ra TERM_ARR <<< "$NATURE_TERMS"
+
+          for TERM in $(printf "%s\n" "${TERM_ARR[@]}" | shuf); do
+            [ "$VALID_VIDEO" -eq 1 ] && break
+            PAGE=$((RANDOM % 15 + 1))
+            OFFSET=$((RANDOM % 20))
+            ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$TERM")
+            URL="https://pixabay.com/api/videos/?key=${PIXABAY_KEY}&q=${ENCODED}&video_type=film&per_page=20&page=${PAGE}"
+            RESP=$(timeout 10 curl -sf --max-time 10 "$URL" 2>/dev/null) || continue
+            COUNT=$(echo "$RESP" | jq -r '.hits | length' 2>/dev/null) || continue
+            [ "$COUNT" -eq 0 ] && continue
+            for i in $(seq 0 $((COUNT - 1)) | shuf); do
+              [ "$VALID_VIDEO" -eq 1 ] && break
+              IDX=$(( (i + OFFSET) % COUNT ))
+              DUR=$(echo "$RESP" | jq -r ".hits[$IDX].duration" 2>/dev/null)
+              [[ "$DUR" =~ ^[0-9]+$ ]] || continue
+              [ "$DUR" -lt "$MIN_DUR" ] && continue
+              VURL=$(echo "$RESP" | jq -r ".hits[$IDX].videos.large.url // .hits[$IDX].videos.medium.url // .hits[$IDX].videos.small.url" 2>/dev/null)
+              [ -z "$VURL" ] || [ "$VURL" = "null" ] && continue
+              ZONE_END=$((DUR - SKIP_TAIL - CLIP))
+              RANGE=$((ZONE_END - SKIP_HEAD))
+              [ "$RANGE" -le 0 ] && continue
+              START=$((SKIP_HEAD + RANDOM % RANGE))
+              echo "Testing video: $VURL"
+              timeout 30 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$VURL" -t 5 -c copy test_probe.mp4 2>/dev/null || true
+              TEST_STREAM=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 test_probe.mp4 2>/dev/null || echo "")
+              rm -f test_probe.mp4
+              if [ -z "$TEST_STREAM" ]; then
+                echo "Video failed probe, skipping..."
+                continue
+              fi
+              VIDEO_URL="$VURL"
+              VALID_VIDEO=1
+              echo "video_url=$VIDEO_URL" >> "$GITHUB_OUTPUT"
+              echo "start=$START" >> "$GITHUB_OUTPUT"
+              echo "clip=$CLIP" >> "$GITHUB_OUTPUT"
+              echo "Found valid nature video: start=${START}s dur=${DUR}s"
+            done
+          done
+
+          if [ -z "$VIDEO_URL" ]; then
+            echo "No valid video found"
+            exit 1
+          fi
+
+      - name: pick-music
+        id: music
+        timeout-minutes: 1
+        run: |
+          TRACKS=(bgmusic/*.mp3 bgmusic/*.wav bgmusic/*.m4a bgmusic/*.mp4 bgmusic/*.aac bgmusic/*.ogg bgmusic/*.flac)
+          VALID=()
+          for t in "${TRACKS[@]}"; do
+            [ -f "$t" ] && VALID+=("$t")
+          done
+          if [ ${#VALID[@]} -eq 0 ]; then
+            echo "No music files found"
+            exit 1
+          fi
+          IDX=$((RANDOM % ${#VALID[@]}))
+          PICKED="${VALID[$IDX]}"
+          echo "music_file=$PICKED" >> "$GITHUB_OUTPUT"
+          echo "Selected: $PICKED"
+
+      - name: generate-bible-text
+        id: bible
+        timeout-minutes: 1
+        run: |
+          INPUT_TEXT="${{ github.event.inputs.bible_text }}"
+          if [ -n "$INPUT_TEXT" ]; then
+            echo "bible_text=$INPUT_TEXT" >> "$GITHUB_OUTPUT"
+            echo "bible_ref=Custom" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          # 200+ Bible verses - Jesus words, encouragement, wisdom, conversational tone
+          cat > bible_verses.json << 'EOF'
+          [
+            {"text": "Come to me, all you who are weary and burdened, and I will give you rest.", "ref": "Matthew 11:28"},
+            {"text": "I am with you always, to the very end of the age.", "ref": "Matthew 28:20"},
+            {"text": "Do not let your hearts be troubled. Trust in God; trust also in me.", "ref": "John 14:1"},
+            {"text": "Peace I leave with you; my peace I give you. Do not let your hearts be troubled.", "ref": "John 14:27"},
+            {"text": "I am the way and the truth and the life.", "ref": "John 14:6"},
+            {"text": "Let the little children come to me, and do not hinder them.", "ref": "Matthew 19:14"},
+            {"text": "Love your neighbor as yourself.", "ref": "Mark 12:31"},
+            {"text": "Blessed are the peacemakers, for they will be called children of God.", "ref": "Matthew 5:9"},
+            {"text": "Do not worry about tomorrow, for tomorrow will worry about itself.", "ref": "Matthew 6:34"},
+            {"text": "Ask and it will be given to you; seek and you will find.", "ref": "Matthew 7:7"},
+            {"text": "I am the light of the world. Whoever follows me will never walk in darkness.", "ref": "John 8:12"},
+            {"text": "My peace is the only peace that truly satisfies your soul.", "ref": "John 14:27"},
+            {"text": "You are the light of the world. Let your light shine before others.", "ref": "Matthew 5:14-16"},
+            {"text": "Forgive, and you will be forgiven.", "ref": "Luke 6:37"},
+            {"text": "I have come that they may have life, and have it to the full.", "ref": "John 10:10"},
+            {"text": "Your faith has healed you. Go in peace.", "ref": "Mark 5:34"},
+            {"text": "Do not be afraid; just believe.", "ref": "Mark 5:36"},
+            {"text": "Everything is possible for one who believes.", "ref": "Mark 9:23"},
+            {"text": "Love your enemies and pray for those who persecute you.", "ref": "Matthew 5:44"},
+            {"text": "The greatest among you will be your servant.", "ref": "Matthew 23:11"},
+            {"text": "Be perfect, therefore, as your heavenly Father is perfect.", "ref": "Matthew 5:48"},
+            {"text": "Store up for yourselves treasures in heaven.", "ref": "Matthew 6:20"},
+            {"text": "No one can serve two masters.", "ref": "Matthew 6:24"},
+            {"text": "Do not judge, or you too will be judged.", "ref": "Matthew 7:1"},
+            {"text": "Come with me by yourselves to a quiet place and get some rest.", "ref": "Mark 6:31"},
+            {"text": "Daughter, your faith has healed you. Go in peace.", "ref": "Luke 8:48"},
+            {"text": "Get up, your faith has made you well.", "ref": "Luke 17:19"},
+            {"text": "Receive my love today and let it change everything about you.", "ref": "John 15:9"},
+            {"text": "You didn't choose me, I chose you. I appointed you to bear lasting fruit.", "ref": "John 15:16"},
+            {"text": "In this world you will have trouble. But take heart! I have overcome the world.", "ref": "John 16:33"},
+            {"text": "I pray for them. I am not praying for the world, but for those you have given me.", "ref": "John 17:9"},
+            {"text": "Father, forgive them, for they do not know what they are doing.", "ref": "Luke 23:34"},
+            {"text": "Today you will be with me in paradise.", "ref": "Luke 23:43"},
+            {"text": "It is finished.", "ref": "John 19:30"},
+            {"text": "Peace be with you! As the Father has sent me, I am sending you.", "ref": "John 20:21"},
+            {"text": "Feed my lambs. Take care of my sheep.", "ref": "John 21:15-16"},
+            {"text": "Follow me, and I will make you fishers of men.", "ref": "Matthew 4:19"},
+            {"text": "Blessed are the poor in spirit, for theirs is the kingdom of heaven.", "ref": "Matthew 5:3"},
+            {"text": "Blessed are those who mourn, for they will be comforted.", "ref": "Matthew 5:4"},
+            {"text": "Blessed are the meek, for they will inherit the earth.", "ref": "Matthew 5:5"},
+            {"text": "Blessed are those who hunger and thirst for righteousness, for they will be filled.", "ref": "Matthew 5:6"},
+            {"text": "Blessed are the merciful, for they will be shown mercy.", "ref": "Matthew 5:7"},
+            {"text": "Blessed are the pure in heart, for they will see God.", "ref": "Matthew 5:8"},
+            {"text": "Blessed are those who are persecuted because of righteousness, for theirs is the kingdom of heaven.", "ref": "Matthew 5:10"},
+            {"text": "You are the salt of the earth.", "ref": "Matthew 5:13"},
+            {"text": "Let your light shine before others, that they may see your good deeds.", "ref": "Matthew 5:16"},
+            {"text": "I tell you, love your enemies and pray for those who persecute you.", "ref": "Matthew 5:44"},
+            {"text": "Be careful not to practice your righteousness in front of others to be seen by them.", "ref": "Matthew 6:1"},
+            {"text": "When you pray, go into your room, close the door and pray to your Father.", "ref": "Matthew 6:6"},
+            {"text": "This, then, is how you should pray: 'Our Father in heaven, hallowed be your name.'", "ref": "Matthew 6:9"},
+            {"text": "For if you forgive other people when they sin against you, your heavenly Father will also forgive you.", "ref": "Matthew 6:14"},
+            {"text": "Do not store up for yourselves treasures on earth, where moths and vermin destroy.", "ref": "Matthew 6:19"},
+            {"text": "The eye is the lamp of the body. If your eyes are healthy, your whole body will be full of light.", "ref": "Matthew 6:22"},
+            {"text": "Therefore I tell you, do not worry about your life.", "ref": "Matthew 6:25"},
+            {"text": "Seek first his kingdom and his righteousness, and all these things will be given to you.", "ref": "Matthew 6:33"},
+            {"text": "Do not judge, or you too will be judged.", "ref": "Matthew 7:1"},
+            {"text": "Ask and it will be given to you; seek and you will find; knock and the door will be opened to you.", "ref": "Matthew 7:7"},
+            {"text": "So in everything, do to others what you would have them do to you.", "ref": "Matthew 7:12"},
+            {"text": "Enter through the narrow gate. For wide is the gate and broad is the road that leads to destruction.", "ref": "Matthew 7:13"},
+            {"text": "Watch out for false prophets. They come to you in sheep's clothing, but inwardly they are ferocious wolves.", "ref": "Matthew 7:15"},
+            {"text": "Everyone who hears these words of mine and puts them into practice is like a wise man who built his house on the rock.", "ref": "Matthew 7:24"},
+            {"text": "Take heart, daughter, your faith has healed you.", "ref": "Matthew 9:22"},
+            {"text": "The harvest is plentiful but the workers are few.", "ref": "Matthew 9:37"},
+            {"text": "I am sending you out like sheep among wolves. Therefore be as shrewd as snakes and as innocent as doves.", "ref": "Matthew 10:16"},
+            {"text": "Do not be afraid of those who kill the body but cannot kill the soul.", "ref": "Matthew 10:28"},
+            {"text": "Whoever finds their life will lose it, and whoever loses their life for my sake will find it.", "ref": "Matthew 10:39"},
+            {"text": "Come to me, all you who are weary and burdened, and I will give you rest.", "ref": "Matthew 11:28"},
+            {"text": "For my yoke is easy and my burden is light.", "ref": "Matthew 11:30"},
+            {"text": "The Son of Man is Lord of the Sabbath.", "ref": "Matthew 12:8"},
+            {"text": "A tree is recognized by its fruit.", "ref": "Matthew 12:33"},
+            {"text": "Whoever does the will of my Father in heaven is my brother and sister and mother.", "ref": "Matthew 12:50"},
+            {"text": "The kingdom of heaven is like treasure hidden in a field.", "ref": "Matthew 13:44"},
+            {"text": "Blessed are your eyes because they see, and your ears because they hear.", "ref": "Matthew 13:16"},
+            {"text": "If you have faith as small as a mustard seed, nothing will be impossible for you.", "ref": "Matthew 17:20"},
+            {"text": "Unless you change and become like little children, you will never enter the kingdom of heaven.", "ref": "Matthew 18:3"},
+            {"text": "Where two or three gather in my name, there am I with them.", "ref": "Matthew 18:20"},
+            {"text": "Be merciful, just as your Father is merciful.", "ref": "Luke 6:36"},
+            {"text": "Give, and it will be given to you.", "ref": "Luke 6:38"},
+            {"text": "Why do you call me, 'Lord, Lord,' and do not do what I say?", "ref": "Luke 6:46"},
+            {"text": "Your sins are forgiven.", "ref": "Luke 7:48"},
+            {"text": "Go, your faith has saved you.", "ref": "Luke 7:50"},
+            {"text": "Take care! What you have heard me say, be careful how you listen.", "ref": "Luke 8:18"},
+            {"text": "Whoever wants to save their life will lose it, but whoever loses their life for me will save it.", "ref": "Luke 9:24"},
+            {"text": "No one who puts a hand to the plow and looks back is fit for service in the kingdom of God.", "ref": "Luke 9:62"},
+            {"text": "Love the Lord your God with all your heart and with all your soul and with all your strength and with all your mind.", "ref": "Luke 10:27"},
+            {"text": "Go and do likewise.", "ref": "Luke 10:37"},
+            {"text": "One thing is needed. Mary has chosen what is better.", "ref": "Luke 10:42"},
+            {"text": "Ask and it will be given to you; seek and you will find; knock and the door will be opened.", "ref": "Luke 11:9"},
+            {"text": "Be on your guard against the yeast of the Pharisees, which is hypocrisy.", "ref": "Luke 12:1"},
+            {"text": "Do not be afraid, little flock, for your Father has been pleased to give you the kingdom.", "ref": "Luke 12:32"},
+            {"text": "Make a tree good and its fruit will be good, or make a tree bad and its fruit will be bad.", "ref": "Luke 12:43"},
+            {"text": "I have come to bring fire on the earth, and how I wish it were already kindled!", "ref": "Luke 12:49"},
+            {"text": "Unless you repent, you too will all perish.", "ref": "Luke 13:3"},
+            {"text": "Take the lowest place, so that when your host comes, he will say to you, 'Friend, move up to a better place.'", "ref": "Luke 14:10"},
+            {"text": "For everyone who exalts himself will be humbled, and he who humbles himself will be exalted.", "ref": "Luke 14:11"},
+            {"text": "Rejoice with me; I have found my lost sheep.", "ref": "Luke 15:6"},
+            {"text": "You cannot serve both God and money.", "ref": "Luke 16:13"},
+            {"text": "If you have faith as small as a mustard seed, you can say to this mulberry tree, 'Be uprooted and planted in the sea,' and it will obey you.", "ref": "Luke 17:6"},
+            {"text": "Whoever tries to keep their life will lose it, and whoever loses their life will preserve it.", "ref": "Luke 17:33"},
+            {"text": "Always pray and not give up.", "ref": "Luke 18:1"},
+            {"text": "What is impossible with man is possible with God.", "ref": "Luke 18:27"},
+            {"text": "Zacchaeus, come down immediately. I must stay at your house today.", "ref": "Luke 19:5"},
+            {"text": "The Son of Man came to seek and to save the lost.", "ref": "Luke 19:10"},
+            {"text": "Render to Caesar the things that are Caesar's, and to God the things that are God's.", "ref": "Luke 20:25"},
+            {"text": "Stand firm, and you will win life.", "ref": "Luke 21:19"},
+            {"text": "I have prayed for you, Simon, that your faith may not fail.", "ref": "Luke 22:32"},
+            {"text": "Sit here while I pray.", "ref": "Mark 14:32"},
+            {"text": "The Spirit is willing, but the flesh is weak.", "ref": "Mark 14:38"},
+            {"text": "I tell you the truth, today you will be with me in paradise.", "ref": "Luke 23:43"}
+          ]
+EOF
+          
+          TOTAL=$(jq '. | length' bible_verses.json)
+          IDX=$((RANDOM % TOTAL))
+          TEXT=$(jq -r ".[$IDX].text" bible_verses.json)
+          REF=$(jq -r ".[$IDX].ref" bible_verses.json)
+          
+          echo "bible_text=$TEXT" >> "$GITHUB_OUTPUT"
+          echo "bible_ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Selected: $TEXT ($REF)"
+
+      - name: create-word-timing-script
+        id: timing
+        timeout-minutes: 1
+        run: |
+          VIDEO_DUR="${{ steps.vid.outputs.clip }}"
+          BIBLE_TEXT="${{ steps.bible.outputs.bible_text }}"
+          BIBLE_REF="${{ steps.bible.outputs.bible_ref }}"
+          
+          # Calculate timing - text appears over 12 seconds, starts at 1 second
+          TEXT_START=1.5
+          TEXT_DURATION=11
+          WORD_ANIMATION_DUR=10
+          
+          # Create Python script to generate word-by-word timing
+          cat > generate_subtitle.py << 'PYEOF'
+          import json
+          import sys
+          
+          text = sys.argv[1]
+          video_dur = float(sys.argv[2])
+          text_start = float(sys.argv[3])
+          text_duration = float(sys.argv[4])
+          word_anim_dur = float(sys.argv[5])
+          
+          words = text.split()
+          if not words:
+              sys.exit(1)
+          
+          # Calculate time per word
+          time_per_word = word_anim_dur / len(words)
+          
+          # Generate ASS subtitle format with fade-in for each word
+          ass_lines = []
+          ass_lines.append("[Script Info]")
+          ass_lines.append("Title: Bible Verse")
+          ass_lines.append("ScriptType: v4.00+")
+          ass_lines.append("WrapStyle: 0")
+          ass_lines.append("PlayResX: 1920")
+          ass_lines.append("PlayResY: 1080")
+          ass_lines.append("ScaledBorderAndShadow: yes")
+          ass_lines.append("")
+          ass_lines.append("[V4+ Styles]")
+          ass_lines.append("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding")
+          ass_lines.append("Style: BibleVerse,Noto Sans CJK SC,72,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,3,0,5,30,30,60,1")
+          ass_lines.append("")
+          ass_lines.append("[Events]")
+          ass_lines.append("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text")
+          
+          # Build word-by-word display
+          current_text = ""
+          for i, word in enumerate(words):
+              start_time = text_start + (i * time_per_word)
+              end_time = video_dur - 0.5
+              
+              if i < len(words) - 1:
+                  next_start = text_start + ((i + 1) * time_per_word)
+                  # Word fades in and stays visible
+                  start_formatted = f"{int(start_time//3600):01d}:{int((start_time%3600)//60):02d}:{start_time%60:05.2f}"
+                  end_formatted = f"{int(end_time//3600):01d}:{int((end_time%3600)//60):02d}:{end_time%60:05.2f}"
+                  
+                  if current_text:
+                      current_text += " " + word
+                  else:
+                      current_text = word
+                  
+                  # Display the accumulated text
+                  display_text = current_text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+                  ass_lines.append(f"Dialogue: 0,{start_formatted},{end_formatted},BibleVerse,,0,0,0,,{{\\fad(300,0)}}{display_text}")
+              
+              else:  # Last word
+                  start_formatted = f"{int(start_time//3600):01d}:{int((start_time%3600)//60):02d}:{start_time%60:05.2f}"
+                  end_formatted = f"{int(end_time//3600):01d}:{int((end_time%3600)//60):02d}:{end_time%60:05.2f}"
+                  
+                  if current_text:
+                      current_text += " " + word
+                  else:
+                      current_text = word
+                  
+                  display_text = current_text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+                  ass_lines.append(f"Dialogue: 0,{start_formatted},{end_formatted},BibleVerse,,0,0,0,,{{\\fad(300,0)}}{display_text}")
+          
+          # Add Bible reference at the end
+          ref_text = f"— {sys.argv[6]} —"
+          ref_time = video_dur - 3.5
+          start_formatted = f"{int(ref_time//3600):01d}:{int((ref_time%3600)//60):02d}:{ref_time%60:05.2f}"
+          end_formatted = f"{int(video_dur//3600):01d}:{int((video_dur%3600)//60):02d}:{video_dur%60:05.2f}"
+          ass_lines.append(f"Dialogue: 0,{start_formatted},{end_formatted},BibleVerse,,0,0,0,,{{\\fad(500,0)\\fs56}}{ref_text}")
+          
+          # Write to file
+          with open('subtitle.ass', 'w') as f:
+              f.write('\n'.join(ass_lines))
+          
+          print(f"Generated subtitle with {len(words)} words")
+PYEOF
+          
+          python3 generate_subtitle.py "$BIBLE_TEXT" "$VIDEO_DUR" "$TEXT_START" "$TEXT_DURATION" "$WORD_ANIMATION_DUR" "$BIBLE_REF"
+
+      - name: process-video
+        timeout-minutes: 6
+        run: |
+          URL="${{ steps.vid.outputs.video_url }}"
+          START="${{ steps.vid.outputs.start }}"
+          DUR="${{ steps.vid.outputs.clip }}"
+          MUSIC_FILE="${{ steps.music.outputs.music_file }}"
+          
+          FETCH=$(echo "$DUR + 5" | bc)
+          FADEOUT=$(echo "$DUR - 1.5" | bc)
+          
+          echo "Downloading nature video..."
+          # Download video WITHOUT audio (-an flag)
+          timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -an -c:v copy source_video.mp4
+          
+          # Get music duration and pick random starting point
+          MDUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$MUSIC_FILE" 2>/dev/null | cut -d. -f1)
+          MMAX=$((MDUR - 10))
+          [ "$MMAX" -le 5 ] && MMAX=5
+          MSTART=$((RANDOM % MMAX))
+          
+          # Extract music clip (only, no video)
+          timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
+          
+          # Apply heavy blur and overlay subtitles
+          # Heavy blur: boxblur=20:5 creates strong blur effect
+          # Add fade in/out and subtitles
+          timeout 180 ffmpeg -hide_banner -loglevel error -y \
+            -i source_video.mp4 \
+            -i music_clip.mp3 \
+            -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20:5,setsar=1,fade=t=in:st=0:d=1.5,fade=t=out:st=${FADEOUT}:d=1.5,ass=subtitle.ass" \
+            -af "[1:a]volume=1.0,afade=t=in:st=0:d=1.5,afade=t=out:st=${FADEOUT}:d=1.5[aout]" \
+            -map 0:v -map "[aout]" \
+            -t "$DUR" \
+            -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k \
+            -movflags +faststart \
+            -pix_fmt yuv420p \
+            final.mp4
+          
+          ls -lh final.mp4
+          
+          # Verify video has audio track
+          HAS_AUDIO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 final.mp4 2>/dev/null || echo "")
+          if [ -z "$HAS_AUDIO" ]; then
+            echo "Warning: Final video has no audio track"
+            exit 1
+          fi
+          
+          echo "Video processing complete with heavy blur and word-by-word text animation"
+
+      - name: post-to-facebook
+        timeout-minutes: 3
+        env:
+          PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          BIBLE_TEXT: ${{ steps.bible.outputs.bible_text }}
+          BIBLE_REF: ${{ steps.bible.outputs.bible_ref }}
+        run: |
+          set -e
+          FILE="final.mp4"
+          SIZE=$(stat -c%s "$FILE")
+          API="https://graph.facebook.com/v19.0"
+          
+          # Create engaging caption for social media
+          CAPTION="${BIBLE_TEXT} — ${BIBLE_REF}
+          
+          💭 Let this word sink into your heart today.
+          
+          👉 Follow for daily encouragement and God's truth.
+          🙏 Share this with someone who needs to hear it.
+          ❤️ Like if this blessed you.
+          
+          #GodsWord #BibleVerse #JesusLovesYou #DailyEncouragement #Faith #Hope #Peace #GospelTruth"
+          
+          # URL encode the caption
+          ENCODED_CAPTION=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$CAPTION")
+          
+          for attempt in 1 2 3; do
+            echo "Facebook post attempt $attempt..."
+            INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
+            VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
+            
+            if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
+              INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"file_size\":${SIZE},\"access_token\":\"${PAGE_TOKEN}\"}") || true
+              SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
+              VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
+              S_OFF=$(echo "$INIT" | jq -r '.start_offset' 2>/dev/null)
+              
+              if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
+                echo "Session failed attempt $attempt: $INIT"
+                sleep 10
+                continue
+              fi
+              
+              timeout 90 curl -sf -X POST "${API}/${PAGE_ID}/videos" -F "upload_phase=transfer" -F "upload_session_id=${SESSION}" -F "start_offset=${S_OFF}" -F "video_file_chunk=@${FILE};type=video/mp4" -F "access_token=${PAGE_TOKEN}" > /dev/null || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"upload_session_id\":\"${SESSION}\",\"description\":\"${ENCODED_CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            else
+              UPLOAD_URL=$(echo "$INIT" | jq -r '.upload_url' 2>/dev/null)
+              timeout 90 curl -sf -X POST "$UPLOAD_URL" -H "Authorization: OAuth ${PAGE_TOKEN}" -H "offset: 0" -H "file_size: ${SIZE}" --data-binary "@${FILE}" > /dev/null || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"video_id\":\"${VID_ID}\",\"description\":\"${ENCODED_CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            fi
+            
+            OK=$(echo "$FINISH" | jq -r '.success // .id // empty' 2>/dev/null)
+            if [ -n "$OK" ]; then
+              echo "✅ Posted to Facebook! Verse: ${BIBLE_TEXT} (${BIBLE_REF})"
+              exit 0
+            fi
+            
+            echo "Post failed attempt $attempt: $FINISH"
+            sleep 10
+          done
+          
+          echo "❌ All post attempts failed"
+          exit 1

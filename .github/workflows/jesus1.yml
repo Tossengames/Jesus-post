@@ -1,0 +1,171 @@
+name: ✝️ Post Gospel Word to Facebook
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "Recording duration in seconds"
+        required: false
+        default: "16"
+  schedule:
+    - cron: "0 8 * * *"
+
+jobs:
+  record:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache apt
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-ubuntu22-gospel-v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            xvfb chromium-browser libnss3 libgbm1 libasound2 \
+            ffmpeg pulseaudio x11-utils bc
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.wdm
+          key: pip-wdm-gospel-v1
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install selenium webdriver-manager requests
+
+      - name: Set timestamp
+        run: echo "TS=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
+
+      - name: Start display and audio
+        run: |
+          Xvfb :99 -screen 0 390x844x24 -ac &
+          pulseaudio --start --exit-idle-time=-1 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          sleep 3
+
+      - name: Open browser
+        run: |
+          HTML_PATH="$(pwd)/gospel.html"
+          chromium-browser \
+            --display=:99 \
+            --no-sandbox \
+            --disable-dev-shm-usage \
+            --disable-gpu \
+            --window-size=390,844 \
+            --window-position=0,0 \
+            --force-device-scale-factor=1 \
+            --autoplay-policy=no-user-gesture-required \
+            --no-first-run \
+            --disable-infobars \
+            --disable-notifications \
+            --disable-translate \
+            --kiosk \
+            "file://${HTML_PATH}" &
+          echo "BROWSER_PID=$!" >> $GITHUB_ENV
+          echo "HTML_PATH=${HTML_PATH}" >> $GITHUB_ENV
+          sleep 5
+
+      - name: Record screen
+        run: |
+          DURATION=${{ github.event.inputs.duration || '16' }}
+          TS=${{ env.TS }}
+          RAW_FILE="/tmp/gospel_${TS}_raw.mp4"
+          FINAL_FILE="/tmp/gospel_${TS}.mp4"
+          echo "RAW_FILE=${RAW_FILE}" >> $GITHUB_ENV
+          echo "FINAL_FILE=${FINAL_FILE}" >> $GITHUB_ENV
+          echo "DURATION=${DURATION}" >> $GITHUB_ENV
+
+          # Capture Xvfb display at 390x844
+          ffmpeg -y \
+            -f x11grab \
+            -video_size 390x844 \
+            -framerate 30 \
+            -i :99+0,0 \
+            -t ${DURATION} \
+            -c:v libx264 \
+            -preset slow \
+            -crf 14 \
+            -pix_fmt yuv420p \
+            "${RAW_FILE}"
+
+          echo "Raw: $(du -h ${RAW_FILE} | cut -f1)"
+
+      - name: Apply fade in/out
+        run: |
+          FADE_OUT=$(echo "${{ env.DURATION }} - 1.5" | bc)
+          ffmpeg -y \
+            -i "${{ env.RAW_FILE }}" \
+            -vf "fade=t=in:st=0:d=1.2,fade=t=out:st=${FADE_OUT}:d=1.5" \
+            -c:v libx264 -preset slow -crf 14 \
+            -pix_fmt yuv420p \
+            -movflags +faststart \
+            "${{ env.FINAL_FILE }}"
+          echo "Final: $(du -h ${{ env.FINAL_FILE }} | cut -f1)"
+          rm -f "${{ env.RAW_FILE }}"
+
+      - name: Post to Facebook
+        run: |
+          python3 << 'PYEOF'
+          import os, random, requests
+
+          final_file = os.environ["FINAL_FILE"]
+          fb_token   = os.environ["FB_PAGE_TOKEN"]
+          fb_page_id = os.environ["FB_PAGE_ID"]
+
+          if not os.path.exists(final_file) or os.path.getsize(final_file) < 50000:
+            raise RuntimeError(f"Video missing or too small: {final_file}")
+
+          captions = [
+            "✝️ A word for someone watching this right now 🙏 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "🙏 God has not forgotten about you ✝️ #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "✝️ Someone needs to hear this today 💛 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "🌟 Your breakthrough is closer than you think 🙏 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "✝️ His grace is sufficient for you today 💫 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "🙏 Stop and receive this word right now ✝️ #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "✝️ God is speaking to you through this 🌟 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "💛 You are loved beyond what you can imagine ✝️ #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "🌟 This found you for a reason 🙏 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "✝️ Share this with someone who needs it today 💛 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+          ]
+
+          print(f"Posting: {os.path.getsize(final_file)/1024/1024:.1f} MB")
+          with open(final_file, 'rb') as f:
+            resp = requests.post(
+              f"https://graph-video.facebook.com/v18.0/{fb_page_id}/videos",
+              data={"description": random.choice(captions), "access_token": fb_token},
+              files={"source": (os.path.basename(final_file), f, "video/mp4")}
+            )
+
+          print(f"Status: {resp.status_code}")
+          print(resp.text)
+          if resp.status_code == 200:
+            print(f"Posted! ID: {resp.json().get('id')}")
+          else:
+            raise RuntimeError(f"Post failed: {resp.text}")
+
+          os.remove(final_file)
+          PYEOF
+        env:
+          FINAL_FILE:    ${{ env.FINAL_FILE }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID:    ${{ secrets.FB_PAGE_ID }}
+
+      - name: Cleanup
+        if: always()
+        run: |
+          kill ${{ env.BROWSER_PID }} 2>/dev/null || true
+          rm -f "${{ env.RAW_FILE }}" "${{ env.FINAL_FILE }}" 2>/dev/null || true

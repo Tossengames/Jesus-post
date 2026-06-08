@@ -3,8 +3,8 @@ name: gospel-encouragement-post
 "on":
   workflow_dispatch:
     inputs:
-      bible_text:
-        description: "Custom Bible verse (leave empty for random)"
+      caption:
+        description: "Post caption (leave empty for random)"
         required: false
         default: ""
   schedule:
@@ -13,7 +13,7 @@ name: gospel-encouragement-post
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
 
     steps:
       - name: checkout
@@ -23,25 +23,25 @@ jobs:
         timeout-minutes: 3
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg bc jq python3 fonts-liberation
-          sudo apt-get install -y fonts-noto-cjk
+          sudo apt-get install -y ffmpeg bc jq python3
 
-      - name: find-nature-video
+      - name: find-video
         id: vid
         timeout-minutes: 3
         env:
           PIXABAY_KEY: "50973339-3e27fd59ddfd9c68378e78753"
         run: |
           set -e
-          CLIP=15
+          CLIP=10
           SKIP_HEAD=15
           SKIP_TAIL=10
           MIN_DUR=$((SKIP_HEAD + CLIP + SKIP_TAIL))
           VIDEO_URL=""
           VALID_VIDEO=0
 
-          NATURE_TERMS="nature landscape sky clouds forest mountain ocean sunset lake river field meadow stars aurora horizon peaceful calm scenic beautiful"
-          IFS=' ' read -ra TERM_ARR <<< "$NATURE_TERMS"
+          # CHANGE 1: Removed animals, now only nature terms
+          TERMS="nature| landscape| sky| clouds| forest| mountain| ocean| sunset| lake| river| stars| peaceful| scenic"
+          IFS='|' read -ra TERM_ARR <<< "$TERMS"
 
           for TERM in $(printf "%s\n" "${TERM_ARR[@]}" | shuf); do
             [ "$VALID_VIDEO" -eq 1 ] && break
@@ -77,7 +77,7 @@ jobs:
               echo "video_url=$VIDEO_URL" >> "$GITHUB_OUTPUT"
               echo "start=$START" >> "$GITHUB_OUTPUT"
               echo "clip=$CLIP" >> "$GITHUB_OUTPUT"
-              echo "Found valid nature video: start=${START}s dur=${DUR}s"
+              echo "Found valid video: start=${START}s dur=${DUR}s"
             done
           done
 
@@ -90,363 +90,195 @@ jobs:
         id: music
         timeout-minutes: 1
         run: |
-          mkdir -p bgmusic
           TRACKS=(bgmusic/*.mp3 bgmusic/*.wav bgmusic/*.m4a bgmusic/*.mp4 bgmusic/*.aac bgmusic/*.ogg bgmusic/*.flac)
           VALID=()
           for t in "${TRACKS[@]}"; do
             [ -f "$t" ] && VALID+=("$t")
           done
           if [ ${#VALID[@]} -eq 0 ]; then
-            echo "No music files found, creating silent audio"
-            ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -q:a 9 -acodec libmp3lame bgmusic/silent.mp3 -y
-            echo "music_file=bgmusic/silent.mp3" >> "$GITHUB_OUTPUT"
-          else
-            IDX=$((RANDOM % ${#VALID[@]}))
-            PICKED="${VALID[$IDX]}"
-            echo "music_file=$PICKED" >> "$GITHUB_OUTPUT"
-            echo "Selected: $PICKED"
+            echo "No music files found"
+            exit 1
           fi
+          IDX=$((RANDOM % ${#VALID[@]}))
+          PICKED="${VALID[$IDX]}"
+          echo "music_file=$PICKED" >> "$GITHUB_OUTPUT"
+          echo "Selected: $PICKED"
 
-      - name: generate-bible-text
-        id: bible
+      - name: pick-bible-verse
+        id: verse
         timeout-minutes: 1
         run: |
-          INPUT_TEXT="${{ github.event.inputs.bible_text }}"
-          if [ -n "$INPUT_TEXT" ]; then
-            echo "bible_text=$INPUT_TEXT" >> "$GITHUB_OUTPUT"
-            echo "bible_ref=Custom" >> "$GITHUB_OUTPUT"
+          INPUT_CAPTION="${{ github.event.inputs.caption }}"
+          if [ -n "$INPUT_CAPTION" ]; then
+            echo "caption=$INPUT_CAPTION" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          
-          cat > bible_verses.txt << 'EOF'
-          Come to me, all you who are weary and burdened, and I will give you rest.|Matthew 11:28
-          I am with you always, to the very end of the age.|Matthew 28:20
-          Do not let your hearts be troubled. Trust in God; trust also in me.|John 14:1
-          Peace I leave with you; my peace I give you. Do not let your hearts be troubled.|John 14:27
-          I am the way and the truth and the life.|John 14:6
-          Let the little children come to me, and do not hinder them.|Matthew 19:14
-          Love your neighbor as yourself.|Mark 12:31
-          Blessed are the peacemakers, for they will be called children of God.|Matthew 5:9
-          Do not worry about tomorrow, for tomorrow will worry about itself.|Matthew 6:34
-          Ask and it will be given to you; seek and you will find.|Matthew 7:7
-          I am the light of the world. Whoever follows me will never walk in darkness.|John 8:12
-          You are the light of the world. Let your light shine before others.|Matthew 5:14-16
-          Forgive, and you will be forgiven.|Luke 6:37
-          I have come that they may have life, and have it to the full.|John 10:10
-          Your faith has healed you. Go in peace.|Mark 5:34
-          Do not be afraid; just believe.|Mark 5:36
-          Everything is possible for one who believes.|Mark 9:23
-          Love your enemies and pray for those who persecute you.|Matthew 5:44
-          The greatest among you will be your servant.|Matthew 23:11
-          Store up for yourselves treasures in heaven.|Matthew 6:20
-          No one can serve two masters.|Matthew 6:24
-          Do not judge, or you too will be judged.|Matthew 7:1
-          Come with me by yourselves to a quiet place and get some rest.|Mark 6:31
-          Get up, your faith has made you well.|Luke 17:19
-          In this world you will have trouble. But take heart! I have overcome the world.|John 16:33
-          Father, forgive them, for they do not know what they are doing.|Luke 23:34
-          Today you will be with me in paradise.|Luke 23:43
-          Peace be with you! As the Father has sent me, I am sending you.|John 20:21
-          Follow me, and I will make you fishers of men.|Matthew 4:19
-          Blessed are the poor in spirit, for theirs is the kingdom of heaven.|Matthew 5:3
-          Blessed are those who mourn, for they will be comforted.|Matthew 5:4
-          Blessed are the meek, for they will inherit the earth.|Matthew 5:5
-          Blessed are those who hunger and thirst for righteousness, for they will be filled.|Matthew 5:6
-          Blessed are the merciful, for they will be shown mercy.|Matthew 5:7
-          Blessed are the pure in heart, for they will see God.|Matthew 5:8
-          You are the salt of the earth.|Matthew 5:13
-          When you pray, go into your room, close the door and pray to your Father.|Matthew 6:6
-          For if you forgive other people when they sin against you, your heavenly Father will also forgive you.|Matthew 6:14
-          Seek first his kingdom and his righteousness, and all these things will be given to you.|Matthew 6:33
-          Take heart, daughter, your faith has healed you.|Matthew 9:22
-          The harvest is plentiful but the workers are few.|Matthew 9:37
-          Do not be afraid of those who kill the body but cannot kill the soul.|Matthew 10:28
-          Whoever finds their life will lose it, but whoever loses their life for my sake will find it.|Matthew 10:39
-          For my yoke is easy and my burden is light.|Matthew 11:30
-          If you have faith as small as a mustard seed, nothing will be impossible for you.|Matthew 17:20
-          Unless you change and become like little children, you will never enter the kingdom of heaven.|Matthew 18:3
-          Where two or three gather in my name, there am I with them.|Matthew 18:20
-          Be merciful, just as your Father is merciful.|Luke 6:36
-          Give, and it will be given to you.|Luke 6:38
-          Go, your faith has saved you.|Luke 7:50
-          Love the Lord your God with all your heart and with all your soul and with all your strength and with all your mind.|Luke 10:27
-          Do not be afraid, little flock, for your Father has been pleased to give you the kingdom.|Luke 12:32
-          Unless you repent, you too will all perish.|Luke 13:3
-          Rejoice with me; I have found my lost sheep.|Luke 15:6
-          You cannot serve both God and money.|Luke 16:13
-          Always pray and not give up.|Luke 18:1
-          What is impossible with man is possible with God.|Luke 18:27
-          The Son of Man came to seek and to save the lost.|Luke 19:10
-          Stand firm, and you will win life.|Luke 21:19
-          The Spirit is willing, but the flesh is weak.|Mark 14:38
-          I tell you the truth, today you will be with me in paradise.|Luke 23:43
-          My peace is the only peace that truly satisfies your soul.|John 14:27
-          Receive my love today and let it change everything about you.|John 15:9
-          You didn't choose me, I chose you. I appointed you to bear lasting fruit.|John 15:16
-          I pray for them. I am not praying for the world, but for those you have given me.|John 17:9
-          Feed my lambs. Take care of my sheep.|John 21:15-16
-          Let the peace of Christ rule in your hearts.|Colossians 3:15
-          I can do all things through Christ who strengthens me.|Philippians 4:13
-          Be strong and courageous. Do not be afraid; do not be discouraged.|Joshua 1:9
-          Trust in the Lord with all your heart and lean not on your own understanding.|Proverbs 3:5-6
-          The Lord is my shepherd; I shall not want.|Psalm 23:1
-          This is the day the Lord has made; let us rejoice and be glad in it.|Psalm 118:24
-          Cast your cares on the Lord and he will sustain you.|Psalm 55:22
-          I sought the Lord, and he answered me; he delivered me from all my fears.|Psalm 34:4
-          Be still, and know that I am God.|Psalm 46:10
-          The Lord watches over you; he is your shade at your right hand.|Psalm 121:5
-          Your word is a lamp to my feet and a light to my path.|Psalm 119:105
-          Give thanks to the Lord, for he is good; his love endures forever.|Psalm 118:1
-          The Lord gives strength to his people; the Lord blesses his people with peace.|Psalm 29:11
-          Hope in the Lord; for with the Lord there is unfailing love.|Psalm 130:7
-          The Lord is close to the brokenhearted and saves those who are crushed in spirit.|Psalm 34:18
-          I will strengthen you and help you; I will uphold you with my righteous right hand.|Isaiah 41:10
-          You will keep in perfect peace those whose minds are steadfast, because they trust in you.|Isaiah 26:3
-          But those who hope in the Lord will renew their strength.|Isaiah 40:31
-          For I know the plans I have for you, plans to prosper you and not to harm you.|Jeremiah 29:11
-          I have loved you with an everlasting love.|Jeremiah 31:3
-          Call to me and I will answer you and tell you great and unsearchable things you do not know.|Jeremiah 33:3
-          My grace is sufficient for you, for my power is made perfect in weakness.|2 Corinthians 12:9
-          Do not conform to the pattern of this world, but be transformed by the renewing of your mind.|Romans 12:2
-          We know that in all things God works for the good of those who love him.|Romans 8:28
-          Nothing can separate us from the love of God that is in Christ Jesus our Lord.|Romans 8:39
-          Faith is confidence in what we hope for and assurance about what we do not see.|Hebrews 11:1
-          Let us not become weary in doing good, for at the proper time we will reap a harvest.|Galatians 6:9
-          Be kind and compassionate to one another, forgiving each other.|Ephesians 4:32
-          I have been crucified with Christ and I no longer live, but Christ lives in me.|Galatians 2:20
-          You are the temple of the Holy Spirit.|1 Corinthians 6:19
-          Love is patient, love is kind. It does not envy, it does not boast, it is not proud.|1 Corinthians 13:4
-          And now these three remain: faith, hope and love. But the greatest of these is love.|1 Corinthians 13:13
-          Do everything in love.|1 Corinthians 16:14
-          Be joyful always, pray continually, give thanks in all circumstances.|1 Thessalonians 5:16-18
-          God is love. Whoever lives in love lives in God, and God in them.|1 John 4:16
-          There is no fear in love. But perfect love drives out fear.|1 John 4:18
-          Dear children, let us not love with words or speech but with actions and in truth.|1 John 3:18
-          Every good and perfect gift is from above.|James 1:17
-          Be quick to listen, slow to speak and slow to become angry.|James 1:19
-          Faith without works is dead.|James 2:26
-          Humble yourselves before the Lord, and he will lift you up.|James 4:10
-          Cast all your anxiety on him because he cares for you.|1 Peter 5:7
-          Above all, love each other deeply, because love covers over a multitude of sins.|1 Peter 4:8
-          Grace and peace be yours in abundance.|1 Peter 1:2
-          How great is the love the Father has lavished on us.|1 John 3:1
-          We love because he first loved us.|1 John 4:19
-          The Lord is not slow in keeping his promise, as some understand slowness.|2 Peter 3:9
-          Jesus Christ is the same yesterday and today and forever.|Hebrews 13:8
-          Let the peace of Christ rule in your hearts.|Colossians 3:15
-          Whatever you do, work at it with all your heart, as working for the Lord.|Colossians 3:23
-          Put on the full armor of God, so that you can take your stand against the devil's schemes.|Ephesians 6:11
-          Pray in the Spirit on all occasions with all kinds of prayers and requests.|Ephesians 6:18
-          God is our refuge and strength, an ever-present help in trouble.|Psalm 46:1
-          Create in me a pure heart, O God, and renew a steadfast spirit within me.|Psalm 51:10
-          Praise the Lord, my soul; all my inmost being, praise his holy name.|Psalm 103:1
-          He will cover you with his feathers, and under his wings you will find refuge.|Psalm 91:4
-          You make known to me the path of life; you will fill me with joy in your presence.|Psalm 16:11
-          The heavens declare the glory of God; the skies proclaim the work of his hands.|Psalm 19:1
-          Wait for the Lord; be strong and take heart and wait for the Lord.|Psalm 27:14
-          The Lord is my light and my salvation—whom shall I fear?|Psalm 27:1
-          Shout for joy to the Lord, all the earth.|Psalm 100:1
-          Enter his gates with thanksgiving and his courts with praise.|Psalm 100:4
-          Bless the Lord, O my soul, and forget not all his benefits.|Psalm 103:2
-          Your love, Lord, reaches to the heavens, your faithfulness to the skies.|Psalm 36:5
-          Taste and see that the Lord is good; blessed is the one who takes refuge in him.|Psalm 34:8
-          The Lord is compassionate and gracious, slow to anger, abounding in love.|Psalm 103:8
-          Where can I go from your Spirit? Where can I flee from your presence?|Psalm 139:7
-          I praise you because I am fearfully and wonderfully made.|Psalm 139:14
-          Search me, God, and know my heart; test me and know my anxious thoughts.|Psalm 139:23
-          Let everything that has breath praise the Lord.|Psalm 150:6
-          He will not let your foot slip—he who watches over you will not slumber.|Psalm 121:3
-          Those who sow with tears will reap with songs of joy.|Psalm 126:5
-          Unless the Lord builds the house, the builders labor in vain.|Psalm 127:1
-          Children are a heritage from the Lord.|Psalm 127:3
-          How good and pleasant it is when God's people live together in unity!|Psalm 133:1
-          I lift up my eyes to the mountains—where does my help come from?|Psalm 121:1
-EOF
-          
-          TOTAL=$(wc -l < bible_verses.txt)
-          IDX=$((RANDOM % TOTAL + 1))
-          LINE=$(sed -n "${IDX}p" bible_verses.txt)
-          TEXT=$(echo "$LINE" | cut -d'|' -f1)
-          REF=$(echo "$LINE" | cut -d'|' -f2)
-          
-          echo "bible_text=$TEXT" >> "$GITHUB_OUTPUT"
-          echo "bible_ref=$REF" >> "$GITHUB_OUTPUT"
-          echo "Selected: $TEXT ($REF)"
+          # CHANGE 2: Bible verses instead of hashtag captions
+          VERSES=(
+            "Come to me, all you who are weary and burdened, and I will give you rest. - Matthew 11:28"
+            "I am with you always, to the very end of the age. - Matthew 28:20"
+            "Do not let your hearts be troubled. Trust in God; trust also in me. - John 14:1"
+            "Peace I leave with you; my peace I give you. - John 14:27"
+            "I am the way and the truth and the life. - John 14:6"
+            "Love your neighbor as yourself. - Mark 12:31"
+            "Do not worry about tomorrow, for tomorrow will worry about itself. - Matthew 6:34"
+            "Ask and it will be given to you; seek and you will find. - Matthew 7:7"
+            "I am the light of the world. Whoever follows me will never walk in darkness. - John 8:12"
+            "Your faith has healed you. Go in peace. - Mark 5:34"
+            "Do not be afraid; just believe. - Mark 5:36"
+            "Everything is possible for one who believes. - Mark 9:23"
+            "Love your enemies and pray for those who persecute you. - Matthew 5:44"
+            "In this world you will have trouble. But take heart! I have overcome the world. - John 16:33"
+            "Peace be with you! As the Father has sent me, I am sending you. - John 20:21"
+            "Follow me, and I will make you fishers of men. - Matthew 4:19"
+            "Blessed are the peacemakers, for they will be called children of God. - Matthew 5:9"
+            "You are the light of the world. Let your light shine before others. - Matthew 5:14-16"
+            "Forgive, and you will be forgiven. - Luke 6:37"
+            "I have come that they may have life, and have it to the full. - John 10:10"
+            "My peace is the only peace that truly satisfies your soul. - John 14:27"
+            "Receive my love today and let it change everything about you. - John 15:9"
+            "You didn't choose me, I chose you. - John 15:16"
+            "What is impossible with man is possible with God. - Luke 18:27"
+            "The Son of Man came to seek and to save the lost. - Luke 19:10"
+            "I can do all things through Christ who strengthens me. - Philippians 4:13"
+            "Be strong and courageous. Do not be afraid. - Joshua 1:9"
+            "Trust in the Lord with all your heart. - Proverbs 3:5-6"
+            "The Lord is my shepherd; I shall not want. - Psalm 23:1"
+            "Be still, and know that I am God. - Psalm 46:10"
+            "Your word is a lamp to my feet and a light to my path. - Psalm 119:105"
+            "I will strengthen you and help you. - Isaiah 41:10"
+            "My grace is sufficient for you. - 2 Corinthians 12:9"
+            "Nothing can separate us from the love of God. - Romans 8:39"
+            "Faith is confidence in what we hope for. - Hebrews 11:1"
+            "Be kind and compassionate to one another. - Ephesians 4:32"
+            "Love is patient, love is kind. - 1 Corinthians 13:4"
+            "Be joyful always, pray continually. - 1 Thessalonians 5:16-17"
+            "God is love. Whoever lives in love lives in God. - 1 John 4:16"
+            "There is no fear in love. Perfect love drives out fear. - 1 John 4:18"
+            "Cast all your anxiety on him because he cares for you. - 1 Peter 5:7"
+            "Jesus Christ is the same yesterday and today and forever. - Hebrews 13:8"
+            "Let the peace of Christ rule in your hearts. - Colossians 3:15"
+            "God is our refuge and strength, an ever-present help in trouble. - Psalm 46:1"
+            "The Lord is close to the brokenhearted. - Psalm 34:18"
+            "I sought the Lord, and he answered me. - Psalm 34:4"
+            "Give thanks to the Lord, for he is good. - Psalm 118:1"
+            "Hope in the Lord; for with the Lord there is unfailing love. - Psalm 130:7"
+            "I have loved you with an everlasting love. - Jeremiah 31:3"
+            "Call to me and I will answer you. - Jeremiah 33:3"
+            "Do not conform to the pattern of this world. - Romans 12:2"
+            "We know that in all things God works for the good. - Romans 8:28"
+            "Let us not become weary in doing good. - Galatians 6:9"
+            "I have been crucified with Christ and I no longer live, but Christ lives in me. - Galatians 2:20"
+            "Do everything in love. - 1 Corinthians 16:14"
+            "Every good and perfect gift is from above. - James 1:17"
+            "Humble yourselves before the Lord, and he will lift you up. - James 4:10"
+            "How great is the love the Father has lavished on us. - 1 John 3:1"
+            "We love because he first loved us. - 1 John 4:19"
+            "Whatever you do, work at it with all your heart, as working for the Lord. - Colossians 3:23"
+            "Put on the full armor of God. - Ephesians 6:11"
+            "Create in me a pure heart, O God. - Psalm 51:10"
+            "The heavens declare the glory of God. - Psalm 19:1"
+            "Wait for the Lord; be strong and take heart. - Psalm 27:14"
+            "Taste and see that the Lord is good. - Psalm 34:8"
+            "I praise you because I am fearfully and wonderfully made. - Psalm 139:14"
+            "Let everything that has breath praise the Lord. - Psalm 150:6"
+          )
+          IDX=$((RANDOM % ${#VERSES[@]}))
+          PICKED="${VERSES[$IDX]}"
+          echo "caption=$PICKED" >> "$GITHUB_OUTPUT"
 
-      - name: create-word-timing-script
-        id: timing
+      - name: pick-cta
+        id: cta
         timeout-minutes: 1
         run: |
-          VIDEO_DUR="${{ steps.vid.outputs.clip }}"
-          BIBLE_TEXT="${{ steps.bible.outputs.bible_text }}"
-          BIBLE_REF="${{ steps.bible.outputs.bible_ref }}"
-          
-          cat > generate_subtitle.py << 'PYEOF'
-import json
-import sys
-import math
-
-text = sys.argv[1]
-video_dur = float(sys.argv[2])
-text_start = float(sys.argv[3])
-bible_ref = sys.argv[4]
-
-words = text.split()
-if not words:
-    sys.exit(1)
-
-# Calculate timing - text builds over 10 seconds
-word_anim_dur = min(10.0, video_dur - 3.0)
-time_per_word = word_anim_dur / len(words)
-
-# Create simple SRT file for word-by-word display
-srt_lines = []
-current_idx = 1
-current_display = ""
-
-for i, word in enumerate(words):
-    start_time = text_start + (i * time_per_word)
-    end_time = video_dur - 0.5
-    
-    if current_display:
-        current_display += " " + word
-    else:
-        current_display = word
-    
-    # Format timestamps
-    start_h = int(start_time // 3600)
-    start_m = int((start_time % 3600) // 60)
-    start_s = int(start_time % 60)
-    start_ms = int((start_time % 1) * 1000)
-    
-    end_h = int(end_time // 3600)
-    end_m = int((end_time % 3600) // 60)
-    end_s = int(end_time % 60)
-    end_ms = int((end_time % 1) * 1000)
-    
-    start_str = f"{start_h:01d}:{start_m:02d}:{start_s:02d},{start_ms:03d}"
-    end_str = f"{end_h:01d}:{end_m:02d}:{end_s:02d},{end_ms:03d}"
-    
-    srt_lines.append(str(current_idx))
-    srt_lines.append(f"{start_str} --> {end_str}")
-    srt_lines.append(current_display)
-    srt_lines.append("")
-    current_idx += 1
-
-# Add Bible reference at the end
-ref_time = video_dur - 2.5
-ref_h = int(ref_time // 3600)
-ref_m = int((ref_time % 3600) // 60)
-ref_s = int(ref_time % 60)
-ref_ms = int((ref_time % 1) * 1000)
-ref_str = f"{ref_h:01d}:{ref_m:02d}:{ref_s:02d},{ref_ms:03d}"
-
-srt_lines.append(str(current_idx))
-srt_lines.append(f"{ref_str} --> {end_str}")
-srt_lines.append(f"— {bible_ref} —")
-
-# Write SRT file
-with open('subtitle.srt', 'w') as f:
-    f.write('\n'.join(srt_lines))
-
-print(f"Generated subtitle with {len(words)} words")
-PYEOF
-          
-          python3 generate_subtitle.py "$BIBLE_TEXT" "$VIDEO_DUR" "1.5" "$BIBLE_REF"
+          CTAS=("Follow for more" "Share this blessing" "Save this verse" "Tag someone who needs this" "God bless you" "Keep trusting Him")
+          IDX=$((RANDOM % ${#CTAS[@]}))
+          PICKED="${CTAS[$IDX]}"
+          echo "cta=$PICKED" >> "$GITHUB_OUTPUT"
+          echo "Selected CTA: $PICKED"
 
       - name: process-video
-        timeout-minutes: 6
+        timeout-minutes: 5
         run: |
           URL="${{ steps.vid.outputs.video_url }}"
           START="${{ steps.vid.outputs.start }}"
           DUR="${{ steps.vid.outputs.clip }}"
           MUSIC_FILE="${{ steps.music.outputs.music_file }}"
-          
+          CTA="${{ steps.cta.outputs.cta }}"
           FETCH=$(echo "$DUR + 5" | bc)
           FADEOUT=$(echo "$DUR - 1.5" | bc)
-          
-          echo "Downloading nature video..."
-          timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -an -c:v copy source_video.mp4
-          
-          # Get music duration and pick random starting point
+          CTA_START=$(echo "$DUR - 4" | bc)
+
+          echo "Downloading video..."
+          # CHANGE 3: Added -an flag to remove original video audio
+          timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -an -c copy source.mp4
+
+          HAS_VIDEO_AUDIO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 source.mp4 2>/dev/null || echo "")
           MDUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$MUSIC_FILE" 2>/dev/null | cut -d. -f1)
-          if [ -z "$MDUR" ] || [ "$MDUR" -lt 5 ]; then
-            MDUR=30
-          fi
-          MMAX=$((MDUR - 10))
+          MMAX=$((MDUR - 5))
           [ "$MMAX" -le 5 ] && MMAX=5
           MSTART=$((RANDOM % MMAX))
-          
-          # Extract music clip
+
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
-          
-          # Apply heavy blur and overlay subtitles
-          timeout 180 ffmpeg -hide_banner -loglevel error -y \
-            -i source_video.mp4 \
-            -i music_clip.mp3 \
-            -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:10,setsar=1,fade=t=in:st=0:d=1.5,fade=t=out:st=${FADEOUT}:d=1.5,subtitles=subtitle.srt:force_style='FontSize=32,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=5,MarginV=100'" \
-            -af "[1:a]volume=0.8,afade=t=in:st=0:d=1.5,afade=t=out:st=${FADEOUT}:d=1.5[aout]" \
-            -map 0:v -map "[aout]" \
-            -t "$DUR" \
-            -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k \
-            -movflags +faststart \
-            -pix_fmt yuv420p \
-            final.mp4
-          
-          ls -lh final.mp4
-          
-          HAS_AUDIO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 final.mp4 2>/dev/null || echo "")
-          if [ -z "$HAS_AUDIO" ]; then
-            echo "Warning: Final video has no audio track"
+
+          # CHANGE 4: Added heavy blur (boxblur=25:10) to the filter chain
+          VFILTER="[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:10,setsar=1,fade=t=in:st=0:d=1,fade=t=out:st=${FADEOUT}:d=1.5,drawtext=text='${CTA}':fontfile=/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf:fontcolor=white@1.0:fontsize=90:x=(w-text_w)/2:y=80:alpha='if(lt(t,${CTA_START}),0,min(1,(t-${CTA_START})/1.5))'[vout]"
+
+          if [ -n "$HAS_VIDEO_AUDIO" ]; then
+            timeout 180 ffmpeg -hide_banner -loglevel error -y -i source.mp4 -i music_clip.mp3 -filter_complex "${VFILTER};[0:a]volume=1.0[va];[1:a]volume=0.3,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[ma];[va][ma]amix=inputs=2:duration=first[aout]" -map "[vout]" -map "[aout]" -t "$DUR" -c:v libx264 -preset medium -crf 16 -c:a aac -b:a 192k -movflags +faststart -pix_fmt yuv420p final.mp4
           else
-            echo "Video processing complete with heavy blur and word-by-word text"
+            timeout 180 ffmpeg -hide_banner -loglevel error -y -i source.mp4 -i music_clip.mp3 -filter_complex "${VFILTER};[1:a]volume=1.0,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[aout]" -map "[vout]" -map "[aout]" -t "$DUR" -c:v libx264 -preset medium -crf 16 -c:a aac -b:a 192k -movflags +faststart -pix_fmt yuv420p final.mp4
           fi
+
+          ls -lh final.mp4
 
       - name: post-to-facebook
         timeout-minutes: 3
         env:
           PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
-          BIBLE_TEXT: ${{ steps.bible.outputs.bible_text }}
-          BIBLE_REF: ${{ steps.bible.outputs.bible_ref }}
+          CAPTION: ${{ steps.verse.outputs.caption }}
         run: |
           set -e
           FILE="final.mp4"
           SIZE=$(stat -c%s "$FILE")
           API="https://graph.facebook.com/v19.0"
-          
-          CAPTION="${BIBLE_TEXT} — ${BIBLE_REF}
-          
-          💭 Let this word sink into your heart today.
-          
-          👉 Follow for daily encouragement and God's truth.
-          🙏 Share this with someone who needs to hear it.
-          ❤️ Like if this blessed you.
-          
-          #GodsWord #BibleVerse #JesusLovesYou #DailyEncouragement #Faith #Hope #Peace #GospelTruth"
-          
-          ENCODED_CAPTION=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$CAPTION")
-          
+
           for attempt in 1 2 3; do
             echo "Facebook post attempt $attempt..."
-            
-            RESPONSE=$(timeout 30 curl -sf -X POST "${API}/${PAGE_ID}/videos" \
-              -F "access_token=${PAGE_TOKEN}" \
-              -F "description=${CAPTION}" \
-              -F "source=@${FILE}" \
-              -F "published=true" 2>&1) || true
-            
-            VIDEO_ID=$(echo "$RESPONSE" | jq -r '.id' 2>/dev/null)
-            
-            if [ -n "$VIDEO_ID" ] && [ "$VIDEO_ID" != "null" ]; then
-              echo "✅ Posted to Facebook! Video ID: $VIDEO_ID"
-              echo "Verse: ${BIBLE_TEXT} (${BIBLE_REF})"
+            INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
+            VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
+
+            if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
+              INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"file_size\":${SIZE},\"access_token\":\"${PAGE_TOKEN}\"}") || true
+              SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
+              VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
+              S_OFF=$(echo "$INIT" | jq -r '.start_offset' 2>/dev/null)
+
+              if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
+                echo "Session failed attempt $attempt: $INIT"
+                sleep 10
+                continue
+              fi
+
+              timeout 90 curl -sf -X POST "${API}/${PAGE_ID}/videos" -F "upload_phase=transfer" -F "upload_session_id=${SESSION}" -F "start_offset=${S_OFF}" -F "video_file_chunk=@${FILE};type=video/mp4" -F "access_token=${PAGE_TOKEN}" > /dev/null || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"upload_session_id\":\"${SESSION}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            else
+              UPLOAD_URL=$(echo "$INIT" | jq -r '.upload_url' 2>/dev/null)
+              timeout 90 curl -sf -X POST "$UPLOAD_URL" -H "Authorization: OAuth ${PAGE_TOKEN}" -H "offset: 0" -H "file_size: ${SIZE}" --data-binary "@${FILE}" > /dev/null || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"video_id\":\"${VID_ID}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            fi
+
+            OK=$(echo "$FINISH" | jq -r '.success // .id // empty' 2>/dev/null)
+            if [ -n "$OK" ]; then
+              echo "Posted! Video ID: $VID_ID"
               exit 0
             fi
-            
-            echo "Post failed attempt $attempt: $RESPONSE"
+
+            echo "Post failed attempt $attempt: $FINISH"
             sleep 10
           done
-          
-          echo "❌ All post attempts failed"
+
+          echo "All post attempts failed"
           exit 1

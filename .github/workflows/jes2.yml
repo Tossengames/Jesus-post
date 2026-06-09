@@ -39,15 +39,15 @@ jobs:
           VIDEO_URL=""
           VALID_VIDEO=0
 
-          TERMS="sky| clouds| sunrise| sunset| nature| mountains| forest| ocean| river| stars| light rays| fog| meadow| waterfall| peaceful nature"
+          TERMS="sky timelapse| clouds timelapse| sunrise landscape| sunset landscape| mountain landscape| ocean waves| river landscape| stars timelapse| light rays forest| fog landscape| waterfall landscape| aerial landscape| peaceful sky"
           IFS='|' read -ra TERM_ARR <<< "$TERMS"
 
           for TERM in $(printf "%s\n" "${TERM_ARR[@]}" | shuf); do
             [ "$VALID_VIDEO" -eq 1 ] && break
-            PAGE=$((RANDOM % 10 + 1))
+            PAGE=$((RANDOM % 5 + 1))
             OFFSET=$((RANDOM % 20))
-            ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$TERM")
-            URL="https://pixabay.com/api/videos/?key=${PIXABAY_KEY}&q=${ENCODED}&video_type=film&per_page=20&page=${PAGE}"
+            ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1].strip()))" "$TERM")
+            URL="https://pixabay.com/api/videos/?key=${PIXABAY_KEY}&q=${ENCODED}&video_type=film&per_page=20&page=${PAGE}&category=nature"
             RESP=$(timeout 10 curl -sf --max-time 10 "$URL" 2>/dev/null) || continue
             COUNT=$(echo "$RESP" | jq -r '.hits | length' 2>/dev/null) || continue
             [ "$COUNT" -eq 0 ] && continue
@@ -110,7 +110,7 @@ jobs:
           VERSES=(
             "God is within her she will not fall - Psalm 46:5"
             "I can do all things through Christ who strengthens me - Philippians 4:13"
-            "For I know the plans I have for you plans to prosper you - Jeremiah 29:11"
+            "For I know the plans I have for you - Jeremiah 29:11"
             "The Lord is my shepherd I lack nothing - Psalm 23:1"
             "You are fearfully and wonderfully made - Psalm 139:14"
           )
@@ -197,7 +197,7 @@ jobs:
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
           python3 << 'PYEOF'
-          import os, random
+          import os, random, textwrap
 
           verse     = os.environ.get("VERSE",     "God is with you - Psalm 46:5")
           hook      = os.environ.get("HOOK",      "God has a word for you")
@@ -228,122 +228,114 @@ jobs:
           palette_name, hex_color = random.choice(palettes)
           text_color = f"#{hex_color}"
 
-          anim_styles = ["fade", "fade", "pop", "slide_up", "bounce"]
-          anim_style  = random.choice(anim_styles)
+          verse_fontsize = random.randint(58, 72)
+          hook_fontsize  = random.randint(48, 60)
+          cta_fontsize   = random.randint(42, 52)
+          blur_sigma     = 25
 
-          verse_fontsize = random.randint(62, 80)
-          hook_fontsize  = random.randint(52, 66)
-          cta_fontsize   = random.randint(46, 58)
-          blur_sigma     = random.randint(20, 35)
-
-          print(f"Style: palette={palette_name} anim={anim_style} blur={blur_sigma} verse_fs={verse_fontsize}")
+          print(f"Style: palette={palette_name} blur={blur_sigma} verse_fs={verse_fontsize}")
 
           def escape(s):
-              return (s.replace("\\","\\\\").replace("'","\\'")
-                       .replace(":","\\:").replace(",","\\,")
-                       .replace("[","\\[").replace("]","\\]"))
+              return (s.replace("\\", "\\\\")
+                       .replace("'",  "\\'")
+                       .replace(":",  "\\:")
+                       .replace(",",  "\\,")
+                       .replace("[",  "\\[")
+                       .replace("]",  "\\]"))
 
-          # ── verse words ───────────────────────────────────────────────────
-          words      = verse.split()
-          text_start = 1.5
-          text_end   = dur * 0.75
-          interval   = (text_end - text_start) / max(len(words) - 1, 1)
+          # ── Split verse into clean wrapped lines (max 20 chars per line) ──
+          words = verse.split()
+          lines = []
+          current = []
+          for w in words:
+              test = " ".join(current + [w])
+              if len(test) > 20 and current:
+                  lines.append(" ".join(current))
+                  current = [w]
+              else:
+                  current.append(w)
+          if current:
+              lines.append(" ".join(current))
 
-          lines       = [words[i:i+4] for i in range(0, len(words), 4)]
-          total_lines = len(lines)
-          line_h      = verse_fontsize + 20
-          block_top   = 960 - (total_lines * line_h) // 2
+          total_lines  = len(lines)
+          line_h       = verse_fontsize + 28
+          block_height = total_lines * line_h
+          block_top    = 960 - block_height // 2
+
+          # Each line fades in sequentially
+          line_interval = (dur * 0.65 - 1.5) / max(total_lines - 1, 1)
 
           dt_filters = []
-          word_idx   = 0
 
-          for line_num, line_words in enumerate(lines):
-              y_pos = block_top + line_num * line_h
-              n_w   = len(line_words)
-              for w_in_line, word in enumerate(line_words):
-                  t_show = text_start + word_idx * interval
-                  if n_w == 1:
-                      x_expr = "(w-text_w)/2"
-                  else:
-                      x_off  = int((w_in_line / (n_w - 1)) * 820 - 410)
-                      x_expr = f"(w-text_w)/2+{x_off}"
+          for i, line in enumerate(lines):
+              t_show = 1.5 + i * line_interval
+              alpha  = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.4))"
+              y_pos  = block_top + i * line_h
+              el     = escape(line)
 
-                  if anim_style == "fade":
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.35))"
-                  elif anim_style == "pop":
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.12))"
-                  elif anim_style == "slide_up":
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.25))"
-                  elif anim_style == "bounce":
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.18))"
-                  else:
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
+              # shadow/glow layer
+              dt_filters.append(
+                  f"drawtext=text='{el}':fontfile={font_verse}"
+                  f":fontcolor=#{hex_color}@0.35:fontsize={verse_fontsize+6}"
+                  f":x=(w-text_w)/2:y={y_pos-3}:alpha='{alpha}'"
+              )
+              # main text
+              dt_filters.append(
+                  f"drawtext=text='{el}':fontfile={font_verse}"
+                  f":fontcolor={text_color}:fontsize={verse_fontsize}"
+                  f":x=(w-text_w)/2:y={y_pos}"
+                  f":alpha='{alpha}'"
+                  f":shadowcolor=black@0.95:shadowx=3:shadowy=3"
+              )
 
-                  ew = escape(word)
-                  dt_filters.append(
-                      f"drawtext=text='{ew}':fontfile={font_verse}"
-                      f":fontcolor=#{hex_color}@0.4:fontsize={verse_fontsize+8}"
-                      f":x={x_expr}:y={y_pos-4}:alpha='{alpha}'"
-                  )
-                  dt_filters.append(
-                      f"drawtext=text='{ew}':fontfile={font_verse}"
-                      f":fontcolor={text_color}:fontsize={verse_fontsize}"
-                      f":x={x_expr}:y={y_pos}:alpha='{alpha}'"
-                      f":shadowcolor=black@0.9:shadowx=3:shadowy=3"
-                  )
-                  word_idx += 1
-
-          # ── hook ──────────────────────────────────────────────────────────
+          # ── hook (top title) ──────────────────────────────────────────────
           he         = escape(hook)
-          hook_alpha = "if(lt(t,0.5),0,min(1,(t-0.5)/0.6))"
-          dt_filters += [
-              f"drawtext=text='{he}':fontfile={font_hook}"
-              f":fontcolor=#{hex_color}@0.35:fontsize={hook_fontsize+6}"
-              f":x=(w-text_w)/2:y=130:alpha='{hook_alpha}'",
+          hook_alpha = "if(lt(t,0.3),0,min(1,(t-0.3)/0.5))"
 
+          # solid dark bar behind hook for readability
+          dt_filters.insert(0,
+              "drawbox=x=0:y=80:w=iw:h=160:color=black@0.5:t=fill"
+          )
+          dt_filters += [
               f"drawtext=text='{he}':fontfile={font_hook}"
               f":fontcolor={text_color}:fontsize={hook_fontsize}"
               f":x=(w-text_w)/2:y=140:alpha='{hook_alpha}'"
-              f":shadowcolor=black@0.9:shadowx=3:shadowy=3",
-
-              f"drawtext=text='_______________':fontfile={font_reg}"
-              f":fontcolor={text_color}@0.5:fontsize=28"
-              f":x=(w-text_w)/2:y=205:alpha='{hook_alpha}'",
+              f":shadowcolor=black@1.0:shadowx=3:shadowy=3",
           ]
 
-          # ── CTA ───────────────────────────────────────────────────────────
+          # ── CTA (bottom) ──────────────────────────────────────────────────
           ce        = escape(cta)
-          cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.2))"
-          cta_box   = "drawbox=x=0:y=1680:w=iw:h=180:color=black@0.45:t=fill"
-          dt_filters += [
-              f"drawtext=text='-- {ce} --':fontfile={font_cta}"
-              f":fontcolor=white:fontsize={cta_fontsize}"
-              f":x=(w-text_w)/2:y=1735:alpha='{cta_alpha}'"
-              f":shadowcolor=black@1.0:shadowx=4:shadowy=4",
+          cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.0))"
 
-              f"drawtext=text='v  Follow  v':fontfile={font_cta}"
+          dt_filters += [
+              "drawbox=x=0:y=1680:w=iw:h=200:color=black@0.55:t=fill",
+              f"drawtext=text='{ce}':fontfile={font_cta}"
+              f":fontcolor=white:fontsize={cta_fontsize}"
+              f":x=(w-text_w)/2:y=1720:alpha='{cta_alpha}'"
+              f":shadowcolor=black@1.0:shadowx=3:shadowy=3",
+              f"drawtext=text='^ Follow for more ^':fontfile={font_cta}"
               f":fontcolor={text_color}@0.9:fontsize={cta_fontsize-8}"
-              f":x=(w-text_w)/2:y=1800:alpha='{cta_alpha}'"
+              f":x=(w-text_w)/2:y=1790:alpha='{cta_alpha}'"
               f":shadowcolor=black@1.0:shadowx=2:shadowy=2",
           ]
 
-          # ── assemble ──────────────────────────────────────────────────────
+          # ── assemble — blur only background, text stays sharp ─────────────
+          # Split: one stream gets blurred (background), drawn text goes on top
           all_dt = ",".join(dt_filters)
 
           vfilter = (
               f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
-              f"crop=1080:1920,setsar=1,"
-              f"gblur=sigma={blur_sigma},"
-              f"fade=t=in:st=0:d=1,"
+              f"crop=1080:1920,setsar=1[raw];"
+              f"[raw]gblur=sigma={blur_sigma}[bg];"
+              f"[bg]fade=t=in:st=0:d=1,"
               f"fade=t=out:st={fadeout:.2f}:d=1.5,"
-              f"{cta_box},"
               f"{all_dt}[vout]"
           )
 
           with open("/tmp/vfilter.txt", "w") as f:
               f.write(vfilter)
 
-          print(f"Filter built. Words={len(words)} lines={total_lines} interval={interval:.2f}s")
+          print(f"Filter built. Lines={total_lines}")
           PYEOF
 
           VFILTER=$(cat /tmp/vfilter.txt)
@@ -355,7 +347,7 @@ jobs:
             -map "[vout]" \
             -map "[aout]" \
             -t 20 \
-            -c:v libx264 -preset medium -crf 16 \
+            -c:v libx264 -preset fast -crf 18 \
             -c:a aac -b:a 192k \
             -movflags +faststart \
             -pix_fmt yuv420p \

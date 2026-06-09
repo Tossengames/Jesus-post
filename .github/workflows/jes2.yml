@@ -114,7 +114,6 @@ jobs:
             "The Lord is my shepherd I lack nothing - Psalm 23:1"
             "You are fearfully and wonderfully made - Psalm 139:14"
           )
-
           IDX=$((RANDOM % ${#VERSES[@]}))
           PICKED="${VERSES[$IDX]}"
           echo "verse=$PICKED" >> "$GITHUB_OUTPUT"
@@ -198,7 +197,7 @@ jobs:
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
           python3 << 'PYEOF'
-          import os, random, math
+          import os, random
 
           verse     = os.environ.get("VERSE",     "God is with you - Psalm 46:5")
           hook      = os.environ.get("HOOK",      "God has a word for you")
@@ -227,9 +226,6 @@ jobs:
               ("coral",     "FF8C69"),
           ]
           palette_name, hex_color = random.choice(palettes)
-          r = int(hex_color[0:2], 16)
-          g = int(hex_color[2:4], 16)
-          b = int(hex_color[4:6], 16)
           text_color = f"#{hex_color}"
 
           anim_styles = ["fade", "fade", "pop", "slide_up", "bounce"]
@@ -242,64 +238,6 @@ jobs:
 
           print(f"Style: palette={palette_name} anim={anim_style} blur={blur_sigma} verse_fs={verse_fontsize}")
 
-          # ── particles ────────────────────────────────────────────────────
-          dust_styles = ["amber", "dreamy", "ember", "gold", "blue", "white", "mixed"]
-          dust_style  = random.choice(dust_styles)
-          dust_colors = {
-              "amber":  (255, 180,  50),
-              "dreamy": (180, 160, 255),
-              "ember":  (255, 100,  50),
-              "gold":   (255, 215,   0),
-              "blue":   (100, 180, 255),
-              "white":  (255, 255, 255),
-              "mixed":  (random.randint(150,255), random.randint(150,255), random.randint(150,255)),
-          }
-          dr, dg, db = dust_colors[dust_style]
-
-          num_particles = random.randint(18, 55)
-          base_speed    = random.uniform(0.03, 0.09)
-          particle_size = random.randint(2, 6)
-          opacity_max   = random.uniform(0.4, 0.95)
-
-          print(f"Dust: style={dust_style} count={num_particles} speed={base_speed:.3f} size={particle_size} opacity={opacity_max:.2f}")
-
-          particles = []
-          for i in range(num_particles):
-              particles.append((
-                  random.uniform(0.02, 0.98),
-                  random.uniform(0.1,  1.2),
-                  base_speed * random.uniform(0.5, 2.0),
-                  random.uniform(0, 6.28),
-                  random.uniform(0.005, 0.025),
-                  random.uniform(1.0, 4.0),
-              ))
-
-          def make_geq_expr(channel_val, particles, opacity_max=0.7):
-              terms = []
-              for (px, py0, spd, phase, wobble, twinkle_freq) in particles:
-                  cx        = f"{px:.4f}*W"
-                  cy        = f"mod({py0:.4f}*H - {spd:.4f}*H*T + H, H)"
-                  cx_wobble = f"({cx} + {wobble:.4f}*W*sin(2*3.14159*T*0.4+{phase:.4f}))"
-                  r2        = particle_size * particle_size * 4
-                  twinkle   = f"({opacity_max:.3f}*(0.5+0.5*sin(2*3.14159*T*{twinkle_freq:.2f}+{phase:.4f})))"
-                  terms.append(f"{twinkle}*exp(-((X-{cx_wobble})^2+(Y-{cy})^2)/{r2:.1f})")
-              return f"clip({channel_val}*({'+'.join(terms)}),0,255)"
-
-          geq_r = make_geq_expr(dr, particles, opacity_max=opacity_max)
-          geq_g = make_geq_expr(dg, particles, opacity_max=opacity_max)
-          geq_b = make_geq_expr(db, particles, opacity_max=opacity_max)
-
-          alpha_terms = []
-          for (px, py0, spd, phase, wobble, twinkle_freq) in particles:
-              cx        = f"{px:.4f}*W"
-              cy        = f"mod({py0:.4f}*H - {spd:.4f}*H*T + H, H)"
-              cx_wobble = f"({cx} + {wobble:.4f}*W*sin(2*3.14159*T*0.4+{phase:.4f}))"
-              r2        = particle_size * particle_size * 4
-              twinkle   = f"({opacity_max:.3f}*(0.5+0.5*sin(2*3.14159*T*{twinkle_freq:.2f}+{phase:.4f})))"
-              alpha_terms.append(f"{twinkle}*exp(-((X-{cx_wobble})^2+(Y-{cy})^2)/{r2:.1f})*255")
-          geq_a = "clip(" + "+".join(alpha_terms) + ",0,255)"
-
-          # ── helpers ───────────────────────────────────────────────────────
           def escape(s):
               return (s.replace("\\","\\\\").replace("'","\\'")
                        .replace(":","\\:").replace(",","\\,")
@@ -391,7 +329,6 @@ jobs:
 
           # ── assemble ──────────────────────────────────────────────────────
           all_dt = ",".join(dt_filters)
-          geq_filter = f"geq=r='{geq_r}':g='{geq_g}':b='{geq_b}':a='{geq_a}'"
 
           vfilter = (
               f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
@@ -400,10 +337,7 @@ jobs:
               f"fade=t=in:st=0:d=1,"
               f"fade=t=out:st={fadeout:.2f}:d=1.5,"
               f"{cta_box},"
-              f"{all_dt}[base];"
-              f"[base]split[v1][v2];"
-              f"[v2]{geq_filter}[particles];"
-              f"[v1][particles]overlay=format=auto[vout]"
+              f"{all_dt}[vout]"
           )
 
           with open("/tmp/vfilter.txt", "w") as f:

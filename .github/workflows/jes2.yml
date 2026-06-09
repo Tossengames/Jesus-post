@@ -19,6 +19,11 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
       - name: install-deps
         timeout-minutes: 3
         run: |
@@ -107,199 +112,7 @@ jobs:
         id: verse
         timeout-minutes: 1
         run: |
-          VERSES=(
-            "God is within her, she will not fall - Psalm 46:5"
-            "Be still and know that I am God - Psalm 46:10"
-            "I can do all things through Christ who strengthens me - Philippians 4:13"
-            "The Lord is my shepherd, I lack nothing - Psalm 23:1"
-            "Trust in the Lord with all your heart - Proverbs 3:5"
-            "For God so loved the world that He gave His only Son - John 3:16"
-            "Come to me all who are weary and I will give you rest - Matthew 11:28"
-            "The Lord your God is with you wherever you go - Joshua 1:9"
-            "Be strong and courageous. Do not be afraid - Joshua 1:9"
-            "With God all things are possible - Matthew 19:26"
-            "He heals the brokenhearted and binds up their wounds - Psalm 147:3"
-            "The joy of the Lord is your strength - Nehemiah 8:10"
-            "Cast all your anxiety on Him because He cares for you - 1 Peter 5:7"
-            "God causes all things to work together for good - Romans 8:28"
-            "Your word is a lamp to my feet and a light to my path - Psalm 119:105"
-            "Nothing can separate us from the love of God - Romans 8:38"
-            "He gives strength to the weary - Isaiah 40:29"
-            "Peace I leave with you my peace I give you - John 14:27"
-            "The Lord will fight for you you need only be still - Exodus 14:14"
-            "He who began a good work in you will carry it to completion - Philippians 1:6"
-            "Let your light shine before others - Matthew 5:16"
-            "Seek first the kingdom of God and all these things shall be added - Matthew 6:33"
-            "For I know the plans I have for you plans to prosper you - Jeremiah 29:11"
-            "The name of the Lord is a strong tower - Proverbs 18:10"
-            "Draw near to God and He will draw near to you - James 4:8"
-            "Wait on the Lord be of good courage - Psalm 27:14"
-            "He restores my soul - Psalm 23:3"
-            "Create in me a pure heart O God - Psalm 51:10"
-            "The Lord is close to the brokenhearted - Psalm 34:18"
-            "Do not worry about tomorrow - Matthew 6:34"
-            "You are the light of the world - Matthew 5:14"
-            "God has not given us a spirit of fear but of power - 2 Timothy 1:7"
-            "I will never leave you nor forsake you - Hebrews 13:5"
-            "Love your neighbor as yourself - Mark 12:31"
-            "Ask and it will be given to you - Matthew 7:7"
-            "The steadfast love of the Lord never ceases - Lamentations 3:22"
-            "You are fearfully and wonderfully made - Psalm 139:14"
-            "My grace is sufficient for you - 2 Corinthians 12:9"
-            "Blessed are the pure in heart for they will see God - Matthew 5:8"
-            "Delight yourself in the Lord and He will give you the desires of your heart - Psalm 37:4"
-            "He is risen - Mark 16:6"
-            "Faith without works is dead - James 2:26"
-            "We walk by faith not by sight - 2 Corinthians 5:7"
-            "Greater is He that is in me than he that is in the world - 1 John 4:4"
-            "Taste and see that the Lord is good - Psalm 34:8"
-            "The peace of God surpasses all understanding - Philippians 4:7"
-            "Be transformed by the renewing of your mind - Romans 12:2"
-            "Do not conform to the pattern of this world - Romans 12:2"
-            "Forgive as the Lord has forgiven you - Colossians 3:13"
-            "Love is patient love is kind - 1 Corinthians 13:4"
-            "Hope does not disappoint us - Romans 5:5"
-            "Blessed are those who mourn for they will be comforted - Matthew 5:4"
-            "The Lord is my light and my salvation whom shall I fear - Psalm 27:1"
-            "Your faith has healed you - Mark 5:34"
-            "Come follow me - Matthew 4:19"
-            "Fear not for I am with you - Isaiah 41:10"
-            "He who dwells in the shelter of the Most High will rest - Psalm 91:1"
-            "This is the day the Lord has made let us rejoice - Psalm 118:24"
-            "Guard your heart for it is the wellspring of life - Proverbs 4:23"
-            "A gentle answer turns away wrath - Proverbs 15:1"
-            "The fruit of the Spirit is love joy peace - Galatians 5:22"
-            "Do not grow weary in doing good - Galatians 6:9"
-            "Let everything that has breath praise the Lord - Psalm 150:6"
-            "He makes all things new - Revelation 21:5"
-            "Weeping may endure for a night but joy comes in the morning - Psalm 30:5"
-            "The Lord is good to those who hope in Him - Lamentations 3:25"
-            "Even if I walk through the darkest valley I fear no evil - Psalm 23:4"
-            "Blessed is the one who trusts in the Lord - Jeremiah 17:7"
-            "His mercies are new every morning - Lamentations 3:23"
-            "Rejoice always. Pray without ceasing. Give thanks - 1 Thessalonians 5:16"
-            "God is our refuge and strength - Psalm 46:1"
-            "The Lord bless you and keep you - Numbers 6:24"
-            "Let the weak say I am strong - Joel 3:10"
-            "Jesus is the same yesterday today and forever - Hebrews 13:8"
-            "My help comes from the Lord maker of heaven and earth - Psalm 121:2"
-            "With long life I will satisfy him - Psalm 91:16"
-            "Call to me and I will answer you - Jeremiah 33:3"
-            "There is no fear in love - 1 John 4:18"
-            "Pray for one another that you may be healed - James 5:16"
-            "He who is faithful in little will be faithful in much - Luke 16:10"
-            "Do not let your hearts be troubled. Trust in God - John 14:1"
-            "Whoever believes in Him shall not perish - John 3:16"
-            "No weapon formed against you shall prosper - Isaiah 54:17"
-            "The Lord is my strength and my song - Exodus 15:2"
-            "Return to me and I will return to you - Malachi 3:7"
-            "Humble yourself before the Lord and He will lift you up - James 4:10"
-            "Do not be anxious about anything - Philippians 4:6"
-            "Let your gentleness be evident to all - Philippians 4:5"
-            "God opposes the proud but shows favor to the humble - James 4:6"
-            "You will seek me and find me when you seek with all your heart - Jeremiah 29:13"
-            "The heart of man plans his way but the Lord establishes his steps - Proverbs 16:9"
-            "Man shall not live by bread alone - Matthew 4:4"
-            "Where two or three gather in my name I am there - Matthew 18:20"
-            "I am the way the truth and the life - John 14:6"
-            "I am the resurrection and the life - John 11:25"
-            "The truth will set you free - John 8:32"
-            "My sheep hear my voice and they follow me - John 10:27"
-            "I have come that you may have life abundantly - John 10:10"
-            "You did not choose me I chose you - John 15:16"
-            "Greater love has no one than to lay down his life for a friend - John 15:13"
-            "In the beginning was the Word - John 1:1"
-            "The Word became flesh and dwelt among us - John 1:14"
-            "He is before all things. In Him all things hold together - Colossians 1:17"
-            "Christ in you the hope of glory - Colossians 1:27"
-            "Set your minds on things above - Colossians 3:2"
-            "Let the word of Christ dwell in you richly - Colossians 3:16"
-            "I press on toward the goal - Philippians 3:14"
-            "Rejoice in the Lord always. Again I say rejoice - Philippians 4:4"
-            "My God will meet all your needs - Philippians 4:19"
-            "Now to Him who is able to do immeasurably more - Ephesians 3:20"
-            "Put on the full armor of God - Ephesians 6:11"
-            "For it is by grace you have been saved through faith - Ephesians 2:8"
-            "We are Gods handiwork created in Christ Jesus - Ephesians 2:10"
-            "Be kind to one another tenderhearted forgiving - Ephesians 4:32"
-            "Sing and make music from your heart to the Lord - Ephesians 5:19"
-            "Be imitators of God as dearly loved children - Ephesians 5:1"
-            "The Lord disciplines those He loves - Hebrews 12:6"
-            "Faith is the substance of things hoped for - Hebrews 11:1"
-            "Without faith it is impossible to please God - Hebrews 11:6"
-            "Jesus the author and perfecter of our faith - Hebrews 12:2"
-            "Let us run with endurance the race set before us - Hebrews 12:1"
-            "Every good and perfect gift is from above - James 1:17"
-            "Be quick to listen slow to speak slow to anger - James 1:19"
-            "Blessed is the one who perseveres under trial - James 1:12"
-            "Resist the devil and he will flee from you - James 4:7"
-            "The prayer of a righteous person is powerful - James 5:16"
-            "If God is for us who can be against us - Romans 8:31"
-            "There is now no condemnation for those in Christ Jesus - Romans 8:1"
-            "Be joyful in hope patient in affliction faithful in prayer - Romans 12:12"
-            "Do not be overcome by evil but overcome evil with good - Romans 12:21"
-            "Whether you eat or drink do it all for the glory of God - 1 Corinthians 10:31"
-            "No eye has seen no ear has heard what God has prepared - 1 Corinthians 2:9"
-            "If anyone is in Christ he is a new creation - 2 Corinthians 5:17"
-            "Where the Spirit of the Lord is there is freedom - 2 Corinthians 3:17"
-            "We do not lose heart - 2 Corinthians 4:1"
-            "He who sows generously will also reap generously - 2 Corinthians 9:6"
-            "God loves a cheerful giver - 2 Corinthians 9:7"
-            "My power is made perfect in weakness - 2 Corinthians 12:9"
-            "It is no longer I who live but Christ who lives in me - Galatians 2:20"
-            "You are all sons and daughters of God through faith - Galatians 3:26"
-            "Carry each other burdens - Galatians 6:2"
-            "The Lord is righteous in all His ways - Psalm 145:17"
-            "Great is the Lord and most worthy of praise - Psalm 145:3"
-            "The Lord upholds all who fall - Psalm 145:14"
-            "Praise the Lord O my soul - Psalm 104:1"
-            "The heavens declare the glory of God - Psalm 19:1"
-            "The law of the Lord is perfect refreshing the soul - Psalm 19:7"
-            "The Lord is my rock my fortress my deliverer - Psalm 18:2"
-            "I love you Lord my strength - Psalm 18:1"
-            "Give thanks to the Lord for He is good - Psalm 107:1"
-            "He satisfies the thirsty and fills the hungry with good things - Psalm 107:9"
-            "He sent out His word and healed them - Psalm 107:20"
-            "Those who go out weeping will return with songs of joy - Psalm 126:5"
-            "Unless the Lord builds the house the builders labor in vain - Psalm 127:1"
-            "How good and pleasant it is when Gods people live in unity - Psalm 133:1"
-            "Search me God and know my heart - Psalm 139:23"
-            "Even the darkness is not dark to you - Psalm 139:12"
-            "O Lord you have searched me and you know me - Psalm 139:1"
-            "The Lord is gracious and compassionate - Psalm 145:8"
-            "Slow to anger and rich in love - Psalm 145:8"
-            "Bless the Lord at all times His praise shall continually be in my mouth - Psalm 34:1"
-            "Those who look to Him are radiant - Psalm 34:5"
-            "No good thing does He withhold from those who walk uprightly - Psalm 84:11"
-            "Better is one day in your courts than a thousand elsewhere - Psalm 84:10"
-            "Blessed are those whose strength is in you - Psalm 84:5"
-            "You open your hand and satisfy the desires of every living thing - Psalm 145:16"
-            "The Lord has done great things for us and we are filled with joy - Psalm 126:3"
-            "He who goes out weeping carrying seed to sow will return with joy - Psalm 126:6"
-            "I lift up my eyes to the mountains where does my help come from - Psalm 121:1"
-            "The Lord watches over you the Lord is your shade - Psalm 121:5"
-            "He will not let your foot slip He who watches over you will not slumber - Psalm 121:3"
-            "The Lord will keep you from all harm He will watch over your life - Psalm 121:7"
-            "When I am afraid I put my trust in you - Psalm 56:3"
-            "In God I trust and am not afraid - Psalm 56:11"
-            "You are my hiding place you will protect me from trouble - Psalm 32:7"
-            "Blessed is the one whose sin the Lord does not count against them - Psalm 32:2"
-            "I will instruct you and teach you in the way you should go - Psalm 32:8"
-            "Many are the woes of the wicked but the Lords unfailing love surrounds - Psalm 32:10"
-            "The Lord is my strength and my shield my heart trusts in Him - Psalm 28:7"
-            "The Lord is the strength of His people - Psalm 28:8"
-            "Weeping may stay for the night but rejoicing comes in the morning - Psalm 30:5"
-            "You turned my wailing into dancing - Psalm 30:11"
-            "Into your hands I commit my spirit - Psalm 31:5"
-            "How great is your goodness which you have stored up for those who fear you - Psalm 31:19"
-            "Blessed are those whose transgressions are forgiven - Psalm 32:1"
-            "Sing joyfully to the Lord you righteous - Psalm 33:1"
-            "The Lord loves righteousness and justice - Psalm 33:5"
-            "Blessed is the nation whose God is the Lord - Psalm 33:12"
-            "The Lord looks down from heaven and sees all mankind - Psalm 33:13"
-            "We wait in hope for the Lord He is our help and our shield - Psalm 33:20"
-          )
-
+          VERSES=("God is within her, she will not fall - Psalm 46:5" "Be still and know that I am God - Psalm 46:10" "I can do all things through Christ who strengthens me - Philippians 4:13" "The Lord is my shepherd, I lack nothing - Psalm 23:1" "Trust in the Lord with all your heart - Proverbs 3:5" "For God so loved the world that He gave His only Son - John 3:16" "Come to me all who are weary and I will give you rest - Matthew 11:28" "The Lord your God is with you wherever you go - Joshua 1:9" "Be strong and courageous. Do not be afraid - Joshua 1:9" "With God all things are possible - Matthew 19:26" "He heals the brokenhearted and binds up their wounds - Psalm 147:3" "The joy of the Lord is your strength - Nehemiah 8:10" "Cast all your anxiety on Him because He cares for you - 1 Peter 5:7" "God causes all things to work together for good - Romans 8:28" "Your word is a lamp to my feet and a light to my path - Psalm 119:105" "Nothing can separate us from the love of God - Romans 8:38" "He gives strength to the weary - Isaiah 40:29" "Peace I leave with you my peace I give you - John 14:27" "The Lord will fight for you you need only be still - Exodus 14:14" "He who began a good work in you will carry it to completion - Philippians 1:6" "Let your light shine before others - Matthew 5:16" "Seek first the kingdom of God and all these things shall be added - Matthew 6:33" "For I know the plans I have for you plans to prosper you - Jeremiah 29:11" "The name of the Lord is a strong tower - Proverbs 18:10" "Draw near to God and He will draw near to you - James 4:8" "Wait on the Lord be of good courage - Psalm 27:14" "He restores my soul - Psalm 23:3" "Create in me a pure heart O God - Psalm 51:10" "The Lord is close to the brokenhearted - Psalm 34:18" "Do not worry about tomorrow - Matthew 6:34" "You are the light of the world - Matthew 5:14" "God has not given us a spirit of fear but of power - 2 Timothy 1:7" "I will never leave you nor forsake you - Hebrews 13:5" "Love your neighbor as yourself - Mark 12:31" "Ask and it will be given to you - Matthew 7:7" "The steadfast love of the Lord never ceases - Lamentations 3:22" "You are fearfully and wonderfully made - Psalm 139:14" "My grace is sufficient for you - 2 Corinthians 12:9" "Blessed are the pure in heart for they will see God - Matthew 5:8" "Delight yourself in the Lord and He will give you the desires of your heart - Psalm 37:4" "He is risen - Mark 16:6" "Faith without works is dead - James 2:26" "We walk by faith not by sight - 2 Corinthians 5:7" "Greater is He that is in me than he that is in the world - 1 John 4:4" "Taste and see that the Lord is good - Psalm 34:8" "The peace of God surpasses all understanding - Philippians 4:7" "Be transformed by the renewing of your mind - Romans 12:2" "Do not conform to the pattern of this world - Romans 12:2" "Forgive as the Lord has forgiven you - Colossians 3:13" "Love is patient love is kind - 1 Corinthians 13:4" "Hope does not disappoint us - Romans 5:5" "Blessed are those who mourn for they will be comforted - Matthew 5:4" "The Lord is my light and my salvation whom shall I fear - Psalm 27:1" "Your faith has healed you - Mark 5:34" "Come follow me - Matthew 4:19" "Fear not for I am with you - Isaiah 41:10" "He who dwells in the shelter of the Most High will rest - Psalm 91:1" "This is the day the Lord has made let us rejoice - Psalm 118:24" "Guard your heart for it is the wellspring of life - Proverbs 4:23" "A gentle answer turns away wrath - Proverbs 15:1" "The fruit of the Spirit is love joy peace - Galatians 5:22" "Do not grow weary in doing good - Galatians 6:9" "Let everything that has breath praise the Lord - Psalm 150:6" "He makes all things new - Revelation 21:5" "Weeping may endure for a night but joy comes in the morning - Psalm 30:5" "The Lord is good to those who hope in Him - Lamentations 3:25" "Even if I walk through the darkest valley I fear no evil - Psalm 23:4" "Blessed is the one who trusts in the Lord - Jeremiah 17:7" "His mercies are new every morning - Lamentations 3:23" "Rejoice always. Pray without ceasing. Give thanks - 1 Thessalonians 5:16" "God is our refuge and strength - Psalm 46:1" "The Lord bless you and keep you - Numbers 6:24" "Let the weak say I am strong - Joel 3:10" "Jesus is the same yesterday today and forever - Hebrews 13:8" "My help comes from the Lord maker of heaven and earth - Psalm 121:2" "With long life I will satisfy him - Psalm 91:16" "Call to me and I will answer you - Jeremiah 33:3" "There is no fear in love - 1 John 4:18" "Pray for one another that you may be healed - James 5:16" "He who is faithful in little will be faithful in much - Luke 16:10" "Do not let your hearts be troubled. Trust in God - John 14:1" "Whoever believes in Him shall not perish - John 3:16" "No weapon formed against you shall prosper - Isaiah 54:17" "The Lord is my strength and my song - Exodus 15:2" "Return to me and I will return to you - Malatin 3:7" "Humble yourself before the Lord and He will lift you up - James 4:10" "Do not be anxious about anything - Philippians 4:6" "Let your gentleness be evident to all - Philippians 4:5" "God opposes the proud but shows favor to the humble - James 4:6" "You will seek me and find me when you seek with all your heart - Jeremiah 29:13" "The heart of man plans his way but the Lord establishes his steps - Proverbs 16:9" "Man shall not live by bread alone - Matthew 4:4" "Where two or three gather in my name I am there - Matthew 18:20" "I am the way the truth and the life - John 14:6" "I am the resurrection and the life - John 11:25" "The truth will set you free - John 8:32" "My sheep hear my voice and they follow me - John 10:27" "I have come that you may have life abundantly - John 10:10" "You did not choose me I chose you - John 15:16" "Greater love has no one than to lay down his life for a friend - John 15:13" "In the beginning was the Word - John 1:1" "The Word became flesh and dwelt among us - John 1:14" "He is before all things. In Him all things hold together - Colossians 1:17" "Christ in you the hope of glory - Colossians 1:27" "Set your minds on things above - Colossians 3:2" "Let the word of Christ dwell in you richly - Colossians 3:16" "I press on toward the goal - Philippians 3:14" "Rejoice in the Lord always. Again I say rejoice - Philippians 4:4" "My God will meet all your needs - Philippians 4:19" "Now to Him who is able to do immeasurably more - Ephesians 3:20" "Put on the full armor of God - Ephesians 6:11" "For it is by grace you have been saved through faith - Ephesians 2:8" "We are Gods handiwork created in Christ Jesus - Ephesians 2:10" "Be kind to one another tenderhearted forgiving - Ephesians 4:32" "Sing and make music from your heart to the Lord - Ephesians 5:19" "Be imitators of God as dearly loved children - Ephesians 5:1" "The Lord disciplines those He loves - Hebrews 12:6" "Faith is the substance of things hoped for - Hebrews 11:1" "Without faith it is impossible to please God - Hebrews 11:6" "Jesus the author and perfecter of our faith - Hebrews 12:2" "Let us run with endurance the race set before us - Hebrews 12:1" "Every good and perfect gift is from above - James 1:17" "Be quick to listen slow to speak slow to anger - James 1:19" "Blessed is the one who perseveres under trial - James 1:12" "Resist the devil and he will flee from you - James 4:7" "The prayer of a righteous person is powerful - James 5:16" "If God is for us who can be against us - Romans 8:31" "There is now no condemnation for those in Christ Jesus - Romans 8:1" "Be joyful in hope patient in affliction faithful in prayer - Romans 12:12" "Do not be overcome by evil but overcome evil with good - Romans 12:21" "Whether you eat or drink do it all for the glory of God - 1 Corinthians 10:31" "No eye has seen no ear has heard what God has prepared - 1 Corinthians 2:9" "If anyone is in Christ he is a new creation - 2 Corinthians 5:17" "Where the Spirit of the Lord is there is freedom - 2 Corinthians 3:17" "We do not lose heart - 2 Corinthians 4:1" "He who sows generously will also reap generously - 2 Corinthians 9:6" "God loves a cheerful giver - 2 Corinthians 9:7" "My power is made perfect in weakness - 2 Corinthians 12:9" "It is no longer I who live but Christ who lives in me - Galatians 2:20" "You are all sons and daughters of God through faith - Galatians 3:26" "Carry each other burdens - Galatians 6:2" "The Lord is righteous in all His ways - Psalm 145:17" "Great is the Lord and most worthy of praise - Psalm 145:3" "The Lord upholds all who fall - Psalm 145:14" "Praise the Lord O my soul - Psalm 104:1" "The heavens declare the glory of God - Psalm 19:1" "The law of the Lord is perfect refreshing the soul - Psalm 19:7" "The Lord is my rock my fortress my deliverer - Psalm 18:2" "I love you Lord my strength - Psalm 18:1" "Give thanks to the Lord for He is good - Psalm 107:1" "He satisfies the thirsty and fills the hungry with good things - Psalm 107:9" "He sent out His word and healed them - Psalm 107:20" "Those who go out weeping will return with songs of joy - Psalm 126:5" "Unless the Lord builds the house the builders labor in vain - Psalm 127:1" "How good and pleasant it is when Gods people live in unity - Psalm 133:1" "Search me God and know my heart - Psalm 139:23" "Even the darkness is not dark to you - Psalm 139:12" "O Lord you have searched me and you know me - Psalm 139:1" "The Lord is gracious and compassionate - Psalm 145:8" "Slow to anger and rich in love - Psalm 145:8" "Bless the Lord at all times His praise shall continually be in my mouth - Psalm 34:1" "Those who look to Him are radiant - Psalm 34:5" "No good thing does He withhold from those who walk uprightly - Psalm 84:11" "Better is one day in your courts than a thousand elsewhere - Psalm 84:10" "Blessed are those whose strength is in you - Psalm 84:5" "You open your hand and satisfy the desires of every living thing - Psalm 145:16" "The Lord has done great things for us and we are filled with joy - Psalm 126:3" "He who goes out weeping carrying seed to sow will return with joy - Psalm 126:6" "I lift up my eyes to the mountains where does my help come from - Psalm 121:1" "The Lord watches over you the Lord is your shade - Psalm 121:5" "He will not let your foot slip He who watches over you will not slumber - Psalm 121:3" "The Lord will keep you from all harm He will watch over your life - Psalm 121:7" "When I am afraid I put my trust in you - Psalm 56:3" "In God I trust and am not afraid - Psalm 56:11" "You are my hiding place you will protect me from trouble - Psalm 32:7" "Blessed is the one whose sin the Lord does not count against them - Psalm 32:2" "I will instruct you and teach you in the way you should go - Psalm 32:8" "Many are the woes of the wicked but the Lords unfailing love surrounds - Psalm 32:10" "The Lord is my strength and my shield my heart trusts in Him - Psalm 28:7" "The Lord is the strength of His people - Psalm 28:8" "Weeping may stay for the night but rejoicing comes in the morning - Psalm 30:5" "You turned my wailing into dancing - Psalm 30:11" "Into your hands I commit my spirit - Psalm 31:5" "How great is your goodness which you have stored up for those who fear you - Psalm 31:19" "Blessed are those whose transgressions are forgiven - Psalm 32:1" "Sing joyfully to the Lord you righteous - Psalm 33:1" "The Lord loves righteousness and justice - Psalm 33:5" "Blessed is the nation whose God is the Lord - Psalm 33:12" "The Lord looks down from heaven and sees all mankind - Psalm 33:13" "We wait in hope for the Lord He is our help and our shield - Psalm 33:20")
           IDX=$((RANDOM % ${#VERSES[@]}))
           PICKED="${VERSES[$IDX]}"
           echo "verse=$PICKED" >> "$GITHUB_OUTPUT"
@@ -314,23 +127,7 @@ jobs:
             echo "caption=$INPUT_CAPTION" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          CAPTIONS=(
-            "This one hit different. Save it. #Faith #Gospel #Bible #Jesus #GodIsGood"
-            "Read this slowly. #Scripture #Jesus #Hope #Faith #Blessed"
-            "Someone needed this today. Share it. #Faith #Word #Blessed #Gospel #God"
-            "Let this sink in. #Gospel #Jesus #Grace #Faith #Scripture"
-            "This is for you. Don't scroll past. #Bible #Faith #God #Jesus #Hope"
-            "Breathe. Read. Believe. #Scripture #Hope #Jesus #Faith #Grace"
-            "Tag someone who needs this today. #Gospel #Faith #Blessed #Jesus #Word"
-            "Your reminder for today. #Word #Grace #Jesus #Faith #Bible"
-            "Drop everything and read this. #Faith #Bible #God #Gospel #Hope"
-            "God's word never fails. #Scripture #Jesus #Hope #Faith #Blessed"
-            "This is the truth. Walk in it. #Gospel #Faith #Grace #Jesus #Word"
-            "Hold on to this today. #Jesus #Word #Blessed #Faith #God"
-            "He is speaking to you right now. #Faith #God #Bible #Hope #Gospel"
-            "Don't just scroll. Receive this. #Scripture #Hope #Jesus #Grace #Faith"
-            "Screenshot this and keep it close. #Gospel #Grace #Faith #Jesus #Blessed"
-          )
+          CAPTIONS=("This one hit different. Save it. #Faith #Gospel #Bible #Jesus #GodIsGood" "Read this slowly. #Scripture #Jesus #Hope #Faith #Blessed" "Someone needed this today. Share it. #Faith #Word #Blessed #Gospel #God" "Let this sink in. #Gospel #Jesus #Grace #Faith #Scripture" "This is for you. Don't scroll past. #Bible #Faith #God #Jesus #Hope" "Breathe. Read. Believe. #Scripture #Hope #Jesus #Faith #Grace" "Tag someone who needs this today. #Gospel #Faith #Blessed #Jesus #Word" "Your reminder for today. #Word #Grace #Jesus #Faith #Bible" "Drop everything and read this. #Faith #Bible #God #Gospel #Hope" "God's word never fails. #Scripture #Jesus #Hope #Faith #Blessed" "This is the truth. Walk in it. #Gospel #Faith #Grace #Jesus #Word" "Hold on to this today. #Jesus #Word #Blessed #Faith #God" "He is speaking to you right now. #Faith #God #Bible #Hope #Gospel" "Don't just scroll. Receive this. #Scripture #Hope #Jesus #Grace #Faith" "Screenshot this and keep it close. #Gospel #Grace #Faith #Jesus #Blessed")
           IDX=$((RANDOM % ${#CAPTIONS[@]}))
           PICKED="${CAPTIONS[$IDX]}"
           echo "caption=$PICKED" >> "$GITHUB_OUTPUT"
@@ -339,16 +136,7 @@ jobs:
         id: cta
         timeout-minutes: 1
         run: |
-          CTAS=(
-            "Follow for daily Word"
-            "Share this with someone"
-            "Tag a friend who needs this"
-            "Save this verse"
-            "Follow for more Gospel"
-            "Send this to someone today"
-            "Follow for daily Scripture"
-            "Share God's word today"
-          )
+          CTAS=("Follow for daily Word" "Share this with someone" "Tag a friend who needs this" "Save this verse" "Follow for more Gospel" "Send this to someone today" "Follow for daily Scripture" "Share God's word today")
           IDX=$((RANDOM % ${#CTAS[@]}))
           PICKED="${CTAS[$IDX]}"
           echo "cta=$PICKED" >> "$GITHUB_OUTPUT"
@@ -358,23 +146,7 @@ jobs:
         id: hook
         timeout-minutes: 1
         run: |
-          HOOKS=(
-            "God has a word for you"
-            "Stop and receive this"
-            "This is for your soul"
-            "Read this. It is for you"
-            "He is speaking right now"
-            "A message from Heaven"
-            "Your Father wants you to know"
-            "Let God speak to you"
-            "Pause. God is here"
-            "This will change your day"
-            "He sees you. He loves you"
-            "Open your heart right now"
-            "Jesus has not forgotten you"
-            "Heaven is speaking today"
-            "This word is alive for you"
-          )
+          HOOKS=("God has a word for you" "Stop and receive this" "This is for your soul" "Read this. It is for you" "He is speaking right now" "A message from Heaven" "Your Father wants you to know" "Let God speak to you" "Pause. God is here" "This will change your day" "He sees you. He loves you" "Open your heart right now" "Jesus has not forgotten you" "Heaven is speaking today" "This word is alive for you")
           IDX=$((RANDOM % ${#HOOKS[@]}))
           PICKED="${HOOKS[$IDX]}"
           echo "hook=$PICKED" >> "$GITHUB_OUTPUT"
@@ -395,8 +167,7 @@ jobs:
           DUR_VAL="${{ steps.vid.outputs.clip }}"
           MUSIC_FILE="${{ steps.music.outputs.music_file }}"
           FETCH=$(echo "$DUR_VAL + 5" | bc)
-          FADEOUT_VAL="18.5"
-
+          
           echo "Downloading video..."
           timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -c copy source.mp4
 
@@ -423,117 +194,55 @@ jobs:
           font_hook   = font_bold   if os.path.exists(font_bold)   else font_reg
           font_cta    = font_reg    if os.path.exists(font_reg)    else font_bold
 
-          # ── randomise visual style ──────────────────────────────────────────
-          # Text color palette (name, r, g, b hex)
           palettes = [
-              ("white",       "ffffff"),
-              ("gold",        "FFD700"),
-              ("soft_gold",   "F5C842"),
-              ("sky_blue",    "AEE4FF"),
-              ("rose_gold",   "FFB6C1"),
-              ("mint",        "B5EAD7"),
-              ("amber",       "FFBF00"),
-              ("cream",       "FFF8DC"),
-              ("lavender",    "E6CCFF"),
-              ("coral",       "FF8C69"),
+              ("white", "ffffff"), ("gold", "FFD700"), ("soft_gold", "F5C842"),
+              ("sky_blue", "AEE4FF"), ("rose_gold", "FFB6C1"), ("mint", "B5EAD7"),
+              ("amber", "FFBF00"), ("cream", "FFF8DC"), ("lavender", "E6CCFF"), ("coral", "FF8C69"),
           ]
           palette_name, hex_color = random.choice(palettes)
           r = int(hex_color[0:2], 16)
           g = int(hex_color[2:4], 16)
           b = int(hex_color[4:6], 16)
           text_color = f"#{hex_color}"
-
-          # Glow color (slightly different shade)
-          glow_r = min(255, r + 40)
-          glow_g = min(255, g + 40)
-          glow_b = min(255, b + 40)
-
-          # Word animation style
           anim_styles = ["fade", "fade", "pop", "slide_up", "bounce"]
           anim_style = random.choice(anim_styles)
-
-          # Font sizes
-          verse_fontsize  = random.randint(62, 80)
-          hook_fontsize   = random.randint(52, 66)
-          cta_fontsize    = random.randint(46, 58)
-
-          # Blur strength - vary between heavy and very heavy
+          verse_fontsize = random.randint(62, 80)
+          hook_fontsize = random.randint(52, 66)
+          cta_fontsize = random.randint(46, 58)
           blur_sigma = random.randint(20, 35)
 
-          print(f"Style: palette={palette_name} anim={anim_style} blur={blur_sigma} verse_fs={verse_fontsize}")
-
-          # ── dust / particle layer ──────────────────────────────────────────
-          # Random dust style
           dust_styles = ["amber", "dreamy", "ember", "gold", "blue", "white", "mixed"]
-          dust_style  = random.choice(dust_styles)
-
+          dust_style = random.choice(dust_styles)
           dust_colors = {
-              "amber":  (255, 180, 50),
-              "dreamy": (180, 160, 255),
-              "ember":  (255, 100, 50),
-              "gold":   (255, 215, 0),
-              "blue":   (100, 180, 255),
-              "white":  (255, 255, 255),
-              "mixed":  (random.randint(150,255), random.randint(150,255), random.randint(150,255)),
+              "amber": (255, 180, 50), "dreamy": (180, 160, 255), "ember": (255, 100, 50),
+              "gold": (255, 215, 0), "blue": (100, 180, 255), "white": (255, 255, 255),
+              "mixed": (random.randint(150,255), random.randint(150,255), random.randint(150,255)),
           }
           dr, dg, db = dust_colors[dust_style]
-
-          # Random particle count, speed, size
           num_particles = random.randint(18, 55)
-          base_speed    = random.uniform(0.03, 0.09)   # fraction of height per second
+          base_speed = random.uniform(0.03, 0.09)
           particle_size = random.randint(2, 6)
-          opacity_max   = random.uniform(0.4, 0.95)
-
-          print(f"Dust: style={dust_style} count={num_particles} speed={base_speed:.3f} size={particle_size} opacity={opacity_max:.2f}")
-
-          # Build geq dust filter
-          # Each particle: random x start, random y start, random speed offset
-          # We use geq to draw soft circles at moving positions
-          # To keep filter length manageable we batch particles into a geq expression
+          opacity_max = random.uniform(0.4, 0.95)
 
           particles = []
           for i in range(num_particles):
-              px  = random.uniform(0.02, 0.98)   # x as fraction of width
-              py0 = random.uniform(0.1,  1.2)    # starting y fraction (some start below frame)
-              spd = base_speed * random.uniform(0.5, 2.0)
-              phase = random.uniform(0, 6.28)    # phase offset for wobble
-              wobble = random.uniform(0.005, 0.025)  # horizontal wobble amount
-              twinkle_freq = random.uniform(1.0, 4.0)
-              particles.append((px, py0, spd, phase, wobble, twinkle_freq))
+              particles.append((random.uniform(0.02, 0.98), random.uniform(0.1, 1.2), base_speed * random.uniform(0.5, 2.0), random.uniform(0, 6.28), random.uniform(0.005, 0.025), random.uniform(1.0, 4.0)))
 
-          # Build geq luma/alpha expression
-          # Each particle contributes a gaussian blob
-          # geq r/g/b/a expressions
-          # We use simplified: draw on alpha channel overlay
-          # Actually we'll use geq to generate a particle overlay image
-          # and overlay it on the blurred video
-
-          # Build the geq expression for each channel
-          def make_geq_expr(channel_val, particles, W=1080, H=1920, opacity_max=0.7):
-              """Build a geq expression that draws soft circular particles."""
-              # Each particle: gaussian blob at (px*W, (py0 - spd*t + wobble*sin(2pi*t*0.3+phase))*H)
-              # We approximate with: exp(-((X-cx)^2+(Y-cy)^2)/(2*r^2))
-              # geq has: X, Y, W, H, T (time in seconds), N (frame number)
+          def make_geq_expr(channel_val, particles, opacity_max=0.7):
               terms = []
               for (px, py0, spd, phase, wobble, twinkle_freq) in particles:
                   cx = f"{px:.4f}*W"
-                  # y moves upward: py0*H - spd*H*T, wraps using mod
                   cy = f"mod({py0:.4f}*H - {spd:.4f}*H*T + H, H)"
-                  # wobble in x
                   cx_wobble = f"({cx} + {wobble:.4f}*W*sin(2*3.14159*T*0.4+{phase:.4f}))"
                   r2 = particle_size * particle_size * 4
-                  # twinkle: opacity varies with time
                   twinkle = f"({opacity_max:.3f}*(0.5+0.5*sin(2*3.14159*T*{twinkle_freq:.2f}+{phase:.4f})))"
-                  blob = f"{twinkle}*exp(-((X-{cx_wobble})^2+(Y-{cy})^2)/{r2:.1f})"
-                  terms.append(blob)
-              # sum all blobs, clamp to channel_val
-              expr = "+" .join(terms)
-              return f"clip({channel_val}*({expr}),0,255)"
+                  terms.append(f"{twinkle}*exp(-((X-{cx_wobble})^2+(Y-{cy})^2)/{r2:.1f})")
+              return f"clip({channel_val}*({'+'.join(terms)}),0,255)"
 
-          geq_r = make_geq_expr(dr, particles, opacity_max=opacity_max_val := opacity_max)
+          geq_r = make_geq_expr(dr, particles, opacity_max=opacity_max)
           geq_g = make_geq_expr(dg, particles, opacity_max=opacity_max)
           geq_b = make_geq_expr(db, particles, opacity_max=opacity_max)
-          # Alpha: sum of blobs clamped to 255
+
           alpha_terms = []
           for (px, py0, spd, phase, wobble, twinkle_freq) in particles:
               cx = f"{px:.4f}*W"
@@ -541,177 +250,42 @@ jobs:
               cx_wobble = f"({cx} + {wobble:.4f}*W*sin(2*3.14159*T*0.4+{phase:.4f}))"
               r2 = particle_size * particle_size * 4
               twinkle = f"({opacity_max:.3f}*(0.5+0.5*sin(2*3.14159*T*{twinkle_freq:.2f}+{phase:.4f})))"
-              blob = f"{twinkle}*exp(-((X-{cx_wobble})^2+(Y-{cy})^2)/{r2:.1f})*255"
-              alpha_terms.append(blob)
+              alpha_terms.append(f"{twinkle}*exp(-((X-{cx_wobble})^2+(Y-{cy})^2)/{r2:.1f})*255")
           geq_a = "clip(" + "+".join(alpha_terms) + ",0,255)"
 
-          # ── verse text: split into words ──────────────────────────────────
-          def escape(s):
-              return s.replace("\\","\\\\").replace("'","\\'").replace(":","\\:").replace(",","\\,").replace("[","\\[").replace("]","\\]")
+          def escape(s): return s.replace("\\","\\\\").replace("'","\\'").replace(":","\\:").replace(",","\\,").replace("[","\\[").replace("]","\\]")
 
           words = verse.split()
-          text_start  = 1.5
-          text_end    = dur * 0.75
-          total_time  = text_end - text_start
-          interval    = total_time / max(len(words) - 1, 1)
-
-          # Layout words into lines of max 4 words
-          words_per_line = 4
-          lines = [words[i:i+words_per_line] for i in range(0, len(words), words_per_line)]
-          total_lines = len(lines)
-          line_h      = verse_fontsize + 20
-          center_y    = 960
-          block_top   = center_y - (total_lines * line_h) // 2
-
+          text_start, text_end = 1.5, dur * 0.75
+          interval = (text_end - text_start) / max(len(words) - 1, 1)
+          lines = [words[i:i+4] for i in range(0, len(words), 4)]
           dt_filters = []
           word_idx = 0
-
           for line_num, line_words in enumerate(lines):
-              y_pos = block_top + line_num * line_h
-              n_w   = len(line_words)
+              y_pos = (960 - (len(lines) * (verse_fontsize + 20)) // 2) + line_num * (verse_fontsize + 20)
               for w_in_line, word in enumerate(line_words):
                   t_show = text_start + word_idx * interval
-                  # x: evenly space words across ~800px centered
-                  if n_w == 1:
-                      x_expr = "(w-text_w)/2"
-                  else:
-                      slot_w = 820
-                      x_off  = int((w_in_line / (n_w - 1)) * slot_w - slot_w / 2)
-                      x_expr = f"(w-text_w)/2+{x_off}"
-
-                  # Alpha / animation expression
-                  if anim_style == "fade":
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.35))"
-                  elif anim_style == "pop":
-                      # pop: instant appear with slight overshoot feel (just faster fade)
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.12))"
-                  elif anim_style == "slide_up":
-                      # simulate slide: alpha fades in fast
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.25))"
-                  elif anim_style == "bounce":
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.18))"
-                  else:
-                      alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
-
+                  x_expr = f"(w-text_w)/2+{int((w_in_line / (len(line_words) - 1)) * 820 - 410)}" if len(line_words) > 1 else "(w-text_w)/2"
+                  alpha = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
                   ew = escape(word)
-
-                  # Glow layer (slightly larger, lower opacity)
-                  dt_glow = (
-                      f"drawtext=text='{ew}'"
-                      f":fontfile={font_verse}"
-                      f":fontcolor=#{hex_color}@0.4"
-                      f":fontsize={verse_fontsize + 8}"
-                      f":x={x_expr}:y={y_pos - 4}"
-                      f":alpha='{alpha}'"
-                  )
-                  # Main text layer
-                  dt_main = (
-                      f"drawtext=text='{ew}'"
-                      f":fontfile={font_verse}"
-                      f":fontcolor={text_color}"
-                      f":fontsize={verse_fontsize}"
-                      f":x={x_expr}:y={y_pos}"
-                      f":alpha='{alpha}'"
-                      f":shadowcolor=black@0.9"
-                      f":shadowx=3:shadowy=3"
-                  )
-                  dt_filters.append(dt_glow)
-                  dt_filters.append(dt_main)
+                  dt_filters.append(f"drawtext=text='{ew}':fontfile={font_verse}:fontcolor=#{hex_color}@0.4:fontsize={verse_fontsize + 8}:x={x_expr}:y={y_pos - 4}:alpha='{alpha}'")
+                  dt_filters.append(f"drawtext=text='{ew}':fontfile={font_verse}:fontcolor={text_color}:fontsize={verse_fontsize}:x={x_expr}:y={y_pos}:alpha='{alpha}':shadowcolor=black@0.9:shadowx=3:shadowy=3")
                   word_idx += 1
 
-          # ── hook text (top, stays whole video) ────────────────────────────
-          hook_escaped = escape(hook)
-          hook_alpha   = f"if(lt(t,0.5),0,min(1,(t-0.5)/0.6))"
-          # hook glow
-          dt_hook_glow = (
-              f"drawtext=text='{hook_escaped}'"
-              f":fontfile={font_hook}"
-              f":fontcolor=#{hex_color}@0.35"
-              f":fontsize={hook_fontsize + 6}"
-              f":x=(w-text_w)/2:y=130"
-              f":alpha='{hook_alpha}'"
-          )
-          dt_hook_main = (
-              f"drawtext=text='{hook_escaped}'"
-              f":fontfile={font_hook}"
-              f":fontcolor={text_color}"
-              f":fontsize={hook_fontsize}"
-              f":x=(w-text_w)/2:y=140"
-              f":alpha='{hook_alpha}'"
-              f":shadowcolor=black@0.9"
-              f":shadowx=3:shadowy=3"
-          )
-          # Decorative line under hook
-          dt_hook_line = (
-              f"drawtext=text='_______________'"
-              f":fontfile={font_reg}"
-              f":fontcolor={text_color}@0.5"
-              f":fontsize=28"
-              f":x=(w-text_w)/2:y=205"
-              f":alpha='{hook_alpha}'"
-          )
-          dt_filters += [dt_hook_glow, dt_hook_main, dt_hook_line]
-
-          # ── CTA text (bottom, clear position) ─────────────────────────────
-          cta_escaped = escape(cta)
-          cta_alpha   = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.2))"
-          # CTA background bar (drawn as a filled rectangle via drawbox)
-          # We'll add a drawbox for CTA background
-          cta_box = (
-              f"drawbox=x=0:y=ih-240:w=iw:h=180"
-              f":color=black@0.45:t=fill"
-          )
-          # Only show cta box when cta shows
-          # drawbox doesn't support alpha animation so we use a workaround:
-          # Use geq or just keep the box subtle always
-          # Simpler: always show subtle box and fade in cta text on top
-          dt_cta_label = (
-              f"drawtext=text='-- {cta_escaped} --'"
-              f":fontfile={font_cta}"
-              f":fontcolor=white"
-              f":fontsize={cta_fontsize}"
-              f":x=(w-text_w)/2:y=ih-185"
-              f":alpha='{cta_alpha}'"
-              f":shadowcolor=black@1.0"
-              f":shadowx=4:shadowy=4"
-          )
-          dt_cta_arrow = (
-              f"drawtext=text='v  Follow  v'"
-              f":fontfile={font_cta}"
-              f":fontcolor={text_color}@0.9"
-              f":fontsize={cta_fontsize - 8}"
-              f":x=(w-text_w)/2:y=ih-120"
-              f":alpha='{cta_alpha}'"
-              f":shadowcolor=black@1.0"
-              f":shadowx=2:shadowy=2"
-          )
-          dt_filters += [dt_cta_label, dt_cta_arrow]
-
-          # ── assemble full filter chain ────────────────────────────────────
-          all_dt = ",".join(dt_filters)
-
-          # Particle geq filter - generate as separate stream then overlay
-          geq_filter = (
-              f"geq=r='{geq_r}':g='{geq_g}':b='{geq_b}':a='{geq_a}'"
-          )
-
-          vfilter = (
-              f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
-              f"crop=1080:1920,setsar=1,"
-              f"gblur=sigma={blur_sigma},"
-              f"fade=t=in:st=0:d=1,"
-              f"fade=t=out:st={fadeout:.2f}:d=1.5,"
-              f"{cta_box},"
-              f"{all_dt}[base];"
-              f"[base]split[v1][v2];"
-              f"[v2]{geq_filter}[particles];"
-              f"[v1][particles]overlay=format=auto[vout]"
-          )
+          hook_alpha = f"if(lt(t,0.5),0,min(1,(t-0.5)/0.6))"
+          dt_filters += [
+              f"drawtext=text='{escape(hook)}':fontfile={font_hook}:fontcolor=#{hex_color}@0.35:fontsize={hook_fontsize + 6}:x=(w-text_w)/2:y=130:alpha='{hook_alpha}'",
+              f"drawtext=text='{escape(hook)}':fontfile={font_hook}:fontcolor={text_color}:fontsize={hook_fontsize}:x=(w-text_w)/2:y=140:alpha='{hook_alpha}':shadowcolor=black@0.9:shadowx=3:shadowy=3",
+              f"drawtext=text='_______________':fontfile={font_reg}:fontcolor={text_color}@0.5:fontsize=28:x=(w-text_w)/2:y=205:alpha='{hook_alpha}'"
+          ]
+          cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.2))"
+          dt_filters += [
+              f"drawtext=text='-- {escape(cta)} --':fontfile={font_cta}:fontcolor=white:fontsize={cta_fontsize}:x=(w-text_w)/2:y=ih-185:alpha='{cta_alpha}':shadowcolor=black@1.0:shadowx=4:shadowy=4",
+              f"drawtext=text='v  Follow  v':fontfile={font_cta}:fontcolor={text_color}@0.9:fontsize={cta_fontsize - 8}:x=(w-text_w)/2:y=ih-120:alpha='{cta_alpha}':shadowcolor=black@1.0:shadowx=2:shadowy=2"
+          ]
 
           with open("/tmp/vfilter.txt", "w") as f:
-              f.write(vfilter)
-
-          print(f"Filter built. Words={len(words)} lines={total_lines} interval={interval:.2f}s")
+              f.write(f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,gblur=sigma={blur_sigma},fade=t=in:st=0:d=1,fade=t=out:st={fadeout:.2f}:d=1.5,drawbox=x=0:y=ih-240:w=iw:h=180:color=black@0.45:t=fill,{','.join(dt_filters)}[base];[base]split[v1][v2];[v2]geq=r='{geq_r}':g='{geq_g}':b='{geq_b}':a='{geq_a}'[particles];[v1][particles]overlay=format=auto[vout]")
           PYEOF
 
           VFILTER=$(cat /tmp/vfilter.txt)
@@ -728,8 +302,6 @@ jobs:
             -movflags +faststart \
             -pix_fmt yuv420p \
             final.mp4
-
-          ls -lh final.mp4
 
       - name: post-to-facebook
         timeout-minutes: 3

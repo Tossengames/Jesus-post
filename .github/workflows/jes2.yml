@@ -280,8 +280,8 @@ jobs:
           ]
           cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.2))"
           dt_filters += [
-              f"drawtext=text='-- {escape(cta)} --':fontfile={font_cta}:fontcolor=white:fontsize={cta_fontsize}:x=(w-text_w)/2:y=ih-185:alpha='{cta_alpha}':shadowcolor=black@1.0:shadowx=4:shadowy=4",
-              f"drawtext=text='v  Follow  v':fontfile={font_cta}:fontcolor={text_color}@0.9:fontsize={cta_fontsize - 8}:x=(w-text_w)/2:y=ih-120:alpha='{cta_alpha}':shadowcolor=black@1.0:shadowx=2:shadowy=2"
+              f"drawtext=text='-- {escape(cta)} --':fontfile={font_cta}:fontcolor=white:fontsize={cta_fontsize}:x=(w-text_w)/2:y=(ih-185):alpha='{cta_alpha}':shadowcolor=black@1.0:shadowx=4:shadowy=4",
+              f"drawtext=text='v  Follow  v':fontfile={font_cta}:fontcolor={text_color}@0.9:fontsize={cta_fontsize - 8}:x=(w-text_w)/2:y=(ih-120):alpha='{cta_alpha}':shadowcolor=black@1.0:shadowx=2:shadowy=2"
           ]
 
           with open("/tmp/vfilter.txt", "w") as f:

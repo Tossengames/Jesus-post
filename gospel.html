@@ -119,6 +119,14 @@ html,body{
 (()=>{
 'use strict';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// RECORDING API - FIXED: now captures UI elements (text, card, bottom verse)
+// ═══════════════════════════════════════════════════════════════════════════
+window._recordingDone = false;
+window._recordingBlob = null;
+window._recDest = null;
+window._masterGainForRecording = null;
+
 function safeR(v){return Math.max(0.01,isFinite(v)?v:0.01);}
 function rg(ctx,x,y,r0,x2,y2,r1){return ctx.createRadialGradient(x,y,safeR(r0),x2,y2,safeR(r1));}
 function lg(ctx,x1,y1,x2,y2){return ctx.createLinearGradient(x1,y1,x2,y2);}
@@ -126,6 +134,12 @@ function lg(ctx,x1,y1,x2,y2){return ctx.createLinearGradient(x1,y1,x2,y2);}
 // ── AUDIO ────────────────────────────────────────────────
 const AC=new(window.AudioContext||window.webkitAudioContext)();
 let _au=false;
+
+// Create master gain for recording routing
+const _masterGain = AC.createGain();
+_masterGain.gain.value = 1.0;
+_masterGain.connect(AC.destination);
+
 function unlockAC(){if(_au)return;AC.resume().then(()=>{_au=true;startPad();});}
 
 let _rev=null;
@@ -134,7 +148,7 @@ function getRev(){
   try{
     const l=AC.sampleRate*3,b=AC.createBuffer(2,l,AC.sampleRate);
     for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,1.6);}
-    const cv=AC.createConvolver(),g=AC.createGain();g.gain.value=0.3;cv.buffer=b;cv.connect(g);g.connect(AC.destination);_rev=cv;return cv;
+    const cv=AC.createConvolver(),g=AC.createGain();g.gain.value=0.3;cv.buffer=b;cv.connect(g);g.connect(_masterGain);_rev=cv;return cv;
   }catch(e){return null;}
 }
 
@@ -147,13 +161,13 @@ function startPad(){
       o.type='sine';o.frequency.value=f;lfo.type='sine';lfo.frequency.value=0.07+i*0.025;lg2.gain.value=1.4;
       lfo.connect(lg2);lg2.connect(o.frequency);
       const t=AC.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.024-i*0.003,t+2.8);
-      const r=getRev();o.connect(g);if(r)g.connect(r);g.connect(AC.destination);
+      const r=getRev();o.connect(g);if(r)g.connect(r);g.connect(_masterGain);
       o.start(t);lfo.start(t);_pads.push({o,g,lfo});
     });
     // Noise shimmer
     const bl=AC.sampleRate*2,nb=AC.createBuffer(1,bl,AC.sampleRate),nd=nb.getChannelData(0);
     for(let i=0;i<bl;i++)nd[i]=Math.random()*2-1;
-    const loop=()=>{const s=AC.createBufferSource(),gn=AC.createGain(),f=AC.createBiquadFilter();f.type='highpass';f.frequency.value=4200;gn.gain.value=0.003;s.buffer=nb;s.connect(f);f.connect(gn);gn.connect(AC.destination);s.onended=loop;s.start();};loop();
+    const loop=()=>{const s=AC.createBufferSource(),gn=AC.createGain(),f=AC.createBiquadFilter();f.type='highpass';f.frequency.value=4200;gn.gain.value=0.003;s.buffer=nb;s.connect(f);f.connect(gn);gn.connect(_masterGain);s.onended=loop;s.start();};loop();
   }catch(e){}
 }
 function stopPad(){
@@ -171,7 +185,7 @@ function playNote(){
   if(!_au)return;
   try{
     const f=_ms[_mi%_ms.length],v=0.042+Math.random()*0.024,d=3+Math.random()*1.5;
-    const g=AC.createGain(),r=getRev();g.connect(AC.destination);if(r)g.connect(r);
+    const g=AC.createGain(),r=getRev();g.connect(_masterGain);if(r)g.connect(r);
     [1,2,3].forEach((h,i)=>{
       const o=AC.createOscillator(),og=AC.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=f*h;
       const hv=v*[1,.15,.04][i],t=AC.currentTime;
@@ -182,8 +196,8 @@ function playNote(){
   }catch(e){}
 }
 function startMel(){clearInterval(_mt);_mt=setInterval(()=>playNote(),2500+Math.random()*900);}
-function sfxTap(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(880,AC.currentTime);o.frequency.exponentialRampToValueAtTime(440,AC.currentTime+0.22);const t=AC.currentTime;g.gain.setValueAtTime(0.07,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.28);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.3);}catch(e){}}
-function sfxReveal(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain(),r=getRev();o.type='sine';o.frequency.value=528;const t=AC.currentTime;g.gain.setValueAtTime(0.038,t);g.gain.exponentialRampToValueAtTime(0.0001,t+1.1);o.connect(g);if(r)g.connect(r);g.connect(AC.destination);o.start(t);o.stop(t+1.2);}catch(e){}}
+function sfxTap(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(880,AC.currentTime);o.frequency.exponentialRampToValueAtTime(440,AC.currentTime+0.22);const t=AC.currentTime;g.gain.setValueAtTime(0.07,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.28);o.connect(g);g.connect(_masterGain);o.start(t);o.stop(t+0.3);}catch(e){}}
+function sfxReveal(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain(),r=getRev();o.type='sine';o.frequency.value=528;const t=AC.currentTime;g.gain.setValueAtTime(0.038,t);g.gain.exponentialRampToValueAtTime(0.0001,t+1.1);o.connect(g);if(r)g.connect(r);g.connect(_masterGain);o.start(t);o.stop(t+1.2);}catch(e){}}
 
 // ── THEMES ────────────────────────────────────────────────
 const THEMES=[
@@ -510,80 +524,143 @@ document.body.addEventListener('touchend',e=>{e.preventDefault();loadScene(false
 initBg();initFX();loadScene(true);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RECORDING API - FIXED VERSION (no audio routing errors)
+// RECORDING API - FIXED: now properly captures UI text and overlays
 // ═══════════════════════════════════════════════════════════════════════════
 window._recordingDone = false;
 window._recordingBlob = null;
 window._recDest = null;
 
-// Load html2canvas for UI capture
-if(typeof html2canvas === 'undefined'){
-  var s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-  s.onload = function(){ console.log('html2canvas ready'); };
-  document.head.appendChild(s);
+// Helper to render UI onto a canvas for recording
+function renderUIToCanvas(targetCanvas) {
+  const ui = document.getElementById('ui');
+  if (!ui) return;
+  const rect = ui.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+  if (w <= 0 || h <= 0) return;
+  const ctx = targetCanvas.getContext('2d');
+  // Capture each UI element by drawing its computed styles and text content
+  const card = document.getElementById('card');
+  const cardStyle = window.getComputedStyle(card);
+  const contentType = document.getElementById('content-type');
+  const mainText = document.getElementById('main-text');
+  const refSpan = document.getElementById('ref');
+  const bottomVerse = document.getElementById('bottom-verse');
+  const tapHint = document.getElementById('tap-hint');
+  
+  // Draw card background and border
+  ctx.fillStyle = cardStyle.backgroundColor || 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = cardStyle.borderColor || '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(2, 2, w - 4, h - 4);
+  
+  // Draw corner decorations
+  ctx.beginPath();
+  ctx.moveTo(10, 0); ctx.lineTo(0, 0); ctx.lineTo(0, 10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w-10, 0); ctx.lineTo(w, 0); ctx.lineTo(w, 10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(10, h); ctx.lineTo(0, h); ctx.lineTo(0, h-10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w-10, h); ctx.lineTo(w, h); ctx.lineTo(w, h-10);
+  ctx.stroke();
+  
+  // Content type
+  if (contentType.innerText) {
+    ctx.font = `400 ${Math.max(10, w * 0.04)}px Cinzel`;
+    ctx.fillStyle = window.getComputedStyle(contentType).color || '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(contentType.innerText, w/2, h * 0.12);
+  }
+  
+  // Main text (word-wrapped)
+  if (mainText.innerText) {
+    const textStr = mainText.innerText;
+    const baseSize = Math.max(14, w * 0.045);
+    ctx.font = `italic 400 ${baseSize}px 'IM Fell English', serif`;
+    ctx.fillStyle = window.getComputedStyle(mainText).color || '#fff';
+    ctx.textAlign = 'center';
+    const words = textStr.split(' ');
+    let line = '';
+    let lineY = h * 0.22;
+    const lineHeight = baseSize * 1.7;
+    const maxWidth = w * 0.85;
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + (line ? ' ' : '') + words[i];
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && line) {
+        ctx.fillText(line, w/2, lineY);
+        line = words[i];
+        lineY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, w/2, lineY);
+  }
+  
+  // Reference
+  if (refSpan.innerText && refSpan.style.opacity !== '0') {
+    ctx.font = `400 ${Math.max(8, w * 0.028)}px Cinzel`;
+    ctx.fillStyle = window.getComputedStyle(refSpan).color || '#fff';
+    ctx.fillText(refSpan.innerText, w/2, h * 0.8);
+  }
+  
+  // Bottom verse
+  if (bottomVerse.innerText && bottomVerse.style.opacity !== '0') {
+    ctx.font = `italic 400 ${Math.max(9, w * 0.03)}px 'Playfair Display', serif`;
+    ctx.fillStyle = window.getComputedStyle(bottomVerse).color || '#fff';
+    let verseText = bottomVerse.innerText;
+    if (verseText.length > 70) verseText = verseText.substring(0, 67) + '...';
+    ctx.fillText(verseText, w/2, h * 0.9);
+  }
+  
+  // Tap hint
+  if (tapHint.innerText && tapHint.style.opacity !== '0') {
+    ctx.font = `400 ${Math.max(7, w * 0.02)}px Cinzel`;
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillText(tapHint.innerText, w/2, h * 0.97);
+  }
 }
 
 window.startRecording = function(fps = 30) {
   const bgCanvas = document.getElementById('bgCanvas');
   const fxCanvas = document.getElementById('fxCanvas');
-  const uiElement = document.getElementById('ui');
   const RW = bgCanvas.width, RH = bgCanvas.height;
   const merged = document.createElement('canvas');
   merged.width = RW; merged.height = RH;
   const mctx = merged.getContext('2d');
   
+  // Create an offscreen canvas for UI overlay
+  const uiCanvas = document.createElement('canvas');
+  uiCanvas.width = RW;
+  uiCanvas.height = RH;
+  
   function drawMerged() {
     mctx.clearRect(0, 0, RW, RH);
-    // Draw background canvas
+    // Draw background
     mctx.drawImage(bgCanvas, 0, 0, RW, RH);
-    // Draw UI using html2canvas if available
-    if(typeof html2canvas !== 'undefined'){
-      html2canvas(uiElement, { backgroundColor: null, scale: 1, logging: false }).then(uiCanvas => {
-        mctx.drawImage(uiCanvas, 0, 0, RW, RH);
-      }).catch(e => console.log('html2canvas error:', e));
-    }
-    // Draw effects canvas on top
+    // Draw particle effects
     mctx.drawImage(fxCanvas, 0, 0, RW, RH);
+    // Draw UI overlay (capture current HTML/CSS state)
+    const uiContainer = document.getElementById('ui');
+    if (uiContainer && uiContainer.style.display !== 'none') {
+      const uiRect = uiContainer.getBoundingClientRect();
+      uiCanvas.width = uiRect.width;
+      uiCanvas.height = uiRect.height;
+      renderUIToCanvas(uiCanvas);
+      mctx.drawImage(uiCanvas, uiRect.left, uiRect.top, uiRect.width, uiRect.height);
+    }
     window._mergeRAF = requestAnimationFrame(drawMerged);
   }
   drawMerged();
   
   const canvasStream = merged.captureStream(fps);
-  
-  // Create a MediaStreamDestination for audio capture
   window._recDest = AC.createMediaStreamDestination();
-  
-  // Create a gain node to split audio for recording (without breaking existing routing)
-  const recordingGain = AC.createGain();
-  recordingGain.gain.value = 1.0;
-  
-  // Connect the context destination to our recording gain, then to recorder and original output
-  // This preserves audio for both the user and the recording
-  const originalDestination = AC.destination;
-  
-  // Create a new gain to split the signal
-  const splitter = AC.createGain();
-  splitter.gain.value = 1.0;
-  
-  // Disconnect original destination and reconnect through splitter
-  // But instead of disrupting, we'll just add a parallel connection
-  try {
-    // Add a parallel connection for recording
-    const tapGain = AC.createGain();
-    tapGain.gain.value = 0.5; // Reduce volume slightly to avoid doubling
-    AC.destination.connect(tapGain);
-    tapGain.connect(window._recDest);
-    window._recordingCleanup = function() {
-      try {
-        tapGain.disconnect();
-        tapGain.disconnect(window._recDest);
-      } catch(e) {}
-    };
-  } catch(e) {
-    console.log('Audio routing fallback:', e);
-    // Fallback: just capture without audio routing
-  }
+  _masterGain.connect(window._recDest);
   
   const combined = new MediaStream([
     ...canvasStream.getVideoTracks(),
@@ -602,13 +679,13 @@ window.startRecording = function(fps = 30) {
   };
   window._recorder.onstop = () => {
     cancelAnimationFrame(window._mergeRAF);
-    if (window._recordingCleanup) window._recordingCleanup();
+    _masterGain.disconnect(window._recDest);
     window._recordingBlob = new Blob(window._chunks, { type: 'video/webm' });
     window._recordingDone = true;
     console.log('Recording done, size:', window._recordingBlob.size);
   };
   window._recorder.start(100);
-  console.log('Recording started');
+  console.log('Recording started on merged canvas with UI capture');
 };
 
 window.stopRecording = function() {

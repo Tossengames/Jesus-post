@@ -438,7 +438,7 @@ jobs:
 
           words = verse.split()
           text_start = 1.2
-          text_end = dur * 0.78
+          text_end = dur * 0.85
           total_text_time = text_end - text_start
 
           if len(words) > 1:
@@ -451,16 +451,6 @@ jobs:
 
           if not os.path.exists(font):
               font = font_fallback
-
-          words_per_line = 4
-          lines = []
-          for i in range(0, len(words), words_per_line):
-              lines.append(words[i:i+words_per_line])
-
-          total_lines = len(lines)
-          line_height = 95
-          center_y = 960
-          block_top = center_y - (total_lines * line_height) // 2
 
           filters = []
           
@@ -480,38 +470,34 @@ jobs:
           )
           filters.append(title_filter)
           
-          word_idx = 0
-          for line_num, line_words in enumerate(lines):
-              y_pos = block_top + line_num * line_height
-              for w_in_line, word in enumerate(line_words):
-                  global_word_idx = word_idx
-                  t_show = text_start + global_word_idx * interval
+          # VERSE - simple accumulated text, centered normally like typing
+          accumulated = ""
+          for idx, word in enumerate(words):
+              if idx == 0:
+                  accumulated = word
+              else:
+                  accumulated = accumulated + " " + word
+              
+              t_show = text_start + idx * interval
+              alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
+              escaped = accumulated.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
+              
+              ft = (
+                  f"drawtext=text='{escaped}'"
+                  f":fontfile={font}"
+                  f":fontcolor={verse_color}"
+                  f":fontsize=68"
+                  f":x=(w-text_w)/2"
+                  f":y=(h-text_h)/2"
+                  f":alpha='{alpha_expr}'"
+                  f":shadowcolor=black@0.8"
+                  f":shadowx=2:shadowy=2"
+                  f":borderw=1"
+                  f":bordercolor=black@0.3"
+              )
+              filters.append(ft)
 
-                  x_offset = w_in_line * 200 - (len(line_words) - 1) * 100
-                  x_pos = f"(w-text_w)/2+{x_offset}" if len(line_words) > 1 else "(w-text_w)/2"
-
-                  alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
-
-                  escaped_word = word.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-
-                  ft = (
-                      f"drawtext=text='{escaped_word}'"
-                      f":fontfile={font}"
-                      f":fontcolor={verse_color}"
-                      f":fontsize=72"
-                      f":x={x_pos}"
-                      f":y={y_pos}"
-                      f":alpha='{alpha_expr}'"
-                      f":shadowcolor=black@0.8"
-                      f":shadowx=3:shadowy=3"
-                  )
-                  filters.append(ft)
-                  word_idx += 1
-
-          # CTA below verse text - appears at 16s, stays until end
-          last_line_y = block_top + (total_lines - 1) * line_height
-          cta_y = last_line_y + 100
-          
+          # CTA below verse
           cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
           cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"
           cta_filter = (
@@ -520,7 +506,7 @@ jobs:
               f":fontcolor=#FFD700"
               f":fontsize=48"
               f":x=(w-text_w)/2"
-              f":y={cta_y}"
+              f":y=h-120"
               f":alpha='{cta_alpha}'"
               f":shadowcolor=black@0.8"
               f":shadowx=2:shadowy=2"

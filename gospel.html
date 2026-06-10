@@ -2,112 +2,116 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Gospel</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&family=Playfair+Display:ital,wght@0,400;1,400&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:manipulation}
-#frame{
-  position:fixed;top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  width:min(100vw,56.25vh);
-  height:min(100vh,177.78vw);
-  overflow:hidden;cursor:pointer;
+html,body{
+  width:100%;height:100%;
+  overflow:hidden;background:#000;
+  touch-action:manipulation;
 }
-#bgCanvas{position:absolute;inset:0;width:100%;height:100%}
-#fxCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
-#vig{position:absolute;inset:0;z-index:2;pointer-events:none}
-#flash{position:absolute;inset:0;z-index:50;opacity:0;pointer-events:none}
-/* UI — centered vertically, no top badge */
+/* Everything fills the full screen — no frame wrapper */
+#bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+#fxCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
+#vig{position:fixed;inset:0;z-index:2;pointer-events:none}
+#flash{position:fixed;inset:0;z-index:50;opacity:0;pointer-events:none}
+/* Main UI — full screen flex */
 #ui{
-  position:absolute;inset:0;z-index:10;
+  position:fixed;inset:0;z-index:10;
   display:flex;flex-direction:column;
   align-items:center;justify-content:center;
-  padding:6% 6% 8%;
-  gap:min(4vh,28px);
+  padding:10vw 8vw 12vw;
+  gap:6vw;
+  cursor:pointer;
 }
+/* Corners */
+.corn{position:fixed;width:52px;height:52px;z-index:11;pointer-events:none;opacity:0;transition:opacity 1.2s ease}
+.corn.tl{top:10px;left:10px}
+.corn.tr{top:10px;right:10px;transform:scaleX(-1)}
+.corn.bl{bottom:10px;left:10px;transform:scaleY(-1)}
+.corn.br{bottom:10px;right:10px;transform:scale(-1)}
 /* Card */
 #card{
-  width:100%;max-width:360px;
+  width:100%;
   background:var(--card-bg);
   border:1px solid var(--card-border);
-  border-radius:4px;
-  padding:1.8em 2em 1.6em;
+  border-radius:6px;
+  padding:8vw 7vw 7vw;
   position:relative;
-  box-shadow:0 0 40px var(--glow2),0 6px 30px rgba(0,0,0,0.6);
+  box-shadow:0 0 40px var(--glow2),0 8px 32px rgba(0,0,0,0.55);
   opacity:0;transition:opacity 1.4s ease;
 }
 #card::before,#card::after{
-  content:'';position:absolute;width:18px;height:18px;
+  content:'';position:absolute;width:20px;height:20px;
   border-style:solid;border-color:var(--accent);
 }
 #card::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
 #card::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
 #content-type{
-  font-family:'Cinzel',serif;font-size:clamp(0.22rem,0.9vw,0.38rem);
-  letter-spacing:0.55em;text-transform:uppercase;
-  color:var(--accent);margin-bottom:1em;opacity:0.65;text-align:center;
+  font-family:'Cinzel',serif;
+  font-size:clamp(0.55rem,3vw,0.75rem);
+  letter-spacing:0.5em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:5vw;
+  opacity:0.65;text-align:center;
 }
 #main-text{
   font-family:'IM Fell English',serif;font-style:italic;
-  font-size:clamp(0.85rem,2.3vw,1.1rem);
-  line-height:1.9;color:var(--text-color);
+  font-size:clamp(1rem,4.5vw,1.4rem);
+  line-height:1.85;color:var(--text-color);
   text-align:center;min-height:3em;
 }
 .word{display:inline;opacity:0;transition:opacity 0.38s ease}
 #ref{
-  font-family:'Cinzel',serif;font-size:clamp(0.25rem,1vw,0.42rem);
+  font-family:'Cinzel',serif;
+  font-size:clamp(0.5rem,2.5vw,0.68rem);
   letter-spacing:0.35em;text-transform:uppercase;
-  color:var(--accent);display:block;margin-top:1em;
-  text-align:center;opacity:0;transition:opacity 1s ease;
+  color:var(--accent);display:block;
+  margin-top:5vw;text-align:center;
+  opacity:0;transition:opacity 1s ease;
 }
 /* Bottom */
 #bottom{
-  display:flex;flex-direction:column;align-items:center;gap:6px;
-  opacity:0;transition:opacity 1.2s ease;
+  display:flex;flex-direction:column;align-items:center;gap:3vw;
+  opacity:0;transition:opacity 1.2s ease;width:100%;
 }
 #bottom-verse{
-  font-family:'Playfair Display',serif;
-  font-size:clamp(0.48rem,1.6vw,0.72rem);
-  letter-spacing:0.06em;color:var(--accent);
-  text-align:center;font-style:italic;
-  text-shadow:0 0 12px var(--glow2);
-  max-width:320px;
+  font-family:'Playfair Display',serif;font-style:italic;
+  font-size:clamp(0.7rem,3.2vw,0.95rem);
+  letter-spacing:0.04em;color:var(--accent);
+  text-align:center;
+  text-shadow:0 0 14px var(--glow2);
+  max-width:90%;line-height:1.55;
 }
 #tap-hint{
-  font-family:'Cinzel',serif;font-size:clamp(0.2rem,0.85vw,0.36rem);
+  font-family:'Cinzel',serif;
+  font-size:clamp(0.4rem,2vw,0.55rem);
   letter-spacing:0.45em;text-transform:uppercase;
-  color:rgba(255,255,255,0.2);margin-top:4px;
+  color:rgba(255,255,255,0.22);margin-top:1vw;
 }
-/* Corners */
-.corn{position:absolute;width:48px;height:48px;z-index:11;pointer-events:none;opacity:0;transition:opacity 1.2s ease}
-.corn.tl{top:6px;left:6px}.corn.tr{top:6px;right:6px;transform:scaleX(-1)}
-.corn.bl{bottom:6px;left:6px;transform:scaleY(-1)}.corn.br{bottom:6px;right:6px;transform:scale(-1)}
 </style>
 </head>
 <body>
-<div id="frame">
-  <canvas id="bgCanvas"></canvas>
-  <canvas id="fxCanvas"></canvas>
-  <div id="vig"></div>
-  <div id="flash" style="background:#fff"></div>
+<canvas id="bgCanvas"></canvas>
+<canvas id="fxCanvas"></canvas>
+<div id="vig"></div>
+<div id="flash"></div>
 
-  <div class="corn tl"><svg viewBox="0 0 48 48" fill="none"><path d="M2 46L2 2L46 2" class="c-stroke" stroke-width="1.2"/><circle cx="2" cy="2" r="2" class="c-fill"/><circle cx="24" cy="2" r="1" class="c-fill" opacity=".4"/></svg></div>
-  <div class="corn tr"><svg viewBox="0 0 48 48" fill="none"><path d="M2 46L2 2L46 2" class="c-stroke" stroke-width="1.2"/><circle cx="2" cy="2" r="2" class="c-fill"/><circle cx="24" cy="2" r="1" class="c-fill" opacity=".4"/></svg></div>
-  <div class="corn bl"><svg viewBox="0 0 48 48" fill="none"><path d="M2 46L2 2L46 2" class="c-stroke" stroke-width="1.2"/><circle cx="2" cy="2" r="2" class="c-fill"/><circle cx="24" cy="2" r="1" class="c-fill" opacity=".4"/></svg></div>
-  <div class="corn br"><svg viewBox="0 0 48 48" fill="none"><path d="M2 46L2 2L46 2" class="c-stroke" stroke-width="1.2"/><circle cx="2" cy="2" r="2" class="c-fill"/><circle cx="24" cy="2" r="1" class="c-fill" opacity=".4"/></svg></div>
+<div class="corn tl"><svg viewBox="0 0 52 52" fill="none"><path d="M2 50L2 2L50 2" class="cs" stroke-width="1.4"/><circle cx="2" cy="2" r="2.2" class="cf"/><circle cx="26" cy="2" r="1.2" class="cf" opacity=".4"/></svg></div>
+<div class="corn tr"><svg viewBox="0 0 52 52" fill="none"><path d="M2 50L2 2L50 2" class="cs" stroke-width="1.4"/><circle cx="2" cy="2" r="2.2" class="cf"/><circle cx="26" cy="2" r="1.2" class="cf" opacity=".4"/></svg></div>
+<div class="corn bl"><svg viewBox="0 0 52 52" fill="none"><path d="M2 50L2 2L50 2" class="cs" stroke-width="1.4"/><circle cx="2" cy="2" r="2.2" class="cf"/><circle cx="26" cy="2" r="1.2" class="cf" opacity=".4"/></svg></div>
+<div class="corn br"><svg viewBox="0 0 52 52" fill="none"><path d="M2 50L2 2L50 2" class="cs" stroke-width="1.4"/><circle cx="2" cy="2" r="2.2" class="cf"/><circle cx="26" cy="2" r="1.2" class="cf" opacity=".4"/></svg></div>
 
-  <div id="ui">
-    <div id="card">
-      <div id="content-type"></div>
-      <div id="main-text"></div>
-      <span id="ref"></span>
-    </div>
-    <div id="bottom">
-      <div id="bottom-verse"></div>
-      <div id="tap-hint">Tap for a new word</div>
-    </div>
+<div id="ui">
+  <div id="card">
+    <div id="content-type"></div>
+    <div id="main-text"></div>
+    <span id="ref"></span>
+  </div>
+  <div id="bottom">
+    <div id="bottom-verse"></div>
+    <div id="tap-hint">Tap for a new word</div>
   </div>
 </div>
 
@@ -115,344 +119,297 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:ma
 (()=>{
 'use strict';
 
-// ── safe radius ──────────────────────────────────
-function safeR(v){ return Math.max(0.01, v||0.01); }
-function radGrad(ctx,x,y,r0,x2,y2,r1){
-  return ctx.createRadialGradient(x,y,safeR(r0),x2,y2,safeR(r1));
-}
-function linGrad(ctx,x1,y1,x2,y2){ return ctx.createLinearGradient(x1,y1,x2,y2); }
+function safeR(v){return Math.max(0.01,isFinite(v)?v:0.01);}
+function rg(ctx,x,y,r0,x2,y2,r1){return ctx.createRadialGradient(x,y,safeR(r0),x2,y2,safeR(r1));}
+function lg(ctx,x1,y1,x2,y2){return ctx.createLinearGradient(x1,y1,x2,y2);}
 
-// ── AUDIO ────────────────────────────────────────
+// ── AUDIO ────────────────────────────────────────────────
 const AC=new(window.AudioContext||window.webkitAudioContext)();
-let _unlocked=false;
-function unlockAudio(){if(_unlocked)return;AC.resume().then(()=>{_unlocked=true;startAmbient();});}
+let _au=false;
+function unlockAC(){if(_au)return;AC.resume().then(()=>{_au=true;startPad();});}
 
 let _rev=null;
 function getRev(){
   if(_rev)return _rev;
   try{
-    const l=AC.sampleRate*3.5,b=AC.createBuffer(2,l,AC.sampleRate);
-    for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,1.5);}
-    const cv=AC.createConvolver(),g=AC.createGain();g.gain.value=0.32;cv.buffer=b;cv.connect(g);g.connect(AC.destination);_rev=cv;return cv;
+    const l=AC.sampleRate*3,b=AC.createBuffer(2,l,AC.sampleRate);
+    for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,1.6);}
+    const cv=AC.createConvolver(),g=AC.createGain();g.gain.value=0.3;cv.buffer=b;cv.connect(g);g.connect(AC.destination);_rev=cv;return cv;
   }catch(e){return null;}
 }
 
 let _pads=[];
-function startAmbient(){
-  stopAmbient();
+function startPad(){
+  stopPad();
   try{
     [196,246.94,293.66,369.99].forEach((f,i)=>{
-      const o=AC.createOscillator(),g=AC.createGain();
-      const lfo=AC.createOscillator(),lg=AC.createGain();
-      o.type='sine';o.frequency.value=f;lfo.type='sine';lfo.frequency.value=0.08+i*0.03;lg.gain.value=1.5;
-      lfo.connect(lg);lg.connect(o.frequency);
-      const t=AC.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.026-i*0.004,t+2.5);
+      const o=AC.createOscillator(),g=AC.createGain(),lfo=AC.createOscillator(),lg2=AC.createGain();
+      o.type='sine';o.frequency.value=f;lfo.type='sine';lfo.frequency.value=0.07+i*0.025;lg2.gain.value=1.4;
+      lfo.connect(lg2);lg2.connect(o.frequency);
+      const t=AC.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.024-i*0.003,t+2.8);
       const r=getRev();o.connect(g);if(r)g.connect(r);g.connect(AC.destination);
       o.start(t);lfo.start(t);_pads.push({o,g,lfo});
     });
+    // Noise shimmer
     const bl=AC.sampleRate*2,nb=AC.createBuffer(1,bl,AC.sampleRate),nd=nb.getChannelData(0);
     for(let i=0;i<bl;i++)nd[i]=Math.random()*2-1;
-    const loop=()=>{const s=AC.createBufferSource(),g2=AC.createGain(),f2=AC.createBiquadFilter();f2.type='highpass';f2.frequency.value=4000;g2.gain.value=0.003;s.buffer=nb;s.connect(f2);f2.connect(g2);g2.connect(AC.destination);s.onended=loop;s.start();};loop();
+    const loop=()=>{const s=AC.createBufferSource(),gn=AC.createGain(),f=AC.createBiquadFilter();f.type='highpass';f.frequency.value=4200;gn.gain.value=0.003;s.buffer=nb;s.connect(f);f.connect(gn);gn.connect(AC.destination);s.onended=loop;s.start();};loop();
   }catch(e){}
 }
-function stopAmbient(){
-  _pads.forEach(({o,g,lfo})=>{try{const t=AC.currentTime;g.gain.setTargetAtTime(0,t,0.4);setTimeout(()=>{try{o.stop();lfo.stop();}catch(e){}},1200);}catch(e){}});_pads=[];
+function stopPad(){
+  _pads.forEach(({o,g,lfo})=>{try{g.gain.setTargetAtTime(0,AC.currentTime,0.4);setTimeout(()=>{try{o.stop();lfo.stop();}catch(e){}},1200);}catch(e){}});_pads=[];
 }
 
 const SCALES={warm:[196,220,246.94,261.63,293.66,329.63,392],cool:[174.61,196,220,261.63,293.66,349.23,392],bright:[261.63,293.66,329.63,392,440,523.25,587.33]};
-let _sKey='warm',_mSeq=[],_mIdx=0,_melTimer=null;
-function initMelody(key){
-  _sKey=key||'warm';const sc=SCALES[_sKey];
-  const pats=[[0,2,4,3,2,1],[2,4,5,4,2,0],[0,1,3,4,3,1],[4,3,2,0,2,3]];
-  _mSeq=pats[Math.floor(Math.random()*pats.length)].map(i=>sc[i]);_mIdx=0;
+let _sk='warm',_ms=[],_mi=0,_mt=null;
+function initMel(k){
+  _sk=k||'warm';const sc=SCALES[_sk];
+  const pp=[[0,2,4,3,2,1],[2,4,5,4,2,0],[0,1,3,4,3,1],[4,3,2,0,2,3]];
+  _ms=pp[Math.floor(Math.random()*pp.length)].map(i=>sc[i]);_mi=0;
 }
 function playNote(){
-  if(!_unlocked)return;
+  if(!_au)return;
   try{
-    const f=_mSeq[_mIdx%_mSeq.length],vol=0.045+Math.random()*0.025,dur=3+Math.random()*1.5;
+    const f=_ms[_mi%_ms.length],v=0.042+Math.random()*0.024,d=3+Math.random()*1.5;
     const g=AC.createGain(),r=getRev();g.connect(AC.destination);if(r)g.connect(r);
     [1,2,3].forEach((h,i)=>{
       const o=AC.createOscillator(),og=AC.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=f*h;
-      const v=vol*[1,0.16,0.04][i],t=AC.currentTime;
-      og.gain.setValueAtTime(0,t);og.gain.linearRampToValueAtTime(v,t+0.012);og.gain.exponentialRampToValueAtTime(v*0.22,t+0.5);og.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-      o.connect(og);og.connect(g);o.start(t);o.stop(t+dur+0.1);
+      const hv=v*[1,.15,.04][i],t=AC.currentTime;
+      og.gain.setValueAtTime(0,t);og.gain.linearRampToValueAtTime(hv,t+0.012);og.gain.exponentialRampToValueAtTime(hv*0.2,t+0.5);og.gain.exponentialRampToValueAtTime(0.0001,t+d);
+      o.connect(og);og.connect(g);o.start(t);o.stop(t+d+0.1);
     });
-    _mIdx++;if(_mIdx%3===0&&Math.random()<0.4)setTimeout(()=>playNote(),800);
+    _mi++;if(_mi%3===0&&Math.random()<0.38)setTimeout(()=>playNote(),700);
   }catch(e){}
 }
-function startMelody(){clearInterval(_melTimer);_melTimer=setInterval(()=>playNote(),2400+Math.random()*800);}
-function sfxTap(){if(!_unlocked)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(880,AC.currentTime);o.frequency.exponentialRampToValueAtTime(440,AC.currentTime+0.25);const t=AC.currentTime;g.gain.setValueAtTime(0.07,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.3);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.32);}catch(e){}}
-function sfxReveal(){if(!_unlocked)return;try{const o=AC.createOscillator(),g=AC.createGain(),r=getRev();o.type='sine';o.frequency.value=528;const t=AC.currentTime;g.gain.setValueAtTime(0.04,t);g.gain.exponentialRampToValueAtTime(0.0001,t+1.2);o.connect(g);if(r)g.connect(r);g.connect(AC.destination);o.start(t);o.stop(t+1.3);}catch(e){}}
+function startMel(){clearInterval(_mt);_mt=setInterval(()=>playNote(),2500+Math.random()*900);}
+function sfxTap(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(880,AC.currentTime);o.frequency.exponentialRampToValueAtTime(440,AC.currentTime+0.22);const t=AC.currentTime;g.gain.setValueAtTime(0.07,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.28);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.3);}catch(e){}}
+function sfxReveal(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain(),r=getRev();o.type='sine';o.frequency.value=528;const t=AC.currentTime;g.gain.setValueAtTime(0.038,t);g.gain.exponentialRampToValueAtTime(0.0001,t+1.1);o.connect(g);if(r)g.connect(r);g.connect(AC.destination);o.start(t);o.stop(t+1.2);}catch(e){}}
 
-// ── THEMES ───────────────────────────────────────
+// ── THEMES ────────────────────────────────────────────────
 const THEMES=[
-  {
-    name:'Cloudy Heaven',melKey:'warm',
-    cardBg:'rgba(255,255,255,0.15)',cardBorder:'rgba(255,255,255,0.38)',
-    accent:'#ffffff',textColor:'#ffffff',glow:'rgba(255,255,255,0.8)',glow2:'rgba(200,220,255,0.4)',
-    cornerColor:'#cce0ff',vigColor:'rgba(140,180,240,0.48)',
-    pt:{r:220,g:235,b:255},
-    bottomVerse:'Heaven and earth will pass away, but my words will never pass away.',
-    drawBg(ctx,w,h,t){
-      const g=linGrad(ctx,0,0,0,h);g.addColorStop(0,'#a8c8f8');g.addColorStop(0.4,'#c8e0ff');g.addColorStop(0.7,'#ddeeff');g.addColorStop(1,'#eef6ff');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawClouds(ctx,w,h,t,false);drawRays(ctx,w,h,t,'rgba(255,255,255,');
-    }
-  },
-  {
-    name:'Black & Gold',melKey:'warm',
-    cardBg:'rgba(5,3,0,0.88)',cardBorder:'rgba(212,175,55,0.42)',
-    accent:'#d4af37',textColor:'#f0d080',glow:'rgba(255,200,0,0.9)',glow2:'rgba(180,130,0,0.4)',
-    cornerColor:'#d4af37',vigColor:'rgba(0,0,0,0.72)',
-    pt:{r:255,g:210,b:60},
-    bottomVerse:'The Lord is my light and my salvation.',
-    drawBg(ctx,w,h,t){
-      ctx.fillStyle='#05030a';ctx.fillRect(0,0,w,h);
-      drawGoldPattern(ctx,w,h,t);drawRays(ctx,w,h,t,'rgba(255,200,50,');
-    }
-  },
-  {
-    name:'Deep Sky',melKey:'cool',
-    cardBg:'rgba(5,15,40,0.84)',cardBorder:'rgba(100,160,255,0.38)',
-    accent:'#88bbff',textColor:'#c0d8ff',glow:'rgba(100,160,255,0.8)',glow2:'rgba(50,100,220,0.4)',
-    cornerColor:'#6699ff',vigColor:'rgba(0,5,20,0.65)',
-    pt:{r:120,g:180,b:255},
-    bottomVerse:'For I know the plans I have for you, plans for peace and not disaster.',
-    drawBg(ctx,w,h,t){
-      const g=linGrad(ctx,0,0,0,h);g.addColorStop(0,'#020510');g.addColorStop(0.4,'#050a28');g.addColorStop(1,'#0a1840');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawStars(ctx,w,h,t,false);drawRays(ctx,w,h,t,'rgba(100,160,255,');
-    }
-  },
-  {
-    name:'Cosmos',melKey:'cool',
-    cardBg:'rgba(4,0,14,0.87)',cardBorder:'rgba(160,100,255,0.38)',
-    accent:'#cc88ff',textColor:'#e0c8ff',glow:'rgba(160,80,255,0.8)',glow2:'rgba(100,30,200,0.4)',
-    cornerColor:'#aa66ff',vigColor:'rgba(0,0,8,0.7)',
-    pt:{r:180,g:120,b:255},
-    bottomVerse:'He determines the number of the stars and calls them each by name.',
-    drawBg(ctx,w,h,t){
-      const g=linGrad(ctx,0,0,w,h);g.addColorStop(0,'#02000a');g.addColorStop(0.5,'#08001a');g.addColorStop(1,'#020008');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawNebula(ctx,w,h,t);drawStars(ctx,w,h,t,true);drawRays(ctx,w,h,t,'rgba(160,80,255,');
-    }
-  },
-  {
-    name:'Golden Sunset',melKey:'bright',
-    cardBg:'rgba(12,4,0,0.84)',cardBorder:'rgba(255,160,50,0.38)',
-    accent:'#ffaa44',textColor:'#ffd090',glow:'rgba(255,150,50,0.9)',glow2:'rgba(200,100,20,0.4)',
-    cornerColor:'#ffaa44',vigColor:'rgba(5,0,0,0.55)',
-    pt:{r:255,g:160,b:60},
-    bottomVerse:'The steadfast love of the Lord never ceases; his mercies never come to an end.',
-    drawBg(ctx,w,h,t){
-      const g=linGrad(ctx,0,0,0,h);g.addColorStop(0,'#0a0205');g.addColorStop(0.2,'#3a0800');g.addColorStop(0.45,'#c04400');g.addColorStop(0.65,'#f08000');g.addColorStop(0.82,'#ffc040');g.addColorStop(1,'#ffe080');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawSunGlow(ctx,w,h,t);drawRays(ctx,w,h,t,'rgba(255,200,80,');
-    }
-  },
-  {
-    name:'Purple Mystical',melKey:'cool',
-    cardBg:'rgba(6,0,12,0.86)',cardBorder:'rgba(180,80,255,0.38)',
-    accent:'#cc66ff',textColor:'#ddb0ff',glow:'rgba(180,60,255,0.85)',glow2:'rgba(120,20,200,0.45)',
-    cornerColor:'#bb55ff',vigColor:'rgba(2,0,6,0.68)',
-    pt:{r:200,g:100,b:255},
-    bottomVerse:'Oh, the depth of the riches of the wisdom and knowledge of God!',
-    drawBg(ctx,w,h,t){
-      const g=linGrad(ctx,0,0,0,h);g.addColorStop(0,'#030008');g.addColorStop(0.5,'#0a0020');g.addColorStop(1,'#04000e');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawAurora(ctx,w,h,t,'rgba(160,0,255,');drawRays(ctx,w,h,t,'rgba(160,60,255,');
-    }
-  },
-  {
-    name:'Emerald Garden',melKey:'bright',
-    cardBg:'rgba(0,8,3,0.86)',cardBorder:'rgba(40,200,100,0.38)',
-    accent:'#44ee99',textColor:'#aaffcc',glow:'rgba(40,220,110,0.85)',glow2:'rgba(10,160,70,0.45)',
-    cornerColor:'#33cc88',vigColor:'rgba(0,4,1,0.65)',
-    pt:{r:60,g:240,b:150},
-    bottomVerse:'He makes me lie down in green pastures. He leads me beside still waters.',
-    drawBg(ctx,w,h,t){
-      const g=linGrad(ctx,0,0,0,h);g.addColorStop(0,'#000a02');g.addColorStop(0.5,'#001408');g.addColorStop(1,'#000c04');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawAurora(ctx,w,h,t,'rgba(20,200,80,');drawRays(ctx,w,h,t,'rgba(50,220,130,');
-    }
-  },
-  {
-    name:'Rose Dawn',melKey:'bright',
-    cardBg:'rgba(12,2,6,0.85)',cardBorder:'rgba(255,100,160,0.38)',
-    accent:'#ff88bb',textColor:'#ffc0d8',glow:'rgba(255,80,150,0.85)',glow2:'rgba(200,40,100,0.4)',
-    cornerColor:'#ff6699',vigColor:'rgba(5,0,2,0.6)',
-    pt:{r:255,g:120,b:180},
-    bottomVerse:'We love because He first loved us.',
-    drawBg(ctx,w,h,t){
-      const g=linGrad(ctx,0,0,0,h);g.addColorStop(0,'#080008');g.addColorStop(0.35,'#280010');g.addColorStop(0.65,'#600028');g.addColorStop(1,'#180008');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawAurora(ctx,w,h,t,'rgba(255,50,120,');drawRays(ctx,w,h,t,'rgba(255,100,160,');
-    }
-  },
-  {
-    name:'White Light',melKey:'bright',
-    cardBg:'rgba(255,255,255,0.28)',cardBorder:'rgba(180,200,255,0.55)',
-    accent:'#3344aa',textColor:'#112277',glow:'rgba(180,200,255,0.7)',glow2:'rgba(150,180,255,0.3)',
-    cornerColor:'#7788cc',vigColor:'rgba(180,200,255,0.32)',
-    pt:{r:200,g:220,b:255},
-    bottomVerse:'Your word is a lamp to my feet and a light to my path.',
-    drawBg(ctx,w,h,t){
-      const g=radGrad(ctx,w/2,h*0.35,0.01,w/2,h*0.5,safeR(h*0.75));
-      g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#eeeeff');g.addColorStop(0.7,'#d8e4ff');g.addColorStop(1,'#c0d0f8');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-      drawRays(ctx,w,h,t,'rgba(200,220,255,');drawClouds(ctx,w,h,t,true);
-    }
-  },
-  {
-    name:'Dark Marble',melKey:'warm',
-    cardBg:'rgba(6,5,8,0.9)',cardBorder:'rgba(200,190,170,0.3)',
-    accent:'#c8b890',textColor:'#e0d4b8',glow:'rgba(200,180,120,0.7)',glow2:'rgba(150,130,80,0.35)',
-    cornerColor:'#b8a870',vigColor:'rgba(0,0,0,0.72)',
-    pt:{r:220,g:200,b:150},
-    bottomVerse:'One thing I ask from the Lord — to dwell in His house all the days of my life.',
-    drawBg(ctx,w,h,t){
-      ctx.fillStyle='#08070c';ctx.fillRect(0,0,w,h);
-      drawMarble(ctx,w,h);drawRays(ctx,w,h,t,'rgba(200,180,120,');
-    }
-  },
+  {name:'Cloudy Heaven',melKey:'warm',
+   cardBg:'rgba(255,255,255,0.16)',cardBorder:'rgba(255,255,255,0.4)',
+   accent:'#ffffff',textColor:'#ffffff',glow:'rgba(255,255,255,0.8)',glow2:'rgba(200,220,255,0.4)',
+   corner:'#cce0ff',vig:'rgba(120,160,220,0.45)',pt:{r:220,g:235,b:255},
+   bv:'Heaven and earth will pass away, but my words will never pass away.',
+   draw(ctx,w,h,t){
+     const g=lg(ctx,0,0,0,h);g.addColorStop(0,'#90b8f0');g.addColorStop(0.4,'#b8d8ff');g.addColorStop(0.7,'#d8eeff');g.addColorStop(1,'#eef8ff');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     drawClouds(ctx,w,h,t);drawRays(ctx,w,h,t,'rgba(255,255,255,');
+   }},
+  {name:'Black & Gold',melKey:'warm',
+   cardBg:'rgba(4,2,0,0.9)',cardBorder:'rgba(212,175,55,0.45)',
+   accent:'#d4af37',textColor:'#f0d070',glow:'rgba(255,200,0,0.9)',glow2:'rgba(180,130,0,0.4)',
+   corner:'#d4af37',vig:'rgba(0,0,0,0.75)',pt:{r:255,g:210,b:60},
+   bv:'The Lord is my light and my salvation.',
+   draw(ctx,w,h,t){
+     ctx.fillStyle='#04020a';ctx.fillRect(0,0,w,h);
+     drawGoldPat(ctx,w,h);drawRays(ctx,w,h,t,'rgba(255,200,50,');
+   }},
+  {name:'Deep Sky',melKey:'cool',
+   cardBg:'rgba(4,12,36,0.86)',cardBorder:'rgba(100,160,255,0.4)',
+   accent:'#88bbff',textColor:'#c0d8ff',glow:'rgba(100,160,255,0.8)',glow2:'rgba(50,100,220,0.4)',
+   corner:'#6699ff',vig:'rgba(0,4,18,0.65)',pt:{r:120,g:180,b:255},
+   bv:'For I know the plans I have for you, plans for peace and not disaster.',
+   draw(ctx,w,h,t){
+     const g=lg(ctx,0,0,0,h);g.addColorStop(0,'#020510');g.addColorStop(0.5,'#040a26');g.addColorStop(1,'#081840');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     drawStars(ctx,w,h,t,false);drawRays(ctx,w,h,t,'rgba(100,160,255,');
+   }},
+  {name:'Cosmos',melKey:'cool',
+   cardBg:'rgba(3,0,12,0.88)',cardBorder:'rgba(160,100,255,0.4)',
+   accent:'#cc88ff',textColor:'#e0c8ff',glow:'rgba(160,80,255,0.8)',glow2:'rgba(100,30,200,0.4)',
+   corner:'#aa66ff',vig:'rgba(0,0,6,0.7)',pt:{r:180,g:120,b:255},
+   bv:'He determines the number of the stars and calls them each by name.',
+   draw(ctx,w,h,t){
+     const g=lg(ctx,0,0,w,h);g.addColorStop(0,'#02000a');g.addColorStop(0.5,'#080018');g.addColorStop(1,'#020008');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     drawNebula(ctx,w,h,t);drawStars(ctx,w,h,t,true);drawRays(ctx,w,h,t,'rgba(160,80,255,');
+   }},
+  {name:'Golden Sunset',melKey:'bright',
+   cardBg:'rgba(10,3,0,0.86)',cardBorder:'rgba(255,160,50,0.4)',
+   accent:'#ffaa44',textColor:'#ffd090',glow:'rgba(255,150,50,0.9)',glow2:'rgba(200,100,20,0.4)',
+   corner:'#ffaa44',vig:'rgba(4,0,0,0.5)',pt:{r:255,g:160,b:60},
+   bv:'The steadfast love of the Lord never ceases; his mercies never come to an end.',
+   draw(ctx,w,h,t){
+     const g=lg(ctx,0,0,0,h);g.addColorStop(0,'#080204');g.addColorStop(0.2,'#380600');g.addColorStop(0.45,'#b84000');g.addColorStop(0.65,'#ee7c00');g.addColorStop(0.82,'#ffbc38');g.addColorStop(1,'#ffde78');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     const sg=rg(ctx,w/2,h*.62,0.01,w/2,h*.62,safeR(h*.55));sg.addColorStop(0,`rgba(255,240,180,${0.2+Math.sin(t*.3)*.06})`);sg.addColorStop(.4,'rgba(255,160,30,0.08)');sg.addColorStop(1,'transparent');ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=sg;ctx.fillRect(0,0,w,h);ctx.restore();
+     drawRays(ctx,w,h,t,'rgba(255,200,80,');
+   }},
+  {name:'Purple Mystical',melKey:'cool',
+   cardBg:'rgba(5,0,10,0.88)',cardBorder:'rgba(180,80,255,0.4)',
+   accent:'#cc66ff',textColor:'#ddb0ff',glow:'rgba(180,60,255,0.85)',glow2:'rgba(120,20,200,0.45)',
+   corner:'#bb55ff',vig:'rgba(2,0,5,0.68)',pt:{r:200,g:100,b:255},
+   bv:'Oh, the depth of the riches of the wisdom and knowledge of God!',
+   draw(ctx,w,h,t){
+     const g=lg(ctx,0,0,0,h);g.addColorStop(0,'#030008');g.addColorStop(0.5,'#0a001e');g.addColorStop(1,'#04000c');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     drawAurora(ctx,w,h,t,'rgba(160,0,255,');drawRays(ctx,w,h,t,'rgba(160,60,255,');
+   }},
+  {name:'Emerald',melKey:'bright',
+   cardBg:'rgba(0,7,2,0.88)',cardBorder:'rgba(40,200,100,0.4)',
+   accent:'#44ee99',textColor:'#aaffcc',glow:'rgba(40,220,110,0.85)',glow2:'rgba(10,160,70,0.45)',
+   corner:'#33cc88',vig:'rgba(0,3,1,0.65)',pt:{r:60,g:240,b:150},
+   bv:'He makes me lie down in green pastures. He leads me beside still waters.',
+   draw(ctx,w,h,t){
+     const g=lg(ctx,0,0,0,h);g.addColorStop(0,'#000902');g.addColorStop(0.5,'#001306');g.addColorStop(1,'#000b03');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     drawAurora(ctx,w,h,t,'rgba(20,200,80,');drawRays(ctx,w,h,t,'rgba(50,220,130,');
+   }},
+  {name:'Rose Dawn',melKey:'bright',
+   cardBg:'rgba(10,2,5,0.87)',cardBorder:'rgba(255,100,160,0.4)',
+   accent:'#ff88bb',textColor:'#ffc0d8',glow:'rgba(255,80,150,0.85)',glow2:'rgba(200,40,100,0.4)',
+   corner:'#ff6699',vig:'rgba(4,0,2,0.58)',pt:{r:255,g:120,b:180},
+   bv:'We love because He first loved us.',
+   draw(ctx,w,h,t){
+     const g=lg(ctx,0,0,0,h);g.addColorStop(0,'#070007');g.addColorStop(0.35,'#260010');g.addColorStop(0.65,'#5e0026');g.addColorStop(1,'#160007');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     drawAurora(ctx,w,h,t,'rgba(255,50,120,');drawRays(ctx,w,h,t,'rgba(255,100,160,');
+   }},
+  {name:'Holy Light',melKey:'bright',
+   cardBg:'rgba(255,255,255,0.22)',cardBorder:'rgba(180,200,255,0.55)',
+   accent:'#334499',textColor:'#1a2266',glow:'rgba(180,200,255,0.7)',glow2:'rgba(150,180,255,0.3)',
+   corner:'#7788cc',vig:'rgba(180,200,240,0.28)',pt:{r:200,g:220,b:255},
+   bv:'Your word is a lamp to my feet and a light to my path.',
+   draw(ctx,w,h,t){
+     const g=rg(ctx,w/2,h*.3,0.01,w/2,h*.5,safeR(h*.8));
+     g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#eeeeff');g.addColorStop(0.7,'#d8e4ff');g.addColorStop(1,'#c0d0f8');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+     drawRays(ctx,w,h,t,'rgba(220,230,255,');drawClouds(ctx,w,h,t);
+   }},
+  {name:'Dark Marble',melKey:'warm',
+   cardBg:'rgba(5,4,7,0.92)',cardBorder:'rgba(200,190,170,0.32)',
+   accent:'#c8b890',textColor:'#e0d4b8',glow:'rgba(200,180,120,0.7)',glow2:'rgba(150,130,80,0.35)',
+   corner:'#b8a870',vig:'rgba(0,0,0,0.74)',pt:{r:220,g:200,b:150},
+   bv:'One thing I ask from the Lord — to dwell in His house all the days of my life.',
+   draw(ctx,w,h,t){
+     ctx.fillStyle='#07060c';ctx.fillRect(0,0,w,h);
+     drawMarble(ctx,w,h);drawRays(ctx,w,h,t,'rgba(200,180,120,');
+   }},
 ];
 
-// ── BG HELPERS — all guarded with safeR ──────────
-function drawClouds(ctx,w,h,t,bright){
-  const base=bright?'rgba(255,255,255,':'rgba(220,235,255,';
-  const defs=[{x:.15,y:.12,s:1.2},{x:.72,y:.08,s:1},{x:.45,y:.22,s:1.5},{x:.05,y:.35,s:.8},{x:.82,y:.28,s:.9},{x:.3,y:.5,s:1.1},{x:.65,y:.45,s:.7},{x:.1,y:.6,s:1},{x:.8,y:.65,s:1.3}];
+// ── BG HELPERS ────────────────────────────────────────────
+function drawClouds(ctx,w,h,t){
+  const defs=[{x:.14,y:.1,s:1.2},{x:.7,y:.07,s:1},{x:.44,y:.2,s:1.5},{x:.04,y:.33,s:.8},{x:.8,y:.26,s:.9},{x:.28,y:.48,s:1.1},{x:.63,y:.43,s:.7},{x:.08,y:.58,s:1},{x:.78,y:.62,s:1.3}];
   defs.forEach((cd,i)=>{
-    const drift=Math.sin(t*.12+i*.7)*w*.02;
+    const drift=Math.sin(t*.1+i*.7)*w*.025;
     const cx=(cd.x*w+drift+w)%w,cy=cd.y*h;
-    const r=Math.max(8,w*.14*cd.s);
-    const alpha=0.55+Math.sin(t*.08+i)*.12;
-    [[-r*.55,0,r*.72],[0,0,r],[r*.55,0,r*.72],[0,-r*.4,r*.58]].forEach(([dx,dy,cr])=>{
+    const r=Math.max(8,w*.13*cd.s);
+    const alpha=0.52+Math.sin(t*.07+i)*.1;
+    [[-r*.55,0,r*.7],[0,0,r],[r*.55,0,r*.7],[0,-r*.38,r*.56]].forEach(([dx,dy,cr])=>{
       const sr=safeR(cr);
-      const g=radGrad(ctx,cx+dx,cy+dy,0.01,cx+dx,cy+dy,sr);
-      g.addColorStop(0,base+alpha+')');g.addColorStop(.5,base+(alpha*.5)+')');g.addColorStop(1,base+'0)');
+      const g=rg(ctx,cx+dx,cy+dy,0.01,cx+dx,cy+dy,sr);
+      g.addColorStop(0,`rgba(255,255,255,${alpha})`);g.addColorStop(.5,`rgba(240,248,255,${alpha*.5})`);g.addColorStop(1,`rgba(220,235,255,0)`);
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx+dx,cy+dy,sr,0,Math.PI*2);ctx.fill();
     });
   });
 }
-
 function drawRays(ctx,w,h,t,cb){
-  const cx=w/2,cy=-h*.1;
-  [-.45,-.25,-.1,0,.1,.25,.45,.62,-.62].forEach((a,i)=>{
-    const pulse=.04+Math.sin(t*.4+i*.8)*.025;
+  const cx=w/2,cy=-h*.08;
+  [-.44,-.24,-.09,0,.09,.24,.44,.6,-.6].forEach((a,i)=>{
+    const p=.04+Math.sin(t*.38+i*.78)*.025;
     const len=Math.max(h,10);
-    const g=linGrad(ctx,cx,cy,cx+Math.sin(a)*len*1.3,cy+len*1.3);
-    g.addColorStop(0,cb+(.15+pulse)+')');g.addColorStop(.4,cb+'.04)');g.addColorStop(1,cb+'0)');
+    const g=lg(ctx,cx,cy,cx+Math.sin(a)*len*1.2,cy+len*1.2);
+    g.addColorStop(0,cb+(.16+p)+')');g.addColorStop(.45,cb+'.04)');g.addColorStop(1,cb+'0)');
     ctx.save();ctx.globalCompositeOperation='screen';
-    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(a-.035)*len*1.5,h*1.1);ctx.lineTo(cx+Math.sin(a+.035)*len*1.5,h*1.1);ctx.closePath();ctx.fillStyle=g;ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(a-.032)*len*1.45,h*1.05);ctx.lineTo(cx+Math.sin(a+.032)*len*1.45,h*1.05);ctx.closePath();ctx.fillStyle=g;ctx.fill();ctx.restore();
   });
 }
-
 let _stars=null;
 function drawStars(ctx,w,h,t,dense){
-  if(!_stars||_stars.w!==w){
-    _stars={w,list:[]};const n=dense?350:180;
-    for(let i=0;i<n;i++)_stars.list.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.8,a:.15+Math.random()*.85,ph:Math.random()*Math.PI*2});
+  if(!_stars||_stars.w!==w||_stars.h!==h){
+    _stars={w,h,list:[]};const n=dense?360:190;
+    for(let i=0;i<n;i++)_stars.list.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.8,a:.14+Math.random()*.86,ph:Math.random()*Math.PI*2});
   }
-  _stars.list.forEach(s=>{const tw=.6+Math.sin(t*.06+s.ph)*.4;ctx.fillStyle=`rgba(255,255,230,${s.a*tw})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();});
+  _stars.list.forEach(s=>{const tw=.6+Math.sin(t*.055+s.ph)*.4;ctx.fillStyle=`rgba(255,255,230,${s.a*tw})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();});
 }
-
 function drawNebula(ctx,w,h,t){
   [[w*.2,h*.3,160,'rgba(80,0,160,'],[w*.8,h*.6,200,'rgba(0,60,180,'],[w*.5,h*.8,140,'rgba(160,0,80,']].forEach(([nx,ny,nr,nc])=>{
-    const pulse=.1+Math.sin(t*.15)*.04;
-    const g=radGrad(ctx,nx,ny,0.01,nx,ny,safeR(nr));g.addColorStop(0,nc+(.18+pulse)+')');g.addColorStop(1,nc+'0)');
+    const p=.1+Math.sin(t*.14)*.04;
+    const g=rg(ctx,nx,ny,0.01,nx,ny,safeR(nr));g.addColorStop(0,nc+(.17+p)+')');g.addColorStop(1,nc+'0)');
     ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=g;ctx.beginPath();ctx.arc(nx,ny,nr,0,Math.PI*2);ctx.fill();ctx.restore();
   });
 }
-
 function drawAurora(ctx,w,h,t,cb){
   for(let i=0;i<4;i++){
-    const y=h*(.2+i*.18)+Math.sin(t*.1+i)*h*.04;
-    const g=linGrad(ctx,0,y-50,0,y+50);
-    const a=.06+Math.sin(t*.12+i*1.2)*.04;
+    const y=h*(.18+i*.17)+Math.sin(t*.09+i)*h*.04;
+    const g=lg(ctx,0,y-55,0,y+55);const a=.058+Math.sin(t*.11+i*1.2)*.038;
     g.addColorStop(0,'transparent');g.addColorStop(.5,cb+a+')');g.addColorStop(1,'transparent');
     ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.restore();
   }
 }
-
-function drawGoldPattern(ctx,w,h,t){
-  ctx.save();ctx.globalAlpha=.07;ctx.strokeStyle='#d4af37';ctx.lineWidth=.8;
-  const sp=32;for(let x=0;x<w;x+=sp){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
-  for(let y=0;y<h;y+=sp){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-  ctx.globalAlpha=.04;for(let d=-h;d<w+h;d+=sp*2){ctx.beginPath();ctx.moveTo(d,0);ctx.lineTo(d+h,h);ctx.stroke();}
+function drawGoldPat(ctx,w,h){
+  ctx.save();ctx.globalAlpha=.065;ctx.strokeStyle='#d4af37';ctx.lineWidth=.8;
+  const s=30;for(let x=0;x<w;x+=s){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+  for(let y=0;y<h;y+=s){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  ctx.globalAlpha=.035;for(let d=-h;d<w+h;d+=s*2){ctx.beginPath();ctx.moveTo(d,0);ctx.lineTo(d+h,h);ctx.stroke();}
   ctx.restore();
-  ctx.save();ctx.globalAlpha=.22;ctx.strokeStyle='#d4af37';ctx.lineWidth=1;
-  [[0,0],[w,0],[0,h],[w,h]].forEach(([cx,cy])=>{const r=60;const ang=cx===0&&cy===0?0:cx>0&&cy===0?Math.PI:cy>0&&cx===0?-Math.PI/2:Math.PI/2;ctx.beginPath();ctx.arc(cx,cy,r,ang,ang+Math.PI/2);ctx.stroke();ctx.beginPath();ctx.arc(cx,cy,r*.6,ang,ang+Math.PI/2);ctx.stroke();});
-  ctx.restore();
-  const sg=radGrad(ctx,w/2,h*.38,0.01,w/2,h*.38,safeR(h*.45));
-  sg.addColorStop(0,'rgba(255,200,50,0.12)');sg.addColorStop(1,'transparent');
-  ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=sg;ctx.fillRect(0,0,w,h);ctx.restore();
+  const cg=rg(ctx,w/2,h*.4,0.01,w/2,h*.4,safeR(h*.5));
+  cg.addColorStop(0,'rgba(255,200,50,0.1)');cg.addColorStop(1,'transparent');
+  ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=cg;ctx.fillRect(0,0,w,h);ctx.restore();
 }
-
-function drawSunGlow(ctx,w,h,t){
-  const sg=radGrad(ctx,w/2,h*.62,0.01,w/2,h*.62,safeR(h*.55));
-  const pulse=.2+Math.sin(t*.3)*.06;sg.addColorStop(0,`rgba(255,240,180,${pulse})`);sg.addColorStop(.4,'rgba(255,160,30,0.08)');sg.addColorStop(1,'transparent');
-  ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=sg;ctx.fillRect(0,0,w,h);ctx.restore();
-  const hg=linGrad(ctx,0,h*.55,0,h);hg.addColorStop(0,'rgba(255,200,50,0.15)');hg.addColorStop(1,'transparent');
-  ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=hg;ctx.fillRect(0,0,w,h);ctx.restore();
-}
-
-let _mbl=false,_mblC=null;
+let _mbl=null;
 function drawMarble(ctx,w,h){
-  if(_mbl&&_mblC){ctx.drawImage(_mblC,0,0);return;}
+  if(_mbl){ctx.drawImage(_mbl,0,0);return;}
   const cv=document.createElement('canvas');cv.width=w;cv.height=h;const mc=cv.getContext('2d');
-  mc.fillStyle='#0a0910';mc.fillRect(0,0,w,h);mc.save();mc.globalAlpha=.14;mc.strokeStyle='#c8b870';mc.lineWidth=.8;
-  for(let i=0;i<20;i++){mc.beginPath();let x=Math.random()*w,y=Math.random()*h;mc.moveTo(x,y);for(let s=0;s<8;s++){x+=(Math.random()-.5)*w*.15;y+=(Math.random()-.5)*h*.12;mc.lineTo(x,y);}mc.stroke();}
-  mc.restore();_mblC=cv;_mbl=true;ctx.drawImage(cv,0,0);
+  mc.fillStyle='#09080e';mc.fillRect(0,0,w,h);mc.save();mc.globalAlpha=.13;mc.strokeStyle='#c8b870';mc.lineWidth=.8;
+  for(let i=0;i<22;i++){mc.beginPath();let x=Math.random()*w,y=Math.random()*h;mc.moveTo(x,y);for(let s=0;s<8;s++){x+=(Math.random()-.5)*w*.15;y+=(Math.random()-.5)*h*.12;mc.lineTo(x,y);}mc.stroke();}
+  mc.restore();_mbl=cv;ctx.drawImage(cv,0,0);
 }
 
-// ── PARTICLES ────────────────────────────────────
+// ── PARTICLES ─────────────────────────────────────────────
 let _pts=[],_fxC,_fxCtx,_FW=1,_FH=1;
-function initFX(){_fxC=document.getElementById('fxCanvas');_fxCtx=_fxC.getContext('2d');_FW=Math.max(1,_fxC.offsetWidth);_FH=Math.max(1,_fxC.offsetHeight);_fxC.width=_FW;_fxC.height=_FH;}
+function initFX(){
+  _fxC=document.getElementById('fxCanvas');_fxCtx=_fxC.getContext('2d');
+  _FW=Math.max(1,window.innerWidth);_FH=Math.max(1,window.innerHeight);_fxC.width=_FW;_fxC.height=_FH;
+}
 function initPts(T){
-  _pts=[];
-  for(let i=0;i<45;i++)_pts.push({x:Math.random()*_FW,y:_FH*.4+Math.random()*_FH*.6,r:Math.random()*2+.5,vy:-(0.3+Math.random()*.55),vx:(Math.random()-.5)*.18,life:Math.random(),speed:.004+Math.random()*.006,maxR:Math.random()*2+.5,ph:Math.random()*Math.PI*2,ptR:T.pt.r,ptG:T.pt.g,ptB:T.pt.b});
+  _pts=[];for(let i=0;i<48;i++)_pts.push({
+    x:Math.random()*_FW,y:_FH*.4+Math.random()*_FH*.6,
+    r:.5+Math.random()*2,vy:-(0.28+Math.random()*.52),vx:(Math.random()-.5)*.16,
+    life:Math.random(),spd:.004+Math.random()*.006,maxR:.5+Math.random()*2,
+    ph:Math.random()*Math.PI*2,ptR:T.pt.r,ptG:T.pt.g,ptB:T.pt.b,
+  });
 }
 function tickPts(t){
   if(!_fxCtx)return;_fxCtx.clearRect(0,0,_FW,_FH);
   _pts.forEach(p=>{
-    p.y+=p.vy;p.x+=p.vx+Math.sin(t*.5+p.ph)*.22;p.life+=p.speed;
-    if(p.y<-10){p.y=_FH*.4+Math.random()*_FH*.6;p.x=Math.random()*_FW;p.life=0;}
-    const ph2=p.life%1;let alpha=ph2<.15?ph2/.15:ph2>.7?(1-ph2)/.3:1;alpha*=.7;
+    p.y+=p.vy;p.x+=p.vx+Math.sin(t*.48+p.ph)*.2;p.life+=p.spd;
+    if(p.y<-12){p.y=_FH*.38+Math.random()*_FH*.62;p.x=Math.random()*_FW;p.life=0;}
+    const ph2=p.life%1;let a=ph2<.15?ph2/.15:ph2>.7?(1-ph2)/.3:1;a*=.68;
     const rad=Math.max(.1,p.maxR*(.4+Math.sin(p.life*Math.PI)*.6));
     const gr=safeR(rad*4);
-    const g=radGrad(_fxCtx,p.x,p.y,0.01,p.x,p.y,gr);
-    g.addColorStop(0,`rgba(${p.ptR},${p.ptG},${p.ptB},${alpha})`);
-    g.addColorStop(.5,`rgba(${p.ptR},${p.ptG},${p.ptB},${alpha*.25})`);
+    const g=rg(_fxCtx,p.x,p.y,0.01,p.x,p.y,gr);
+    g.addColorStop(0,`rgba(${p.ptR},${p.ptG},${p.ptB},${a})`);
+    g.addColorStop(.5,`rgba(${p.ptR},${p.ptG},${p.ptB},${a*.22})`);
     g.addColorStop(1,`rgba(${p.ptR},${p.ptG},${p.ptB},0)`);
     _fxCtx.save();_fxCtx.globalCompositeOperation='screen';_fxCtx.beginPath();_fxCtx.arc(p.x,p.y,gr,0,Math.PI*2);_fxCtx.fillStyle=g;_fxCtx.fill();_fxCtx.restore();
-    _fxCtx.fillStyle=`rgba(255,255,255,${alpha*.85})`;_fxCtx.beginPath();_fxCtx.arc(p.x,p.y,rad,0,Math.PI*2);_fxCtx.fill();
+    _fxCtx.fillStyle=`rgba(255,255,255,${a*.8})`;_fxCtx.beginPath();_fxCtx.arc(p.x,p.y,rad,0,Math.PI*2);_fxCtx.fill();
   });
 }
 
-// ── CONTENT ──────────────────────────────────────
+// ── CONTENT ───────────────────────────────────────────────
 const CONTENT=[
   {type:'Scripture',text:'For God so loved the world that He gave His only Son, that whoever believes in Him shall not perish but have eternal life.',ref:'John 3:16'},
   {type:'Scripture',text:'I am the way, the truth, and the life. No one comes to the Father except through me.',ref:'John 14:6'},
-  {type:'Scripture',text:'Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to Him, and He will make your paths straight.',ref:'Proverbs 3:5-6'},
+  {type:'Scripture',text:'Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to Him.',ref:'Proverbs 3:5'},
   {type:'Scripture',text:'For I know the plans I have for you — plans to prosper you and not to harm you, plans to give you hope and a future.',ref:'Jeremiah 29:11'},
   {type:'Scripture',text:'Come to me, all who are weary and burdened, and I will give you rest.',ref:'Matthew 11:28'},
   {type:'Scripture',text:'I can do all things through Christ who strengthens me.',ref:'Philippians 4:13'},
   {type:'Scripture',text:'The Lord is my shepherd; I shall not want.',ref:'Psalm 23:1'},
   {type:'Scripture',text:'Be still, and know that I am God.',ref:'Psalm 46:10'},
   {type:'Scripture',text:'The Lord is close to the brokenhearted and saves those who are crushed in spirit.',ref:'Psalm 34:18'},
-  {type:'Scripture',text:'Peace I leave with you; my peace I give you. Do not let your hearts be troubled and do not be afraid.',ref:'John 14:27'},
-  {type:'Scripture',text:'Do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you.',ref:'Isaiah 41:10'},
+  {type:'Scripture',text:'Peace I leave with you; my peace I give you. Do not let your hearts be troubled.',ref:'John 14:27'},
+  {type:'Scripture',text:'Do not fear, for I am with you. Do not be dismayed, for I am your God. I will strengthen you.',ref:'Isaiah 41:10'},
   {type:'Scripture',text:'And we know that in all things God works for the good of those who love Him.',ref:'Romans 8:28'},
   {type:'Scripture',text:'Cast all your anxiety on Him because He cares for you.',ref:'1 Peter 5:7'},
-  {type:'Scripture',text:'Greater love has no one than this: to lay down one\'s life for one\'s friends.',ref:'John 15:13'},
   {type:'Scripture',text:'He gives strength to the weary and increases the power of the weak.',ref:'Isaiah 40:29'},
   {type:'Scripture',text:'With God, all things are possible.',ref:'Matthew 19:26'},
   {type:'Word For You',text:'You are not forgotten. God sees you right now, exactly where you are, and He has not given up on you.',ref:null},
   {type:'Word For You',text:'That thing you have been praying about? God heard it the first time. Keep trusting. His timing is perfect.',ref:null},
   {type:'Word For You',text:'You are not too broken for God to use. He specialises in restoring what the world has discarded.',ref:null},
-  {type:'Word For You',text:'Stop measuring your worth by what you have been through. You are loved with an everlasting love.',ref:null},
   {type:'Word For You',text:'That door closing was not the end. God is redirecting you toward something far greater than what you are losing.',ref:null},
   {type:'Word For You',text:'You are allowed to rest. God does not need you to earn His love. You already have it.',ref:null},
   {type:'Word For You',text:'The enemy wants you to believe this season will last forever. It will not. Joy is coming in the morning.',ref:null},
   {type:'Word For You',text:'God is not disappointed in you. He knew every mistake you would make and still chose to love you completely.',ref:null},
-  {type:'Word For You',text:'You are exactly where God needs you to be today. Your story is not over. The best chapter is still being written.',ref:null},
+  {type:'Word For You',text:'Your story is not over. The best chapter is still being written.',ref:null},
   {type:'Gospel Truth',text:'Jesus did not come to condemn you. He came to set you free from everything that has ever held you captive.',ref:null},
   {type:'Gospel Truth',text:'The cross was not a tragedy — it was the greatest act of love the universe has ever witnessed. He chose it for you.',ref:null},
   {type:'Gospel Truth',text:'No matter what you have done, no matter how far you have run, you are never beyond the reach of grace.',ref:null},
-  {type:'Gospel Truth',text:'Salvation is not about being good enough. It is about receiving what Jesus already paid for. You are already enough in Him.',ref:null},
-  {type:'Gospel Truth',text:'God\'s grace does not run out. There is always more than enough for you.',ref:null},
+  {type:'Gospel Truth',text:'Salvation is not about being good enough. It is about receiving what Jesus already paid for.',ref:null},
   {type:'Prophetic Word',text:'Someone watching this: God says your breakthrough is closer than it looks. Do not stop at the last moment.',ref:null},
   {type:'Prophetic Word',text:'If you are struggling right now, this is your sign — God has not abandoned you. He is working in the hidden places.',ref:null},
   {type:'Prophetic Word',text:'God wants you to know — He sees your faithfulness in the secret place, and He will reward it openly.',ref:null},
@@ -461,86 +418,95 @@ const CONTENT=[
 let _pool=[];
 function nextC(){if(!_pool.length)_pool=CONTENT.slice().sort(()=>Math.random()-.5);return _pool.pop();}
 
-// ── WORD REVEAL ──────────────────────────────────
+// ── WORD REVEAL ───────────────────────────────────────────
 let _wt=[];
 function clearWt(){_wt.forEach(clearTimeout);_wt=[];}
 function revealWords(text,ref){
   clearWt();
-  const vt=document.getElementById('main-text'),refEl=document.getElementById('ref');
-  vt.innerHTML='';refEl.style.opacity='0';refEl.textContent=ref?`— ${ref}`:'';
+  const vt=document.getElementById('main-text'),re=document.getElementById('ref');
+  vt.innerHTML='';re.style.opacity='0';re.textContent=ref?`— ${ref}`:'';
   const words=text.split(' ');
-  const fs=words.length>28?'clamp(0.72rem,1.7vw,0.9rem)':words.length>18?'clamp(0.8rem,2vw,1rem)':'clamp(0.88rem,2.2vw,1.1rem)';
+  const fs=words.length>26?'clamp(0.95rem,4vw,1.2rem)':words.length>16?'clamp(1rem,4.3vw,1.3rem)':'clamp(1.05rem,4.6vw,1.4rem)';
   vt.style.fontSize=fs;
   const spans=[];
   words.forEach((w,i)=>{const sp=document.createElement('span');sp.className='word';sp.textContent=w;vt.appendChild(sp);if(i<words.length-1)vt.appendChild(document.createTextNode(' '));spans.push(sp);});
-  const DELAY=230,START=400;
+  const DELAY=220,START=380;
   spans.forEach((sp,i)=>{_wt.push(setTimeout(()=>{sp.style.opacity='1';if(i%4===0)playNote();},START+i*DELAY));});
   const total=START+spans.length*DELAY;
-  _wt.push(setTimeout(()=>{if(ref)refEl.style.opacity='1';sfxReveal();},total+300));
+  _wt.push(setTimeout(()=>{if(ref){re.style.opacity='1';}sfxReveal();},total+280));
 }
 
-// ── APPLY THEME ──────────────────────────────────
+// ── APPLY THEME ───────────────────────────────────────────
 function applyT(T){
   const r=document.documentElement;
   r.style.setProperty('--card-bg',T.cardBg);r.style.setProperty('--card-border',T.cardBorder);
   r.style.setProperty('--accent',T.accent);r.style.setProperty('--text-color',T.textColor);
   r.style.setProperty('--glow',T.glow);r.style.setProperty('--glow2',T.glow2);
-  document.querySelectorAll('.c-stroke').forEach(e=>e.setAttribute('stroke',T.cornerColor));
-  document.querySelectorAll('.c-fill').forEach(e=>e.setAttribute('fill',T.cornerColor));
+  document.querySelectorAll('.cs').forEach(e=>e.setAttribute('stroke',T.corner));
+  document.querySelectorAll('.cf').forEach(e=>e.setAttribute('fill',T.corner));
   document.getElementById('bottom-verse').style.color=T.accent;
-  document.getElementById('bottom-verse').textContent=T.bottomVerse;
-  document.getElementById('vig').style.background=`radial-gradient(ellipse at 50% 40%,transparent 18%,${T.vigColor} 100%)`;
-  document.getElementById('flash').style.background=T.name==='White Light'?'rgba(200,220,255,0.9)':'#fff';
-  initMelody(T.melKey);_mbl=false;_mblC=null;_stars=null;
+  document.getElementById('bottom-verse').textContent=T.bv;
+  document.getElementById('vig').style.background=`radial-gradient(ellipse at 50% 42%,transparent 15%,${T.vig} 100%)`;
+  document.getElementById('flash').style.background=T.name==='Holy Light'?'rgba(200,220,255,0.9)':'#fff';
+  initMel(T.melKey);_mbl=null;_stars=null;
 }
 
-// ── SCENE ────────────────────────────────────────
+// ── SCENE ─────────────────────────────────────────────────
 let _curT=null,_busy=false,_lastIdx=-1,_aT=0;
 let _bgC,_bgCtx,_BW=1,_BH=1;
 
 function showEl(id,op,delay){setTimeout(()=>{const e=document.getElementById(id);if(e)e.style.opacity=op;},delay);}
-function hideAll(){['card','bottom'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.opacity='0';});document.querySelectorAll('.corn').forEach(e=>e.style.opacity='0');showEl('tap-hint','0',0);}
-function revealAll(){showEl('card','1',500);document.querySelectorAll('.corn').forEach(e=>{setTimeout(()=>{e.style.opacity='0.6';},400);});showEl('bottom','1',1800);showEl('tap-hint','1',4500);}
+function hideAll(){
+  ['card','bottom'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.opacity='0';});
+  document.querySelectorAll('.corn').forEach(e=>e.style.opacity='0');
+  showEl('tap-hint','0',0);
+}
+function revealAll(){
+  showEl('card','1',480);
+  document.querySelectorAll('.corn').forEach(e=>{setTimeout(()=>e.style.opacity='0.58',380);});
+  showEl('bottom','1',1700);showEl('tap-hint','1',4200);
+}
 
 function loadScene(first){
-  if(_busy)return;_busy=true;unlockAudio();
+  if(_busy)return;_busy=true;unlockAC();
   let ni;do{ni=Math.floor(Math.random()*THEMES.length);}while(ni===_lastIdx&&THEMES.length>1);_lastIdx=ni;
   const T=THEMES[ni],C=nextC();
   if(first){
     _curT=T;applyT(T);initPts(T);
     document.getElementById('content-type').textContent=C.type;
-    revealWords(C.text,C.ref);revealAll();startMelody();_busy=false;return;
+    revealWords(C.text,C.ref);revealAll();startMel();_busy=false;return;
   }
   hideAll();clearWt();sfxTap();
-  const fl=document.getElementById('flash');fl.style.transition='opacity 0.1s ease';fl.style.opacity='0.65';
+  const fl=document.getElementById('flash');fl.style.transition='opacity 0.1s ease';fl.style.opacity='0.6';
   setTimeout(()=>{
     _curT=T;applyT(T);initPts(T);
     document.getElementById('content-type').textContent=C.type;
-    fl.style.transition='opacity 0.55s ease';fl.style.opacity='0';
+    fl.style.transition='opacity 0.5s ease';fl.style.opacity='0';
     revealWords(C.text,C.ref);revealAll();
-    stopAmbient();setTimeout(()=>startAmbient(),300);_busy=false;
+    stopPad();setTimeout(()=>startPad(),250);_busy=false;
   },160);
 }
 
-// ── LOOP ─────────────────────────────────────────
+// ── LOOP ──────────────────────────────────────────────────
 function initBg(){
   _bgC=document.getElementById('bgCanvas');_bgCtx=_bgC.getContext('2d');
-  _BW=Math.max(1,_bgC.offsetWidth);_BH=Math.max(1,_bgC.offsetHeight);_bgC.width=_BW;_bgC.height=_BH;
+  _BW=Math.max(1,window.innerWidth);_BH=Math.max(1,window.innerHeight);_bgC.width=_BW;_bgC.height=_BH;
 }
 (function loop(){
   requestAnimationFrame(loop);_aT+=.016;
-  if(_curT)try{_curT.drawBg(_bgCtx,_BW,_BH,_aT);}catch(e){}
+  if(_curT)try{_curT.draw(_bgCtx,_BW,_BH,_aT);}catch(e){}
   tickPts(_aT);
 })();
 
-// ── INIT ─────────────────────────────────────────
-window.addEventListener('resize',()=>{
-  if(_bgC){_BW=Math.max(1,_bgC.offsetWidth);_BH=Math.max(1,_bgC.offsetHeight);_bgC.width=_BW;_bgC.height=_BH;}
-  if(_fxC){_FW=Math.max(1,_fxC.offsetWidth);_FH=Math.max(1,_fxC.offsetHeight);_fxC.width=_FW;_fxC.height=_FH;}
-});
-const frame=document.getElementById('frame');
-frame.addEventListener('click',()=>loadScene(false));
-frame.addEventListener('touchend',e=>{e.preventDefault();loadScene(false);},{passive:false});
+// ── INIT ──────────────────────────────────────────────────
+function onResize(){
+  _BW=Math.max(1,window.innerWidth);_BH=Math.max(1,window.innerHeight);
+  if(_bgC){_bgC.width=_BW;_bgC.height=_BH;}
+  _FW=_BW;_FH=_BH;if(_fxC){_fxC.width=_FW;_fxC.height=_FH;}
+}
+window.addEventListener('resize',onResize);
+document.body.addEventListener('click',()=>loadScene(false));
+document.body.addEventListener('touchend',e=>{e.preventDefault();loadScene(false);},{passive:false});
 initBg();initFX();loadScene(true);
 })();
 </script>

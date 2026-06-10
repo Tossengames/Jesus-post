@@ -427,7 +427,7 @@ jobs:
           MSTART=$((RANDOM % MMAX))
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
-          # Build video with title and verse text (no big gaps, natural spacing)
+          # Split verse into words and build per-word drawtext filters
           python3 << 'PYEOF'
           import os, sys, math
 
@@ -442,10 +442,10 @@ jobs:
 
           words = verse.split()
           text_start = 1.2
-          text_end = dur * 0.70
+          text_end = dur * 0.85  # Reserve bottom for CTA
           total_text_time = text_end - text_start
 
-          # Natural word pacing
+          # Time each word appears - natural pacing, no gaps
           if len(words) > 1:
               interval = total_text_time / (len(words) - 1)
           else:
@@ -457,11 +457,10 @@ jobs:
           if not os.path.exists(font):
               font = font_fallback
 
-          # Accumulate text naturally - no big gaps
+          # Build filters: title first, then verse as one continuous line
           filters = []
-          accumulated_text = ""
           
-          # Title filter (first 3 seconds)
+          # Title filter at TOP of screen
           title_fade_in = f"min(1,(t-{title_start})/1.5)"
           title_fade_out = f"max(0,1-((t-3.5)/0.5))"
           title_alpha = f"if(lt(t,{title_start}),0,{title_fade_in})*{title_fade_out}"
@@ -470,63 +469,49 @@ jobs:
               f"drawtext=text='{title}'"
               f":fontfile={font}"
               f":fontcolor=white"
-              f":fontsize=85"
+              f":fontsize=75"
               f":x=(w-text_w)/2"
-              f":y=h/2-200"
+              f":y=100"
               f":alpha='{title_alpha}'"
               f":shadowcolor=black@0.8"
               f":shadowx=3:shadowy=3"
           )
           filters.append(title_filter)
 
-          # Main verse text - reveal word by word naturally, same color for entire verse
-          center_y = 960
-          line_height = 65
-          lines = []
+          # Main verse text - as a single paragraph, word by word
+          # Center of screen, natural flow like a sentence
+          accumulated_text = ""
           
-          # Split into lines of ~5 words for natural reading
-          words_per_line = 5
-          for i in range(0, len(words), words_per_line):
-              lines.append(words[i:i+words_per_line])
-          
-          total_lines = len(lines)
-          block_top = center_y - (total_lines * line_height) // 2
-          
-          line_idx = 0
-          for line_words in lines:
-              line_y = block_top + line_idx * line_height
-              # For each line, build accumulated text for that line only
-              line_accumulated = ""
-              for word_idx, word in enumerate(line_words):
-                  if word_idx == 0:
-                      line_accumulated = word
-                  else:
-                      line_accumulated += " " + word
-                  
-                  # Calculate global word index for timing
-                  global_idx = sum(len(l) for l in lines[:line_idx]) + word_idx
-                  t_show = text_start + global_idx * interval
-                  
-                  alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
-                  escaped_line = line_accumulated.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-                  
-                  ft = (
-                      f"drawtext=text='{escaped_line}'"
-                      f":fontfile={font}"
-                      f":fontcolor={verse_color}"
-                      f":fontsize=68"
-                      f":x=(w-text_w)/2"
-                      f":y={line_y}"
-                      f":alpha='{alpha_expr}'"
-                      f":shadowcolor=black@0.8"
-                      f":shadowx=2:shadowy=2"
-                      f":borderw=1"
-                      f":bordercolor=black@0.3"
-                  )
-                  filters.append(ft)
-              line_idx += 1
+          for idx, word in enumerate(words):
+              if idx == 0:
+                  accumulated_text = word
+              else:
+                  accumulated_text += " " + word
+              
+              t_show = text_start + idx * interval
+              
+              # Alpha: fade in each new word, keep previous visible
+              alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
+              
+              escaped_text = accumulated_text.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
+              
+              # Single block of text, centered, auto-wrapped by FFmpeg
+              ft = (
+                  f"drawtext=text='{escaped_text}'"
+                  f":fontfile={font}"
+                  f":fontcolor={verse_color}"
+                  f":fontsize=68"
+                  f":x=(w-text_w)/2"
+                  f":y=(h-text_h)/2-50"
+                  f":alpha='{alpha_expr}'"
+                  f":shadowcolor=black@0.8"
+                  f":shadowx=2:shadowy=2"
+                  f":borderw=1"
+                  f":bordercolor=black@0.3"
+              )
+              filters.append(ft)
 
-          # CTA text at bottom (below verses)
+          # CTA text at bottom
           cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
           cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"
           cta_filter = (
@@ -535,7 +520,7 @@ jobs:
               f":fontcolor=#FFD700"
               f":fontsize=54"
               f":x=(w-text_w)/2"
-              f":y=h-120"
+              f":y=h-100"
               f":alpha='{cta_alpha}'"
               f":shadowcolor=black@0.8"
               f":shadowx=2:shadowy=2"

@@ -414,20 +414,19 @@ jobs:
           VERSE_COLOR="${{ steps.color.outputs.verse_color }}"
           FETCH=$(echo "$DUR + 5" | bc)
           FADEOUT=$(echo "$DUR - 1.5" | bc)
-          CTA_START=$(echo "$DUR - 5" | bc)
+          CTA_START=$(echo "$DUR - 4" | bc)
           TITLE_START=0.5
 
           echo "Downloading video..."
           timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -c copy source.mp4
 
-          # Build music clip (no video audio - muted)
           MDUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$MUSIC_FILE" 2>/dev/null | cut -d. -f1)
           MMAX=$((MDUR - 5))
           [ "$MMAX" -le 5 ] && MMAX=5
           MSTART=$((RANDOM % MMAX))
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
-          # Split verse into words and build per-word drawtext filters
+          # ORIGINAL SCRIPT METHOD - exactly as you had it
           python3 << 'PYEOF'
           import os, sys, math
 
@@ -435,17 +434,16 @@ jobs:
           dur = float(os.environ.get("DUR", "20"))
           fadeout = float(os.environ.get("FADEOUT", "18.5"))
           cta = os.environ.get("CTA", "Follow for daily Word")
-          cta_start = float(os.environ.get("CTA_START", "15"))
+          cta_start = float(os.environ.get("CTA_START", "16"))
           title = os.environ.get("TITLE", "✨ GOD'S PROMISE ✨")
           title_start = float(os.environ.get("TITLE_START", "0.5"))
           verse_color = os.environ.get("VERSE_COLOR", "#FFFFFF")
 
           words = verse.split()
           text_start = 1.2
-          text_end = dur * 0.85  # Reserve bottom for CTA
+          text_end = dur * 0.78
           total_text_time = text_end - text_start
 
-          # Time each word appears - natural pacing, no gaps
           if len(words) > 1:
               interval = total_text_time / (len(words) - 1)
           else:
@@ -457,10 +455,19 @@ jobs:
           if not os.path.exists(font):
               font = font_fallback
 
-          # Build filters: title first, then verse as one continuous line
+          words_per_line = 4
+          lines = []
+          for i in range(0, len(words), words_per_line):
+              lines.append(words[i:i+words_per_line])
+
+          total_lines = len(lines)
+          line_height = 95
+          center_y = 960
+          block_top = center_y - (total_lines * line_height) // 2
+
           filters = []
           
-          # Title filter at TOP of screen
+          # Add TITLE at top
           title_fade_in = f"min(1,(t-{title_start})/1.5)"
           title_fade_out = f"max(0,1-((t-3.5)/0.5))"
           title_alpha = f"if(lt(t,{title_start}),0,{title_fade_in})*{title_fade_out}"
@@ -477,48 +484,43 @@ jobs:
               f":shadowx=3:shadowy=3"
           )
           filters.append(title_filter)
-
-          # Main verse text - as a single paragraph, word by word
-          # Center of screen, natural flow like a sentence
-          accumulated_text = ""
           
-          for idx, word in enumerate(words):
-              if idx == 0:
-                  accumulated_text = word
-              else:
-                  accumulated_text += " " + word
-              
-              t_show = text_start + idx * interval
-              
-              # Alpha: fade in each new word, keep previous visible
-              alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
-              
-              escaped_text = accumulated_text.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-              
-              # Single block of text, centered, auto-wrapped by FFmpeg
-              ft = (
-                  f"drawtext=text='{escaped_text}'"
-                  f":fontfile={font}"
-                  f":fontcolor={verse_color}"
-                  f":fontsize=68"
-                  f":x=(w-text_w)/2"
-                  f":y=(h-text_h)/2-50"
-                  f":alpha='{alpha_expr}'"
-                  f":shadowcolor=black@0.8"
-                  f":shadowx=2:shadowy=2"
-                  f":borderw=1"
-                  f":bordercolor=black@0.3"
-              )
-              filters.append(ft)
+          word_idx = 0
+          for line_num, line_words in enumerate(lines):
+              y_pos = block_top + line_num * line_height
+              for w_in_line, word in enumerate(line_words):
+                  global_word_idx = word_idx
+                  t_show = text_start + global_word_idx * interval
 
-          # CTA text at bottom
+                  x_offset = w_in_line * 200 - (len(line_words) - 1) * 100
+                  x_pos = f"(w-text_w)/2+{x_offset}" if len(line_words) > 1 else "(w-text_w)/2"
+
+                  alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
+
+                  escaped_word = word.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
+
+                  ft = (
+                      f"drawtext=text='{escaped_word}'"
+                      f":fontfile={font}"
+                      f":fontcolor={verse_color}"
+                      f":fontsize=72"
+                      f":x={x_pos}"
+                      f":y={y_pos}"
+                      f":alpha='{alpha_expr}'"
+                      f":shadowcolor=black@0.8"
+                      f":shadowx=3:shadowy=3"
+                  )
+                  filters.append(ft)
+                  word_idx += 1
+
+          # CTA at BOTTOM (moved from end)
           cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
           cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"
           cta_filter = (
               f"drawtext=text='✨ {cta_escaped} ✨'"
               f":fontfile={font}"
               f":fontcolor=#FFD700"
-              f":fontsize=54"
+              f":fontsize=52"
               f":x=(w-text_w)/2"
               f":y=h-100"
               f":alpha='{cta_alpha}'"
@@ -544,7 +546,6 @@ jobs:
 
           print(f"Built filter for {len(words)} words across {dur}s")
           print(f"Word interval: {interval:.2f}s")
-          print(f"Verse color: {verse_color}")
           PYEOF
 
           VFILTER=$(cat /tmp/vfilter.txt)
@@ -567,7 +568,7 @@ jobs:
           VERSE: ${{ steps.verse.outputs.verse }}
           DUR: "20"
           FADEOUT: "18.5"
-          CTA_START: "15"
+          CTA_START: "16"
           CTA: ${{ steps.cta.outputs.cta }}
           TITLE: ${{ steps.title.outputs.title }}
           TITLE_START: "0.5"

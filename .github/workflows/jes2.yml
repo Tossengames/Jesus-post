@@ -39,15 +39,15 @@ jobs:
           VIDEO_URL=""
           VALID_VIDEO=0
 
-          TERMS="sky timelapse| clouds timelapse| sunrise landscape| sunset landscape| mountain landscape| ocean waves| river landscape| stars timelapse| light rays forest| fog landscape| waterfall landscape| aerial landscape| peaceful sky"
+          TERMS="sky| clouds| sunrise| sunset| nature| mountains| forest| ocean| river| stars| light rays| fog| meadow| waterfall| peaceful nature"
           IFS='|' read -ra TERM_ARR <<< "$TERMS"
 
           for TERM in $(printf "%s\n" "${TERM_ARR[@]}" | shuf); do
             [ "$VALID_VIDEO" -eq 1 ] && break
-            PAGE=$((RANDOM % 5 + 1))
+            PAGE=$((RANDOM % 10 + 1))
             OFFSET=$((RANDOM % 20))
-            ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1].strip()))" "$TERM")
-            URL="https://pixabay.com/api/videos/?key=${PIXABAY_KEY}&q=${ENCODED}&video_type=film&per_page=20&page=${PAGE}&category=nature"
+            ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$TERM")
+            URL="https://pixabay.com/api/videos/?key=${PIXABAY_KEY}&q=${ENCODED}&video_type=film&per_page=20&page=${PAGE}"
             RESP=$(timeout 10 curl -sf --max-time 10 "$URL" 2>/dev/null) || continue
             COUNT=$(echo "$RESP" | jq -r '.hits | length' 2>/dev/null) || continue
             [ "$COUNT" -eq 0 ] && continue
@@ -109,15 +109,219 @@ jobs:
         run: |
           VERSES=(
             "God is within her she will not fall - Psalm 46:5"
+            "Be still and know that I am God - Psalm 46:10"
             "I can do all things through Christ who strengthens me - Philippians 4:13"
-            "For I know the plans I have for you - Jeremiah 29:11"
             "The Lord is my shepherd I lack nothing - Psalm 23:1"
+            "Trust in the Lord with all your heart - Proverbs 3:5"
+            "For God so loved the world that He gave His only Son - John 3:16"
+            "Come to me all who are weary and I will give you rest - Matthew 11:28"
+            "The Lord your God is with you wherever you go - Joshua 1:9"
+            "Be strong and courageous. Do not be afraid - Joshua 1:9"
+            "With God all things are possible - Matthew 19:26"
+            "He heals the brokenhearted and binds up their wounds - Psalm 147:3"
+            "The joy of the Lord is your strength - Nehemiah 8:10"
+            "Cast all your anxiety on Him because He cares for you - 1 Peter 5:7"
+            "God causes all things to work together for good - Romans 8:28"
+            "Your word is a lamp to my feet and a light to my path - Psalm 119:105"
+            "Nothing can separate us from the love of God - Romans 8:38"
+            "He gives strength to the weary - Isaiah 40:29"
+            "Peace I leave with you my peace I give you - John 14:27"
+            "The Lord will fight for you you need only be still - Exodus 14:14"
+            "He who began a good work in you will carry it to completion - Philippians 1:6"
+            "Let your light shine before others - Matthew 5:16"
+            "Seek first the kingdom of God and all these things shall be added - Matthew 6:33"
+            "For I know the plans I have for you plans to prosper you - Jeremiah 29:11"
+            "The name of the Lord is a strong tower - Proverbs 18:10"
+            "Draw near to God and He will draw near to you - James 4:8"
+            "Wait on the Lord be of good courage - Psalm 27:14"
+            "He restores my soul - Psalm 23:3"
+            "Create in me a pure heart O God - Psalm 51:10"
+            "The Lord is close to the brokenhearted - Psalm 34:18"
+            "Do not worry about tomorrow - Matthew 6:34"
+            "You are the light of the world - Matthew 5:14"
+            "God has not given us a spirit of fear but of power - 2 Timothy 1:7"
+            "I will never leave you nor forsake you - Hebrews 13:5"
+            "Love your neighbor as yourself - Mark 12:31"
+            "Ask and it will be given to you - Matthew 7:7"
+            "The steadfast love of the Lord never ceases - Lamentations 3:22"
             "You are fearfully and wonderfully made - Psalm 139:14"
+            "My grace is sufficient for you - 2 Corinthians 12:9"
+            "Blessed are the pure in heart for they will see God - Matthew 5:8"
+            "Delight yourself in the Lord and He will give you the desires of your heart - Psalm 37:4"
+            "He is risen - Mark 16:6"
+            "Faith without works is dead - James 2:26"
+            "We walk by faith not by sight - 2 Corinthians 5:7"
+            "Greater is He that is in me than he that is in the world - 1 John 4:4"
+            "Taste and see that the Lord is good - Psalm 34:8"
+            "The peace of God surpasses all understanding - Philippians 4:7"
+            "Be transformed by the renewing of your mind - Romans 12:2"
+            "Do not conform to the pattern of this world - Romans 12:2"
+            "Forgive as the Lord has forgiven you - Colossians 3:13"
+            "Love is patient love is kind - 1 Corinthians 13:4"
+            "Hope does not disappoint us - Romans 5:5"
+            "Blessed are those who mourn for they will be comforted - Matthew 5:4"
+            "The Lord is my light and my salvation whom shall I fear - Psalm 27:1"
+            "Your faith has healed you - Mark 5:34"
+            "Come follow me - Matthew 4:19"
+            "Fear not for I am with you - Isaiah 41:10"
+            "He who dwells in the shelter of the Most High will rest - Psalm 91:1"
+            "This is the day the Lord has made let us rejoice - Psalm 118:24"
+            "Guard your heart for it is the wellspring of life - Proverbs 4:23"
+            "A gentle answer turns away wrath - Proverbs 15:1"
+            "The fruit of the Spirit is love joy peace - Galatians 5:22"
+            "Do not grow weary in doing good - Galatians 6:9"
+            "Let everything that has breath praise the Lord - Psalm 150:6"
+            "He makes all things new - Revelation 21:5"
+            "Weeping may endure for a night but joy comes in the morning - Psalm 30:5"
+            "The Lord is good to those who hope in Him - Lamentations 3:25"
+            "Even if I walk through the darkest valley I fear no evil - Psalm 23:4"
+            "Blessed is the one who trusts in the Lord - Jeremiah 17:7"
+            "His mercies are new every morning - Lamentations 3:23"
+            "Rejoice always. Pray without ceasing. Give thanks - 1 Thessalonians 5:16"
+            "God is our refuge and strength - Psalm 46:1"
+            "The Lord bless you and keep you - Numbers 6:24"
+            "Let the weak say I am strong - Joel 3:10"
+            "Jesus is the same yesterday today and forever - Hebrews 13:8"
+            "My help comes from the Lord maker of heaven and earth - Psalm 121:2"
+            "With long life I will satisfy him - Psalm 91:16"
+            "Call to me and I will answer you - Jeremiah 33:3"
+            "There is no fear in love - 1 John 4:18"
+            "Pray for one another that you may be healed - James 5:16"
+            "He who is faithful in little will be faithful in much - Luke 16:10"
+            "Do not let your hearts be troubled. Trust in God - John 14:1"
+            "Whoever believes in Him shall not perish - John 3:16"
+            "No weapon formed against you shall prosper - Isaiah 54:17"
+            "The Lord is my strength and my song - Exodus 15:2"
+            "Return to me and I will return to you - Malachi 3:7"
+            "Humble yourself before the Lord and He will lift you up - James 4:10"
+            "Do not be anxious about anything - Philippians 4:6"
+            "Let your gentleness be evident to all - Philippians 4:5"
+            "God opposes the proud but shows favor to the humble - James 4:6"
+            "You will seek me and find me when you seek with all your heart - Jeremiah 29:13"
+            "The heart of man plans his way but the Lord establishes his steps - Proverbs 16:9"
+            "Man shall not live by bread alone - Matthew 4:4"
+            "Where two or three gather in my name I am there - Matthew 18:20"
+            "I am the way the truth and the life - John 14:6"
+            "I am the resurrection and the life - John 11:25"
+            "The truth will set you free - John 8:32"
+            "My sheep hear my voice and they follow me - John 10:27"
+            "I have come that you may have life abundantly - John 10:10"
+            "You did not choose me I chose you - John 15:16"
+            "Greater love has no one than to lay down his life for a friend - John 15:13"
+            "In the beginning was the Word - John 1:1"
+            "The Word became flesh and dwelt among us - John 1:14"
+            "He is before all things. In Him all things hold together - Colossians 1:17"
+            "Christ in you the hope of glory - Colossians 1:27"
+            "Set your minds on things above - Colossians 3:2"
+            "Let the word of Christ dwell in you richly - Colossians 3:16"
+            "I press on toward the goal - Philippians 3:14"
+            "Rejoice in the Lord always. Again I say rejoice - Philippians 4:4"
+            "My God will meet all your needs - Philippians 4:19"
+            "Now to Him who is able to do immeasurably more - Ephesians 3:20"
+            "Put on the full armor of God - Ephesians 6:11"
+            "For it is by grace you have been saved through faith - Ephesians 2:8"
+            "We are Gods handiwork created in Christ Jesus - Ephesians 2:10"
+            "Be kind to one another tenderhearted forgiving - Ephesians 4:32"
+            "Sing and make music from your heart to the Lord - Ephesians 5:19"
+            "Be imitators of God as dearly loved children - Ephesians 5:1"
+            "The Lord disciplines those He loves - Hebrews 12:6"
+            "Faith is the substance of things hoped for - Hebrews 11:1"
+            "Without faith it is impossible to please God - Hebrews 11:6"
+            "Jesus the author and perfecter of our faith - Hebrews 12:2"
+            "Let us run with endurance the race set before us - Hebrews 12:1"
+            "Every good and perfect gift is from above - James 1:17"
+            "Be quick to listen slow to speak slow to anger - James 1:19"
+            "Blessed is the one who perseveres under trial - James 1:12"
+            "Resist the devil and he will flee from you - James 4:7"
+            "The prayer of a righteous person is powerful - James 5:16"
+            "If God is for us who can be against us - Romans 8:31"
+            "There is now no condemnation for those in Christ Jesus - Romans 8:1"
+            "Be joyful in hope patient in affliction faithful in prayer - Romans 12:12"
+            "Do not be overcome by evil but overcome evil with good - Romans 12:21"
+            "Whether you eat or drink do it all for the glory of God - 1 Corinthians 10:31"
+            "No eye has seen no ear has heard what God has prepared - 1 Corinthians 2:9"
+            "If anyone is in Christ he is a new creation - 2 Corinthians 5:17"
+            "Where the Spirit of the Lord is there is freedom - 2 Corinthians 3:17"
+            "We do not lose heart - 2 Corinthians 4:1"
+            "He who sows generously will also reap generously - 2 Corinthians 9:6"
+            "God loves a cheerful giver - 2 Corinthians 9:7"
+            "My power is made perfect in weakness - 2 Corinthians 12:9"
+            "It is no longer I who live but Christ who lives in me - Galatians 2:20"
+            "You are all sons and daughters of God through faith - Galatians 3:26"
+            "Carry each others burdens - Galatians 6:2"
+            "The Lord is righteous in all His ways - Psalm 145:17"
+            "Great is the Lord and most worthy of praise - Psalm 145:3"
+            "The Lord upholds all who fall - Psalm 145:14"
+            "Praise the Lord O my soul - Psalm 104:1"
+            "The heavens declare the glory of God - Psalm 19:1"
+            "The law of the Lord is perfect refreshing the soul - Psalm 19:7"
+            "The Lord is my rock my fortress my deliverer - Psalm 18:2"
+            "I love you Lord my strength - Psalm 18:1"
+            "Give thanks to the Lord for He is good - Psalm 107:1"
+            "He satisfies the thirsty and fills the hungry with good things - Psalm 107:9"
+            "He sent out His word and healed them - Psalm 107:20"
+            "Those who go out weeping will return with songs of joy - Psalm 126:5"
+            "Unless the Lord builds the house the builders labor in vain - Psalm 127:1"
+            "How good and pleasant it is when Gods people live in unity - Psalm 133:1"
+            "Search me God and know my heart - Psalm 139:23"
+            "Even the darkness is not dark to you - Psalm 139:12"
+            "O Lord you have searched me and you know me - Psalm 139:1"
+            "The Lord is gracious and compassionate - Psalm 145:8"
+            "Slow to anger and rich in love - Psalm 145:8"
+            "Bless the Lord at all times His praise shall continually be in my mouth - Psalm 34:1"
+            "Those who look to Him are radiant - Psalm 34:5"
+            "No good thing does He withhold from those who walk uprightly - Psalm 84:11"
+            "Better is one day in your courts than a thousand elsewhere - Psalm 84:10"
+            "Blessed are those whose strength is in you - Psalm 84:5"
+            "You open your hand and satisfy the desires of every living thing - Psalm 145:16"
+            "The Lord has done great things for us and we are filled with joy - Psalm 126:3"
+            "I lift up my eyes to the mountains where does my help come from - Psalm 121:1"
+            "The Lord watches over you the Lord is your shade - Psalm 121:5"
+            "He will not let your foot slip He who watches over you will not slumber - Psalm 121:3"
+            "The Lord will keep you from all harm He will watch over your life - Psalm 121:7"
+            "When I am afraid I put my trust in you - Psalm 56:3"
+            "In God I trust and am not afraid - Psalm 56:11"
+            "You are my hiding place you will protect me from trouble - Psalm 32:7"
+            "I will instruct you and teach you in the way you should go - Psalm 32:8"
+            "The Lord is my strength and my shield my heart trusts in Him - Psalm 28:7"
+            "Weeping may stay for the night but rejoicing comes in the morning - Psalm 30:5"
+            "You turned my wailing into dancing - Psalm 30:11"
+            "Into your hands I commit my spirit - Psalm 31:5"
+            "Sing joyfully to the Lord you righteous - Psalm 33:1"
+            "The Lord loves righteousness and justice - Psalm 33:5"
+            "Blessed is the nation whose God is the Lord - Psalm 33:12"
+            "We wait in hope for the Lord He is our help and our shield - Psalm 33:20"
           )
           IDX=$((RANDOM % ${#VERSES[@]}))
           PICKED="${VERSES[$IDX]}"
           echo "verse=$PICKED" >> "$GITHUB_OUTPUT"
           echo "Selected verse: $PICKED"
+
+      - name: pick-hook
+        id: hook
+        timeout-minutes: 1
+        run: |
+          HOOKS=(
+            "God has a word for you"
+            "Stop and receive this"
+            "This is for your soul"
+            "Read this. It is for you"
+            "He is speaking right now"
+            "A message from Heaven"
+            "Your Father wants you to know"
+            "Let God speak to you"
+            "Pause. God is here"
+            "This will change your day"
+            "He sees you. He loves you"
+            "Open your heart right now"
+            "Jesus has not forgotten you"
+            "Heaven is speaking today"
+            "This word is alive for you"
+          )
+          IDX=$((RANDOM % ${#HOOKS[@]}))
+          PICKED="${HOOKS[$IDX]}"
+          echo "hook=$PICKED" >> "$GITHUB_OUTPUT"
+          echo "Selected hook: $PICKED"
 
       - name: pick-caption
         id: caption
@@ -134,6 +338,16 @@ jobs:
             "Someone needed this today. Share it. #Faith #Word #Blessed #Gospel #God"
             "Let this sink in. #Gospel #Jesus #Grace #Faith #Scripture"
             "This is for you. Don't scroll past. #Bible #Faith #God #Jesus #Hope"
+            "Breathe. Read. Believe. #Scripture #Hope #Jesus #Faith #Grace"
+            "Tag someone who needs this today. #Gospel #Faith #Blessed #Jesus #Word"
+            "Your reminder for today. #Word #Grace #Jesus #Faith #Bible"
+            "Drop everything and read this. #Faith #Bible #God #Gospel #Hope"
+            "God's word never fails. #Scripture #Jesus #Hope #Faith #Blessed"
+            "This is the truth. Walk in it. #Gospel #Faith #Grace #Jesus #Word"
+            "Hold on to this today. #Jesus #Word #Blessed #Faith #God"
+            "He is speaking to you right now. #Faith #God #Bible #Hope #Gospel"
+            "Don't just scroll. Receive this. #Scripture #Hope #Jesus #Grace #Faith"
+            "Screenshot this and keep it close. #Gospel #Grace #Faith #Jesus #Blessed"
           )
           IDX=$((RANDOM % ${#CAPTIONS[@]}))
           PICKED="${CAPTIONS[$IDX]}"
@@ -149,27 +363,14 @@ jobs:
             "Tag a friend who needs this"
             "Save this verse"
             "Follow for more Gospel"
+            "Send this to someone today"
+            "Follow for daily Scripture"
+            "Share Gods word today"
           )
           IDX=$((RANDOM % ${#CTAS[@]}))
           PICKED="${CTAS[$IDX]}"
           echo "cta=$PICKED" >> "$GITHUB_OUTPUT"
           echo "Selected CTA: $PICKED"
-
-      - name: pick-hook
-        id: hook
-        timeout-minutes: 1
-        run: |
-          HOOKS=(
-            "God has a word for you"
-            "Stop and receive this"
-            "This is for your soul"
-            "Read this. It is for you"
-            "He is speaking right now"
-          )
-          IDX=$((RANDOM % ${#HOOKS[@]}))
-          PICKED="${HOOKS[$IDX]}"
-          echo "hook=$PICKED" >> "$GITHUB_OUTPUT"
-          echo "Selected hook: $PICKED"
 
       - name: process-video
         timeout-minutes: 8
@@ -177,15 +378,14 @@ jobs:
           VERSE: ${{ steps.verse.outputs.verse }}
           HOOK: ${{ steps.hook.outputs.hook }}
           CTA: ${{ steps.cta.outputs.cta }}
-          DUR: "20"
-          FADEOUT: "18.5"
-          CTA_START: "15"
         run: |
           URL="${{ steps.vid.outputs.video_url }}"
           START="${{ steps.vid.outputs.start }}"
-          DUR_VAL="${{ steps.vid.outputs.clip }}"
+          DUR="${{ steps.vid.outputs.clip }}"
           MUSIC_FILE="${{ steps.music.outputs.music_file }}"
-          FETCH=$(echo "$DUR_VAL + 5" | bc)
+          FETCH=$(echo "$DUR + 5" | bc)
+          FADEOUT=$(echo "$DUR - 1.5" | bc)
+          CTA_START=$(echo "$DUR - 5" | bc)
 
           echo "Downloading video..."
           timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -c copy source.mp4
@@ -197,145 +397,165 @@ jobs:
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
           python3 << 'PYEOF'
-          import os, random, textwrap
+          import os, random
 
-          verse     = os.environ.get("VERSE",     "God is with you - Psalm 46:5")
-          hook      = os.environ.get("HOOK",      "God has a word for you")
-          cta       = os.environ.get("CTA",       "Follow for daily Word")
-          dur       = float(os.environ.get("DUR",       "20"))
-          fadeout   = float(os.environ.get("FADEOUT",   "18.5"))
-          cta_start = float(os.environ.get("CTA_START", "15"))
+          verse     = os.environ.get("VERSE", "God is with you - Psalm 46:5")
+          hook      = os.environ.get("HOOK",  "God has a word for you")
+          cta       = os.environ.get("CTA",   "Follow for daily Word")
+          dur       = 20.0
+          fadeout   = 18.5
+          cta_start = 15.0
 
           font_bold   = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
           font_italic = "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
           font_reg    = "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"
-          font_verse  = font_italic if os.path.exists(font_italic) else font_bold
-          font_hook   = font_bold   if os.path.exists(font_bold)   else font_reg
-          font_cta    = font_reg    if os.path.exists(font_reg)    else font_bold
 
+          # Pick one random color palette for the whole video
           palettes = [
-              ("white",     "ffffff"),
-              ("gold",      "FFD700"),
-              ("soft_gold", "F5C842"),
-              ("sky_blue",  "AEE4FF"),
-              ("rose_gold", "FFB6C1"),
-              ("mint",      "B5EAD7"),
-              ("amber",     "FFBF00"),
-              ("cream",     "FFF8DC"),
-              ("lavender",  "E6CCFF"),
-              ("coral",     "FF8C69"),
+              "ffffff",  # white
+              "FFD700",  # gold
+              "F5C842",  # soft gold
+              "AEE4FF",  # sky blue
+              "FFB6C1",  # rose gold
+              "B5EAD7",  # mint
+              "FFBF00",  # amber
+              "FFF8DC",  # cream
+              "E6CCFF",  # lavender
+              "FF8C69",  # coral
           ]
-          palette_name, hex_color = random.choice(palettes)
+          hex_color  = random.choice(palettes)
           text_color = f"#{hex_color}"
 
-          verse_fontsize = random.randint(58, 72)
-          hook_fontsize  = random.randint(48, 60)
-          cta_fontsize   = random.randint(42, 52)
-          blur_sigma     = 25
-
-          print(f"Style: palette={palette_name} blur={blur_sigma} verse_fs={verse_fontsize}")
-
           def escape(s):
-              return (s.replace("\\", "\\\\")
-                       .replace("'",  "\\'")
-                       .replace(":",  "\\:")
-                       .replace(",",  "\\,")
-                       .replace("[",  "\\[")
-                       .replace("]",  "\\]"))
-
-          # ── Split verse into clean wrapped lines (max 20 chars per line) ──
-          words = verse.split()
-          lines = []
-          current = []
-          for w in words:
-              test = " ".join(current + [w])
-              if len(test) > 20 and current:
-                  lines.append(" ".join(current))
-                  current = [w]
-              else:
-                  current.append(w)
-          if current:
-              lines.append(" ".join(current))
-
-          total_lines  = len(lines)
-          line_h       = verse_fontsize + 28
-          block_height = total_lines * line_h
-          block_top    = 960 - block_height // 2
-
-          # Each line fades in sequentially
-          line_interval = (dur * 0.65 - 1.5) / max(total_lines - 1, 1)
-
-          dt_filters = []
-
-          for i, line in enumerate(lines):
-              t_show = 1.5 + i * line_interval
-              alpha  = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.4))"
-              y_pos  = block_top + i * line_h
-              el     = escape(line)
-
-              # shadow/glow layer
-              dt_filters.append(
-                  f"drawtext=text='{el}':fontfile={font_verse}"
-                  f":fontcolor=#{hex_color}@0.35:fontsize={verse_fontsize+6}"
-                  f":x=(w-text_w)/2:y={y_pos-3}:alpha='{alpha}'"
-              )
-              # main text
-              dt_filters.append(
-                  f"drawtext=text='{el}':fontfile={font_verse}"
-                  f":fontcolor={text_color}:fontsize={verse_fontsize}"
-                  f":x=(w-text_w)/2:y={y_pos}"
-                  f":alpha='{alpha}'"
-                  f":shadowcolor=black@0.95:shadowx=3:shadowy=3"
+              # Only escape characters that break ffmpeg drawtext
+              return (s
+                  .replace("\\", "\\\\")
+                  .replace("'",  "\u2019")   # replace straight quote with curly
+                  .replace(":",  "\\:")
+                  .replace(",",  "\\,")
+                  .replace("[",  "\\[")
+                  .replace("]",  "\\]")
               )
 
-          # ── hook (top title) ──────────────────────────────────────────────
-          he         = escape(hook)
-          hook_alpha = "if(lt(t,0.3),0,min(1,(t-0.3)/0.5))"
+          # ── HOOK at top (fades in at 0.5s, stays whole video) ─────────────
+          hook_escaped = escape(hook)
+          hook_alpha   = "if(lt(t,0.5),0,min(1,(t-0.5)/0.6))"
 
-          # solid dark bar behind hook for readability
-          dt_filters.insert(0,
-              "drawbox=x=0:y=80:w=iw:h=160:color=black@0.5:t=fill"
+          dt_hook = (
+              f"drawtext=text='{hook_escaped}'"
+              f":fontfile={font_bold}"
+              f":fontcolor={text_color}"
+              f":fontsize=58"
+              f":x=(w-text_w)/2"
+              f":y=110"
+              f":alpha='{hook_alpha}'"
+              f":shadowcolor=black@0.85"
+              f":shadowx=3:shadowy=3"
           )
-          dt_filters += [
-              f"drawtext=text='{he}':fontfile={font_hook}"
-              f":fontcolor={text_color}:fontsize={hook_fontsize}"
-              f":x=(w-text_w)/2:y=140:alpha='{hook_alpha}'"
-              f":shadowcolor=black@1.0:shadowx=3:shadowy=3",
-          ]
 
-          # ── CTA (bottom) ──────────────────────────────────────────────────
-          ce        = escape(cta)
-          cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.0))"
+          # ── VERSE words word-by-word in the center ─────────────────────────
+          words      = verse.split()
+          text_start = 1.5
+          text_end   = dur * 0.76        # all words done by ~15.2s
+          interval   = (text_end - text_start) / max(len(words) - 1, 1)
 
-          dt_filters += [
-              "drawbox=x=0:y=1680:w=iw:h=200:color=black@0.55:t=fill",
-              f"drawtext=text='{ce}':fontfile={font_cta}"
-              f":fontcolor=white:fontsize={cta_fontsize}"
-              f":x=(w-text_w)/2:y=1720:alpha='{cta_alpha}'"
-              f":shadowcolor=black@1.0:shadowx=3:shadowy=3",
-              f"drawtext=text='^ Follow for more ^':fontfile={font_cta}"
-              f":fontcolor={text_color}@0.9:fontsize={cta_fontsize-8}"
-              f":x=(w-text_w)/2:y=1790:alpha='{cta_alpha}'"
-              f":shadowcolor=black@1.0:shadowx=2:shadowy=2",
-          ]
+          # Group into lines of 4 words, centered block around y=960
+          words_per_line = 4
+          lines       = [words[i:i+words_per_line] for i in range(0, len(words), words_per_line)]
+          line_h      = 88
+          block_top   = 960 - (len(lines) * line_h) // 2
 
-          # ── assemble — blur only background, text stays sharp ─────────────
-          # Split: one stream gets blurred (background), drawn text goes on top
-          all_dt = ",".join(dt_filters)
+          dt_filters = [dt_hook]
+          word_idx   = 0
 
-          vfilter = (
+          for line_num, line_words in enumerate(lines):
+              y_pos = block_top + line_num * line_h
+
+              # Build the full line as ONE drawtext that reveals word by word
+              # by showing cumulative text at each word's timestamp.
+              # This keeps words naturally spaced (font handles spacing).
+              for w_idx, word in enumerate(line_words):
+                  # Show cumulative words up to w_idx on this line
+                  # Each cumulative string appears at the time of its last new word
+                  # and replaces the previous one via alpha crossover
+                  pass
+
+              # Simpler clean approach: one drawtext per FULL LINE,
+              # revealed at the time its FIRST word should appear,
+              # but we still do word-by-word by rendering each word
+              # as part of a growing string — we just render each word
+              # individually at a fixed x offset derived from character count.
+              #
+              # To avoid gaps we render words with natural spacing by
+              # building cumulative strings and using alpha transitions:
+              # word 1 alone fades in, then word1+word2 fades in replacing it, etc.
+              # But that doubles up text. 
+              #
+              # Cleanest ffmpeg approach: render each word separately,
+              # x position calculated from character widths (approx 36px per char at size 70)
+              char_px   = 36          # approximate pixels per character at fontsize 70
+              space_px  = 18          # space between words
+              line_text = " ".join(line_words)
+              line_w    = sum(len(w) * char_px + space_px for w in line_words) - space_px
+              x_start   = (1080 - line_w) // 2   # left edge of line
+
+              x_cursor = x_start
+              for w_in_line, word in enumerate(line_words):
+                  t_show   = text_start + word_idx * interval
+                  alpha    = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
+                  ew       = escape(word)
+                  x_pos    = x_cursor
+
+                  dt = (
+                      f"drawtext=text='{ew}'"
+                      f":fontfile={font_italic}"
+                      f":fontcolor={text_color}"
+                      f":fontsize=70"
+                      f":x={x_pos}"
+                      f":y={y_pos}"
+                      f":alpha='{alpha}'"
+                      f":shadowcolor=black@0.85"
+                      f":shadowx=3:shadowy=3"
+                  )
+                  dt_filters.append(dt)
+
+                  x_cursor += len(word) * char_px + space_px
+                  word_idx += 1
+
+          # ── CTA below verse, appears near end ─────────────────────────────
+          # Place it ~130px below the verse block so it clears Facebook UI
+          cta_y     = block_top + len(lines) * line_h + 80
+          cta_alpha = f"if(lt(t,{cta_start:.1f}),0,min(1,(t-{cta_start:.1f})/1.2))"
+          cta_esc   = escape(cta)
+
+          dt_cta = (
+              f"drawtext=text='+ {cta_esc} +'"
+              f":fontfile={font_reg}"
+              f":fontcolor={text_color}"
+              f":fontsize=52"
+              f":x=(w-text_w)/2"
+              f":y={cta_y}"
+              f":alpha='{cta_alpha}'"
+              f":shadowcolor=black@0.9"
+              f":shadowx=3:shadowy=3"
+          )
+          dt_filters.append(dt_cta)
+
+          # ── assemble filter chain ──────────────────────────────────────────
+          all_dt   = ",".join(dt_filters)
+          vfilter  = (
               f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
-              f"crop=1080:1920,setsar=1[raw];"
-              f"[raw]gblur=sigma={blur_sigma}[bg];"
-              f"[bg]fade=t=in:st=0:d=1,"
-              f"fade=t=out:st={fadeout:.2f}:d=1.5,"
+              f"crop=1080:1920,setsar=1,"
+              f"gblur=sigma=25,"
+              f"fade=t=in:st=0:d=1,"
+              f"fade=t=out:st={fadeout}:d=1.5,"
               f"{all_dt}[vout]"
           )
 
           with open("/tmp/vfilter.txt", "w") as f:
               f.write(vfilter)
 
-          print(f"Filter built. Lines={total_lines}")
+          print(f"Built: {len(words)} words, {len(lines)} lines, color={hex_color}, interval={interval:.2f}s, cta_y={cta_y}")
           PYEOF
 
           VFILTER=$(cat /tmp/vfilter.txt)
@@ -343,11 +563,11 @@ jobs:
           timeout 240 ffmpeg -hide_banner -loglevel error -y \
             -i source.mp4 \
             -i music_clip.mp3 \
-            -filter_complex "${VFILTER};[1:a]volume=1.0,afade=t=in:st=0:d=1,afade=t=out:st=18.5:d=1.5[aout]" \
+            -filter_complex "${VFILTER};[1:a]volume=1.0,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[aout]" \
             -map "[vout]" \
             -map "[aout]" \
-            -t 20 \
-            -c:v libx264 -preset fast -crf 18 \
+            -t "$DUR" \
+            -c:v libx264 -preset medium -crf 16 \
             -c:a aac -b:a 192k \
             -movflags +faststart \
             -pix_fmt yuv420p \

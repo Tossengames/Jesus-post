@@ -1,14 +1,14 @@
-name: ✝️ Post Gospel Word to Facebook
+name: 📖 Post Gospel Verse to Facebook
 
 on:
   workflow_dispatch:
     inputs:
       duration:
-        description: "Recording duration in seconds"
+        description: "Duration in seconds"
         required: false
-        default: "16"
+        default: "14"
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "0 10 * * *"
 
 jobs:
   record:
@@ -22,16 +22,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
-          key: apt-ubuntu22-gospel-v1
+          key: apt-ubuntu-gospel-v1
 
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            xvfb chromium-browser libnss3 libgbm1 libasound2 \
-            ffmpeg pulseaudio x11-utils bc
+            xvfb \
+            chromium-browser \
+            libnss3 \
+            libgbm1 \
+            libasound2 \
+            ffmpeg
 
-      - name: Cache pip
+      - name: Cache pip and ChromeDriver
         uses: actions/cache@v4
         with:
           path: |
@@ -50,122 +54,196 @@ jobs:
       - name: Set timestamp
         run: echo "TS=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
 
-      - name: Start display and audio
+      - name: Start virtual display
         run: |
           Xvfb :99 -screen 0 390x844x24 -ac &
-          pulseaudio --start --exit-idle-time=-1 &
           echo "DISPLAY=:99" >> $GITHUB_ENV
-          sleep 3
+          sleep 2
 
-      - name: Open browser
-        run: |
-          HTML_PATH="$(pwd)/gospel.html"
-          chromium-browser \
-            --display=:99 \
-            --no-sandbox \
-            --disable-dev-shm-usage \
-            --disable-gpu \
-            --window-size=390,844 \
-            --window-position=0,0 \
-            --force-device-scale-factor=1 \
-            --autoplay-policy=no-user-gesture-required \
-            --no-first-run \
-            --disable-infobars \
-            --disable-notifications \
-            --disable-translate \
-            --kiosk \
-            "file://${HTML_PATH}" &
-          echo "BROWSER_PID=$!" >> $GITHUB_ENV
-          echo "HTML_PATH=${HTML_PATH}" >> $GITHUB_ENV
-          sleep 5
-
-      - name: Record screen
-        run: |
-          DURATION=${{ github.event.inputs.duration || '16' }}
-          TS=${{ env.TS }}
-          RAW_FILE="/tmp/gospel_${TS}_raw.mp4"
-          FINAL_FILE="/tmp/gospel_${TS}.mp4"
-          echo "RAW_FILE=${RAW_FILE}" >> $GITHUB_ENV
-          echo "FINAL_FILE=${FINAL_FILE}" >> $GITHUB_ENV
-          echo "DURATION=${DURATION}" >> $GITHUB_ENV
-
-          # Capture Xvfb display at 390x844
-          ffmpeg -y \
-            -f x11grab \
-            -video_size 390x844 \
-            -framerate 30 \
-            -i :99+0,0 \
-            -t ${DURATION} \
-            -c:v libx264 \
-            -preset slow \
-            -crf 14 \
-            -pix_fmt yuv420p \
-            "${RAW_FILE}"
-
-          echo "Raw: $(du -h ${RAW_FILE} | cut -f1)"
-
-      - name: Apply fade in/out
-        run: |
-          FADE_OUT=$(echo "${{ env.DURATION }} - 1.5" | bc)
-          ffmpeg -y \
-            -i "${{ env.RAW_FILE }}" \
-            -vf "fade=t=in:st=0:d=1.2,fade=t=out:st=${FADE_OUT}:d=1.5" \
-            -c:v libx264 -preset slow -crf 14 \
-            -pix_fmt yuv420p \
-            -movflags +faststart \
-            "${{ env.FINAL_FILE }}"
-          echo "Final: $(du -h ${{ env.FINAL_FILE }} | cut -f1)"
-          rm -f "${{ env.RAW_FILE }}"
-
-      - name: Post to Facebook
+      - name: Record and Post to Facebook
         run: |
           python3 << 'PYEOF'
-          import os, random, requests
+          import os, time, subprocess, random, requests, glob, base64
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.chrome.service import Service
+          from webdriver_manager.chrome import ChromeDriverManager
 
-          final_file = os.environ["FINAL_FILE"]
-          fb_token   = os.environ["FB_PAGE_TOKEN"]
-          fb_page_id = os.environ["FB_PAGE_ID"]
+          duration   = int(os.environ.get("DURATION", "14"))
+          ts         = os.environ.get("TS", "test")
+          webm_file  = f"/tmp/gospel_{ts}.webm"
+          mp4_file   = f"/tmp/gospel_{ts}.mp4"
+          mix_file   = f"/tmp/gospel_{ts}_mixed.mp4"
+          html_path  = os.path.abspath("gospel.html")
+          fb_token   = os.environ.get("FB_PAGE_TOKEN")
+          fb_page_id = os.environ.get("FB_PAGE_ID")
 
-          if not os.path.exists(final_file) or os.path.getsize(final_file) < 50000:
-            raise RuntimeError(f"Video missing or too small: {final_file}")
+          # Pick random background music from bgmusic/ folder
+          music_files = []
+          for ext in ["mp3", "m4a", "wav", "ogg", "flac", "wv", "MP3", "M4A", "WAV"]:
+            music_files.extend(glob.glob(f"bgmusic/*.{ext}"))
+          if music_files:
+            music_track = random.choice(music_files)
+            print(f"Selected music: {music_track}")
+          else:
+            music_track = None
+            print("No music files found in bgmusic/ - using only ambient audio")
 
+          opts = Options()
+          opts.add_argument("--no-sandbox")
+          opts.add_argument("--disable-dev-shm-usage")
+          opts.add_argument("--disable-gpu")
+          opts.add_argument("--window-size=390,844")
+          opts.add_argument("--window-position=0,0")
+          opts.add_argument("--force-device-scale-factor=1")
+          opts.add_argument("--autoplay-policy=no-user-gesture-required")
+          opts.add_argument("--disable-background-timer-throttling")
+          opts.add_argument("--disable-renderer-backgrounding")
+          opts.add_argument("--disable-backgrounding-occluded-windows")
+          opts.add_argument("--no-first-run")
+          opts.add_argument("--disable-infobars")
+          opts.add_argument("--disable-notifications")
+          opts.add_argument("--disable-translate")
+          opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+          opts.add_experimental_option("useAutomationExtension", False)
+          opts.add_experimental_option("mobileEmulation", {
+            "deviceMetrics": {"width": 390, "height": 844, "pixelRatio": 1.0},
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+          })
+
+          print("Starting Chrome...")
+          driver = webdriver.Chrome(
+            service=Service(ChromeDriverManager().install()),
+            options=opts
+          )
+          driver.set_window_size(390, 844)
+
+          print(f"Loading file://{html_path}")
+          driver.get(f"file://{html_path}")
+          time.sleep(3)
+
+          # Unlock audio and start recording
+          driver.execute_script("if(typeof AC !== 'undefined') AC.resume();")
+          time.sleep(0.5)
+
+          driver.execute_script("window.startRecording(30);")
+          print(f"Recording started for {duration} seconds...")
+
+          time.sleep(duration)
+
+          driver.execute_script("window.stopRecording();")
+          print("Waiting for recording to finalize...")
+          for _ in range(30):
+            done = driver.execute_script("return window._recordingDone;")
+            if done:
+              break
+            time.sleep(0.5)
+
+          print("Extracting video from browser...")
+          b64 = driver.execute_async_script("""
+            var done = arguments[0];
+            window.getRecordingBase64().then(done).catch(function(e){ done(null); });
+          """)
+
+          driver.quit()
+          print("Browser closed")
+
+          if not b64:
+            raise RuntimeError("Failed to get recording from browser")
+
+          with open(webm_file, 'wb') as f:
+            f.write(base64.b64decode(b64))
+          print(f"Webm saved: {os.path.getsize(webm_file)/1024/1024:.1f} MB")
+
+          # Convert to high quality mp4
+          print("Converting to mp4...")
+          subprocess.run([
+            "ffmpeg", "-y",
+            "-i", webm_file,
+            "-c:v", "libx264",
+            "-preset", "slow",
+            "-crf", "18",
+            "-pix_fmt", "yuv420p",
+            "-vf", "scale=390:844:flags=lanczos",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "44100",
+            "-movflags", "+faststart",
+            mp4_file
+          ], check=True, capture_output=True)
+
+          os.remove(webm_file)
+          print(f"MP4 ready: {os.path.getsize(mp4_file)/1024/1024:.1f} MB")
+
+          # Mix background music if available
+          if music_track:
+            print(f"Mixing music: {music_track}")
+            mix_result = subprocess.run([
+              "ffmpeg", "-y",
+              "-i", mp4_file,
+              "-stream_loop", "-1",
+              "-i", music_track,
+              "-c:v", "copy",
+              "-filter_complex",
+              "[0:a]volume=0.85[ambient];[1:a]volume=0.35[bgmusic];[ambient][bgmusic]amix=inputs=2:duration=first[aout]",
+              "-map", "0:v",
+              "-map", "[aout]",
+              "-c:a", "aac",
+              "-b:a", "192k",
+              "-shortest",
+              "-movflags", "+faststart",
+              mix_file
+            ], capture_output=True, text=True)
+
+            if os.path.exists(mix_file) and os.path.getsize(mix_file) > 50000:
+              os.remove(mp4_file)
+              final_file = mix_file
+              print("Music mixed successfully")
+            else:
+              print("Music mix failed, using original audio")
+              final_file = mp4_file
+          else:
+            final_file = mp4_file
+
+          print(f"Final video: {os.path.getsize(final_file)/1024/1024:.1f} MB")
+
+          # Christian-themed captions
           captions = [
-            "✝️ A word for someone watching this right now 🙏 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "🙏 God has not forgotten about you ✝️ #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "✝️ Someone needs to hear this today 💛 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "🌟 Your breakthrough is closer than you think 🙏 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "✝️ His grace is sufficient for you today 💫 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "🙏 Stop and receive this word right now ✝️ #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "✝️ God is speaking to you through this 🌟 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "💛 You are loved beyond what you can imagine ✝️ #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "🌟 This found you for a reason 🙏 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
-            "✝️ Share this with someone who needs it today 💛 #Gospel #Faith #Jesus #BibleVerse #Christian #God #Encouragement #Blessed #HolySpirit #FYP",
+            "🙏 Trust in the Lord with all your heart. #BibleVerse #Faith #Jesus #GodsWord #Scripture #Christian #Encouragement #Hope #Gospel #DailyBread",
+            "✝️ For God so loved the world... #John316 #Gospel #JesusLovesYou #Bible #FaithJourney #ChristianPost #ScriptureOfTheDay",
+            "🕊️ Peace I leave with you. #GodsPeace #ChristianContent #BibleVerse #FaithOverFear #JesusSaves #HolySpirit",
+            "📖 Your word is a lamp to my feet. #BibleStudy #Scripture #ChristianLiving #FaithWalk #GodsPromises #Worship",
+            "❤️ We love because He first loved us. #UnconditionalLove #JesusLovesYou #ChristianFaith #GospelTruth #Amen"
           ]
+          description = random.choice(captions)
 
-          print(f"Posting: {os.path.getsize(final_file)/1024/1024:.1f} MB")
+          print("Posting to Facebook...")
           with open(final_file, 'rb') as f:
-            resp = requests.post(
+            response = requests.post(
               f"https://graph-video.facebook.com/v18.0/{fb_page_id}/videos",
-              data={"description": random.choice(captions), "access_token": fb_token},
-              files={"source": (os.path.basename(final_file), f, "video/mp4")}
+              data={
+                "description": description,
+                "access_token": fb_token,
+              },
+              files={
+                "source": (os.path.basename(final_file), f, "video/mp4")
+              }
             )
 
-          print(f"Status: {resp.status_code}")
-          print(resp.text)
-          if resp.status_code == 200:
-            print(f"Posted! ID: {resp.json().get('id')}")
+          print(f"Facebook response: {response.status_code}")
+          print(response.text)
+
+          if response.status_code == 200:
+            print(f"✅ Posted successfully! Video ID: {response.json().get('id')}")
           else:
-            raise RuntimeError(f"Post failed: {resp.text}")
+            raise RuntimeError(f"Facebook post failed: {response.text}")
 
           os.remove(final_file)
+          print("Done!")
           PYEOF
         env:
-          FINAL_FILE:    ${{ env.FINAL_FILE }}
+          DURATION:      ${{ github.event.inputs.duration || '14' }}
+          TS:            ${{ env.TS }}
+          DISPLAY:       ":99"
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
           FB_PAGE_ID:    ${{ secrets.FB_PAGE_ID }}
-
-      - name: Cleanup
-        if: always()
-        run: |
-          kill ${{ env.BROWSER_PID }} 2>/dev/null || true
-          rm -f "${{ env.RAW_FILE }}" "${{ env.FINAL_FILE }}" 2>/dev/null || true

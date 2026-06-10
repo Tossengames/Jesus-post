@@ -464,7 +464,7 @@ jobs:
 
           filters = []
           
-          # TITLE at top - STAYS FULL VIDEO
+          # TITLE at top
           title_alpha = f"if(lt(t,0.5),0,min(1,(t-0.5)/0.5))"
           
           title_filter = (
@@ -508,10 +508,9 @@ jobs:
                   filters.append(ft)
                   word_idx += 1
 
-          # CTA right below the verse text body (not at bottom)
-          # Calculate position: below the last line of verse
+          # CTA below verse text - appears at 16s, stays until end
           last_line_y = block_top + (total_lines - 1) * line_height
-          cta_y = last_line_y + 120  # 120px below last verse line
+          cta_y = last_line_y + 100
           
           cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
           cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"

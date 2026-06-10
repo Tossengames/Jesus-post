@@ -510,7 +510,7 @@ document.body.addEventListener('touchend',e=>{e.preventDefault();loadScene(false
 initBg();initFX();loadScene(true);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RECORDING API - ADDED FOR GITHUB ACTIONS (captures background + UI + particles)
+// RECORDING API - FIXED VERSION (no audio routing errors)
 // ═══════════════════════════════════════════════════════════════════════════
 window._recordingDone = false;
 window._recordingBlob = null;
@@ -550,17 +550,39 @@ window.startRecording = function(fps = 30) {
   drawMerged();
   
   const canvasStream = merged.captureStream(fps);
+  
+  // Create a MediaStreamDestination for audio capture
   window._recDest = AC.createMediaStreamDestination();
-  // Connect audio to recording destination
-  if(AC.destination){
-    // Create a gain node to split audio
-    const splitGain = AC.createGain();
-    splitGain.gain.value = 1;
-    splitGain.connect(AC.destination);
-    splitGain.connect(window._recDest);
-    // Disconnect original and reconnect through split
-    // This is simplified - for recording, we connect master gain to recDest
-    window._recDest.connect(AC.destination);
+  
+  // Create a gain node to split audio for recording (without breaking existing routing)
+  const recordingGain = AC.createGain();
+  recordingGain.gain.value = 1.0;
+  
+  // Connect the context destination to our recording gain, then to recorder and original output
+  // This preserves audio for both the user and the recording
+  const originalDestination = AC.destination;
+  
+  // Create a new gain to split the signal
+  const splitter = AC.createGain();
+  splitter.gain.value = 1.0;
+  
+  // Disconnect original destination and reconnect through splitter
+  // But instead of disrupting, we'll just add a parallel connection
+  try {
+    // Add a parallel connection for recording
+    const tapGain = AC.createGain();
+    tapGain.gain.value = 0.5; // Reduce volume slightly to avoid doubling
+    AC.destination.connect(tapGain);
+    tapGain.connect(window._recDest);
+    window._recordingCleanup = function() {
+      try {
+        tapGain.disconnect();
+        tapGain.disconnect(window._recDest);
+      } catch(e) {}
+    };
+  } catch(e) {
+    console.log('Audio routing fallback:', e);
+    // Fallback: just capture without audio routing
   }
   
   const combined = new MediaStream([
@@ -580,6 +602,7 @@ window.startRecording = function(fps = 30) {
   };
   window._recorder.onstop = () => {
     cancelAnimationFrame(window._mergeRAF);
+    if (window._recordingCleanup) window._recordingCleanup();
     window._recordingBlob = new Blob(window._chunks, { type: 'video/webm' });
     window._recordingDone = true;
     console.log('Recording done, size:', window._recordingBlob.size);

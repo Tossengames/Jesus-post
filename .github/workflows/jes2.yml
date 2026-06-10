@@ -314,53 +314,6 @@ jobs:
           echo "verse=$PICKED" >> "$GITHUB_OUTPUT"
           echo "Selected verse: $PICKED"
 
-      - name: pick-title
-        id: title
-        timeout-minutes: 1
-        run: |
-          TITLES=(
-            "🙏 PAUSE 🙏"
-            "✨ RECEIVE THIS ✨"
-            "🔥 STAY HERE 🔥"
-            "❤️ READ THIS ❤️"
-            "🕊️ BE STILL 🕊️"
-            "⭐ FOR YOU ⭐"
-            "🙌 DON'T SKIP 🙌"
-            "💫 GOD SPEAKS 💫"
-            "🎯 TRUTH HERE 🎯"
-            "🌅 WAIT... 🌅"
-            "⚡ HOLD ON ⚡"
-            "💎 HEAVEN'S GIFT 💎"
-            "🎁 OPEN THIS 🎁"
-            "🕯️ WATCH THIS 🕯️"
-            "🌿 BE STILL 🌿"
-            "📖 HEAR THIS 📖"
-            "🎺 LISTEN UP 🎺"
-            "⚓ HOLD FAST ⚓"
-            "🛡️ BE STRONG 🛡️"
-            "🏃 DON'T GO 🏃"
-          )
-          IDX=$((RANDOM % ${#TITLES[@]}))
-          PICKED="${TITLES[$IDX]}"
-          echo "title=$PICKED" >> "$GITHUB_OUTPUT"
-          echo "Selected title: $PICKED"
-
-      - name: pick-random-color
-        id: color
-        timeout-minutes: 1
-        run: |
-          COLORS=(
-            "#FF6B6B" "#4ECDC4" "#45B7D1" "#96CEB4" "#FFEAA7" "#DDA0DD"
-            "#F0E68C" "#87CEEB" "#FFB6C1" "#98FB98" "#FFD700" "#FFA07A"
-            "#20B2AA" "#FF69B4" "#CD5C5C" "#9370DB" "#F4A460" "#7B68EE"
-            "#00CED1" "#FF1493" "#00FA9A" "#DC143C" "#00BFFF" "#FF8C00"
-            "#ADFF2F" "#FF4500" "#DA70D6" "#32CD32" "#6495ED" "#DB7093"
-          )
-          IDX=$((RANDOM % ${#COLORS[@]}))
-          PICKED="${COLORS[$IDX]}"
-          echo "verse_color=$PICKED" >> "$GITHUB_OUTPUT"
-          echo "Selected color: $PICKED"
-
       - name: pick-caption
         id: caption
         timeout-minutes: 1
@@ -395,7 +348,7 @@ jobs:
         id: cta
         timeout-minutes: 1
         run: |
-          CTAS=("🙏 FOLLOW FOR DAILY WORD 🙏" "✨ SHARE THIS WITH SOMEONE ✨" "❤️ TAG A FRIEND WHO NEEDS THIS ❤️" "📖 SAVE THIS VERSE 📖" "⭐ FOLLOW FOR MORE GOSPEL ⭐" "💫 SEND THIS TO SOMEONE TODAY 💫")
+          CTAS=("Follow for daily Word" "Share this with someone" "Tag a friend who needs this" "Save this verse" "Follow for more Gospel" "Send this to someone today")
           IDX=$((RANDOM % ${#CTAS[@]}))
           PICKED="${CTAS[$IDX]}"
           echo "cta=$PICKED" >> "$GITHUB_OUTPUT"
@@ -410,8 +363,6 @@ jobs:
           MUSIC_FILE="${{ steps.music.outputs.music_file }}"
           CTA="${{ steps.cta.outputs.cta }}"
           VERSE="${{ steps.verse.outputs.verse }}"
-          TITLE="${{ steps.title.outputs.title }}"
-          VERSE_COLOR="${{ steps.color.outputs.verse_color }}"
           FETCH=$(echo "$DUR + 5" | bc)
           FADEOUT=$(echo "$DUR - 1.5" | bc)
           CTA_START=$(echo "$DUR - 4" | bc)
@@ -426,92 +377,123 @@ jobs:
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
           python3 << 'PYEOF'
-          import os, sys, math
+          import os, math, random
 
           verse = os.environ.get("VERSE", "God is with you.")
           dur = float(os.environ.get("DUR", "20"))
           fadeout = float(os.environ.get("FADEOUT", "18.5"))
           cta = os.environ.get("CTA", "Follow for daily Word")
-          cta_start = float(os.environ.get("CTA_START", "16"))
-          title = os.environ.get("TITLE", "✨ PAUSE ✨")
-          verse_color = os.environ.get("VERSE_COLOR", "#FFFFFF")
-
-          words = verse.split()
-          text_start = 1.2
-          text_end = dur * 0.85
-          total_text_time = text_end - text_start
-
-          if len(words) > 1:
-              interval = total_text_time / (len(words) - 1)
-          else:
-              interval = 0
 
           font = "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
           font_fallback = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
-
           if not os.path.exists(font):
               font = font_fallback
 
-          filters = []
-          
-          # TITLE at top
-          title_alpha = f"if(lt(t,0.5),0,min(1,(t-0.5)/0.5))"
-          
+          # --- RANDOM COLOR (one per run, warm readable tones) ---
+          colors = [
+              "white", "gold", "lightyellow", "lightcyan",
+              "lightpink", "peachpuff", "lavender", "palegreen",
+              "lightskyblue", "wheat"
+          ]
+          text_color = random.choice(colors)
+
+          # --- TITLE (faith hook) ---
+          titles = [
+              "He is speaking to you right now.",
+              "This word is for you today.",
+              "God hasn't forgotten you.",
+              "Read this. It's not a coincidence.",
+              "Someone needed to hear this.",
+              "His word never returns empty.",
+              "This is your sign.",
+              "He sees you. He loves you.",
+              "Open your heart for a moment.",
+              "Let this reach you today.",
+              "Stop scrolling. God is here.",
+              "You are not alone.",
+              "Jesus loves you. Full stop.",
+              "His grace is enough for you.",
+              "This is your word for today.",
+          ]
+          title_text = random.choice(titles)
+          title_escaped = title_text.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
+
           title_filter = (
-              f"drawtext=text='{title}'"
+              f"drawtext=text='{title_escaped}'"
               f":fontfile={font}"
-              f":fontcolor=white"
-              f":fontsize=65"
+              f":fontcolor={text_color}@0.95"
+              f":fontsize=52"
               f":x=(w-text_w)/2"
-              f":y=150"
-              f":alpha='{title_alpha}'"
-              f":shadowcolor=black@0.8"
+              f":y=160"
+              f":alpha='if(lt(t,0.4),0,min(1,(t-0.4)/0.6))'"
+              f":shadowcolor=black@0.85"
               f":shadowx=3:shadowy=3"
           )
-          filters.append(title_filter)
-          
-          # VERSE - simple accumulated text, centered normally like typing
-          accumulated = ""
-          for idx, word in enumerate(words):
-              if idx == 0:
-                  accumulated = word
-              else:
-                  accumulated = accumulated + " " + word
-              
-              t_show = text_start + idx * interval
-              alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
-              escaped = accumulated.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-              
-              ft = (
-                  f"drawtext=text='{escaped}'"
-                  f":fontfile={font}"
-                  f":fontcolor={verse_color}"
-                  f":fontsize=68"
-                  f":x=(w-text_w)/2"
-                  f":y=(h-text_h)/2"
-                  f":alpha='{alpha_expr}'"
-                  f":shadowcolor=black@0.8"
-                  f":shadowx=2:shadowy=2"
-                  f":borderw=1"
-                  f":bordercolor=black@0.3"
-              )
-              filters.append(ft)
 
-          # CTA below verse
-          cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-          cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"
+          # --- CTA just below title ---
+          cta_escaped = cta.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
           cta_filter = (
               f"drawtext=text='{cta_escaped}'"
               f":fontfile={font}"
-              f":fontcolor=#FFD700"
-              f":fontsize=48"
+              f":fontcolor={text_color}@0.85"
+              f":fontsize=44"
               f":x=(w-text_w)/2"
-              f":y=h-120"
-              f":alpha='{cta_alpha}'"
+              f":y=230"
+              f":alpha='if(lt(t,1.0),0,min(1,(t-1.0)/0.8))'"
               f":shadowcolor=black@0.8"
               f":shadowx=2:shadowy=2"
           )
-          filters.append(cta_filter)
+
+          # --- VERSE: natural body text, typed out word by word ---
+          words = verse.split()
+          words_per_line = 5
+          lines = []
+          for i in range(0, len(words), words_per_line):
+              lines.append(words[i:i+words_per_line])
+
+          text_start = 1.8
+          text_end = dur * 0.82
+          total_text_time = text_end - text_start
+          total_words = len(words)
+          interval = total_text_time / max(total_words - 1, 1)
+
+          line_height = 90
+          total_lines = len(lines)
+          center_y = 980
+          block_top = center_y - (total_lines * line_height) // 2
+
+          filters = [title_filter, cta_filter]
+          word_idx = 0
+
+          for line_num, line_words in enumerate(lines):
+              y_pos = block_top + line_num * line_height
+
+              for w_in_line, word in enumerate(line_words):
+                  t_show = text_start + word_idx * interval
+                  visible_text = " ".join(line_words[:w_in_line + 1])
+                  visible_escaped = visible_text.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
+
+                  # Each step of the line fades out when next word replaces it
+                  if w_in_line < len(line_words) - 1:
+                      t_next = text_start + (word_idx + 1) * interval
+                      alpha_expr = f"if(lt(t,{t_show:.2f}),0,if(lt(t,{t_next:.2f}),min(1,(t-{t_show:.2f})/0.2),0))"
+                  else:
+                      # Last word on line stays visible
+                      alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.2))"
+
+                  ft = (
+                      f"drawtext=text='{visible_escaped}'"
+                      f":fontfile={font}"
+                      f":fontcolor={text_color}"
+                      f":fontsize=68"
+                      f":x=(w-text_w)/2"
+                      f":y={y_pos}"
+                      f":alpha='{alpha_expr}'"
+                      f":shadowcolor=black@0.8"
+                      f":shadowx=3:shadowy=3"
+                  )
+                  filters.append(ft)
+                  word_idx += 1
 
           all_dt = ",".join(filters)
 
@@ -528,8 +510,7 @@ jobs:
           with open("/tmp/vfilter.txt", "w") as f:
               f.write(vfilter)
 
-          print(f"Built filter for {len(words)} words across {dur}s")
-          print(f"Word interval: {interval:.2f}s")
+          print(f"Built filter for {len(words)} words | color: {text_color} | title: {title_text}")
           PYEOF
 
           VFILTER=$(cat /tmp/vfilter.txt)
@@ -552,10 +533,7 @@ jobs:
           VERSE: ${{ steps.verse.outputs.verse }}
           DUR: "20"
           FADEOUT: "18.5"
-          CTA_START: "16"
           CTA: ${{ steps.cta.outputs.cta }}
-          TITLE: ${{ steps.title.outputs.title }}
-          VERSE_COLOR: ${{ steps.color.outputs.verse_color }}
 
       - name: post-to-facebook
         timeout-minutes: 3

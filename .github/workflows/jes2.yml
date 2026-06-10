@@ -464,7 +464,7 @@ jobs:
 
           filters = []
           
-          # TITLE at top - STAYS FULL VIDEO (no fade out)
+          # TITLE at top - STAYS FULL VIDEO
           title_alpha = f"if(lt(t,0.5),0,min(1,(t-0.5)/0.5))"
           
           title_filter = (
@@ -508,7 +508,11 @@ jobs:
                   filters.append(ft)
                   word_idx += 1
 
-          # CTA at BOTTOM - appears near end
+          # CTA right below the verse text body (not at bottom)
+          # Calculate position: below the last line of verse
+          last_line_y = block_top + (total_lines - 1) * line_height
+          cta_y = last_line_y + 120  # 120px below last verse line
+          
           cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
           cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"
           cta_filter = (
@@ -517,7 +521,7 @@ jobs:
               f":fontcolor=#FFD700"
               f":fontsize=48"
               f":x=(w-text_w)/2"
-              f":y=h-100"
+              f":y={cta_y}"
               f":alpha='{cta_alpha}'"
               f":shadowcolor=black@0.8"
               f":shadowx=2:shadowy=2"

@@ -119,6 +119,14 @@ html,body{
 (()=>{
 'use strict';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// RECORDING API - Added for GitHub Actions video capture
+// ═══════════════════════════════════════════════════════════════════════════
+window._recordingDone = false;
+window._recordingBlob = null;
+window._recDest = null;
+window._masterGainForRecording = null;
+
 function safeR(v){return Math.max(0.01,isFinite(v)?v:0.01);}
 function rg(ctx,x,y,r0,x2,y2,r1){return ctx.createRadialGradient(x,y,safeR(r0),x2,y2,safeR(r1));}
 function lg(ctx,x1,y1,x2,y2){return ctx.createLinearGradient(x1,y1,x2,y2);}
@@ -126,6 +134,12 @@ function lg(ctx,x1,y1,x2,y2){return ctx.createLinearGradient(x1,y1,x2,y2);}
 // ── AUDIO ────────────────────────────────────────────────
 const AC=new(window.AudioContext||window.webkitAudioContext)();
 let _au=false;
+
+// Create master gain for recording routing
+const _masterGain = AC.createGain();
+_masterGain.gain.value = 1.0;
+_masterGain.connect(AC.destination);
+
 function unlockAC(){if(_au)return;AC.resume().then(()=>{_au=true;startPad();});}
 
 let _rev=null;
@@ -134,7 +148,7 @@ function getRev(){
   try{
     const l=AC.sampleRate*3,b=AC.createBuffer(2,l,AC.sampleRate);
     for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,1.6);}
-    const cv=AC.createConvolver(),g=AC.createGain();g.gain.value=0.3;cv.buffer=b;cv.connect(g);g.connect(AC.destination);_rev=cv;return cv;
+    const cv=AC.createConvolver(),g=AC.createGain();g.gain.value=0.3;cv.buffer=b;cv.connect(g);g.connect(_masterGain);_rev=cv;return cv;
   }catch(e){return null;}
 }
 
@@ -147,13 +161,13 @@ function startPad(){
       o.type='sine';o.frequency.value=f;lfo.type='sine';lfo.frequency.value=0.07+i*0.025;lg2.gain.value=1.4;
       lfo.connect(lg2);lg2.connect(o.frequency);
       const t=AC.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.024-i*0.003,t+2.8);
-      const r=getRev();o.connect(g);if(r)g.connect(r);g.connect(AC.destination);
+      const r=getRev();o.connect(g);if(r)g.connect(r);g.connect(_masterGain);
       o.start(t);lfo.start(t);_pads.push({o,g,lfo});
     });
     // Noise shimmer
     const bl=AC.sampleRate*2,nb=AC.createBuffer(1,bl,AC.sampleRate),nd=nb.getChannelData(0);
     for(let i=0;i<bl;i++)nd[i]=Math.random()*2-1;
-    const loop=()=>{const s=AC.createBufferSource(),gn=AC.createGain(),f=AC.createBiquadFilter();f.type='highpass';f.frequency.value=4200;gn.gain.value=0.003;s.buffer=nb;s.connect(f);f.connect(gn);gn.connect(AC.destination);s.onended=loop;s.start();};loop();
+    const loop=()=>{const s=AC.createBufferSource(),gn=AC.createGain(),f=AC.createBiquadFilter();f.type='highpass';f.frequency.value=4200;gn.gain.value=0.003;s.buffer=nb;s.connect(f);f.connect(gn);gn.connect(_masterGain);s.onended=loop;s.start();};loop();
   }catch(e){}
 }
 function stopPad(){
@@ -171,7 +185,7 @@ function playNote(){
   if(!_au)return;
   try{
     const f=_ms[_mi%_ms.length],v=0.042+Math.random()*0.024,d=3+Math.random()*1.5;
-    const g=AC.createGain(),r=getRev();g.connect(AC.destination);if(r)g.connect(r);
+    const g=AC.createGain(),r=getRev();g.connect(_masterGain);if(r)g.connect(r);
     [1,2,3].forEach((h,i)=>{
       const o=AC.createOscillator(),og=AC.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=f*h;
       const hv=v*[1,.15,.04][i],t=AC.currentTime;
@@ -182,8 +196,8 @@ function playNote(){
   }catch(e){}
 }
 function startMel(){clearInterval(_mt);_mt=setInterval(()=>playNote(),2500+Math.random()*900);}
-function sfxTap(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(880,AC.currentTime);o.frequency.exponentialRampToValueAtTime(440,AC.currentTime+0.22);const t=AC.currentTime;g.gain.setValueAtTime(0.07,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.28);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.3);}catch(e){}}
-function sfxReveal(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain(),r=getRev();o.type='sine';o.frequency.value=528;const t=AC.currentTime;g.gain.setValueAtTime(0.038,t);g.gain.exponentialRampToValueAtTime(0.0001,t+1.1);o.connect(g);if(r)g.connect(r);g.connect(AC.destination);o.start(t);o.stop(t+1.2);}catch(e){}}
+function sfxTap(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(880,AC.currentTime);o.frequency.exponentialRampToValueAtTime(440,AC.currentTime+0.22);const t=AC.currentTime;g.gain.setValueAtTime(0.07,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.28);o.connect(g);g.connect(_masterGain);o.start(t);o.stop(t+0.3);}catch(e){}}
+function sfxReveal(){if(!_au)return;try{const o=AC.createOscillator(),g=AC.createGain(),r=getRev();o.type='sine';o.frequency.value=528;const t=AC.currentTime;g.gain.setValueAtTime(0.038,t);g.gain.exponentialRampToValueAtTime(0.0001,t+1.1);o.connect(g);if(r)g.connect(r);g.connect(_masterGain);o.start(t);o.stop(t+1.2);}catch(e){}}
 
 // ── THEMES ────────────────────────────────────────────────
 const THEMES=[
@@ -508,6 +522,76 @@ window.addEventListener('resize',onResize);
 document.body.addEventListener('click',()=>loadScene(false));
 document.body.addEventListener('touchend',e=>{e.preventDefault();loadScene(false);},{passive:false});
 initBg();initFX();loadScene(true);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RECORDING API - For GitHub Actions video capture
+// ═══════════════════════════════════════════════════════════════════════════
+window._recordingDone = false;
+window._recordingBlob = null;
+window._recDest = null;
+
+window.startRecording = function(fps = 30) {
+  const bgCanvas = document.getElementById('bgCanvas');
+  const fxCanvas = document.getElementById('fxCanvas');
+  const RW = bgCanvas.width, RH = bgCanvas.height;
+  const merged = document.createElement('canvas');
+  merged.width = RW; merged.height = RH;
+  const mctx = merged.getContext('2d');
+  
+  function drawMerged() {
+    mctx.clearRect(0, 0, RW, RH);
+    mctx.drawImage(bgCanvas, 0, 0, RW, RH);
+    mctx.drawImage(fxCanvas, 0, 0, RW, RH);
+    window._mergeRAF = requestAnimationFrame(drawMerged);
+  }
+  drawMerged();
+  
+  const canvasStream = merged.captureStream(fps);
+  window._recDest = AC.createMediaStreamDestination();
+  _masterGain.connect(window._recDest);
+  
+  const combined = new MediaStream([
+    ...canvasStream.getVideoTracks(),
+    ...window._recDest.stream.getAudioTracks()
+  ]);
+  
+  window._recorder = new MediaRecorder(combined, {
+    mimeType: 'video/webm;codecs=vp8,opus',
+    videoBitsPerSecond: 8000000,
+    audioBitsPerSecond: 192000,
+  });
+  
+  window._chunks = [];
+  window._recorder.ondataavailable = e => {
+    if (e.data && e.data.size > 0) window._chunks.push(e.data);
+  };
+  window._recorder.onstop = () => {
+    cancelAnimationFrame(window._mergeRAF);
+    _masterGain.disconnect(window._recDest);
+    window._recordingBlob = new Blob(window._chunks, { type: 'video/webm' });
+    window._recordingDone = true;
+    console.log('Recording done, size:', window._recordingBlob.size);
+  };
+  window._recorder.start(100);
+  console.log('Recording started on merged canvas with audio');
+};
+
+window.stopRecording = function() {
+  if (window._recorder && window._recorder.state !== 'inactive') {
+    window._recorder.stop();
+  }
+};
+
+window.getRecordingBase64 = function() {
+  return new Promise((resolve, reject) => {
+    if (!window._recordingBlob) return reject('No recording');
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(window._recordingBlob);
+  });
+};
+
 })();
 </script>
 </body>

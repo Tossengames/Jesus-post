@@ -319,26 +319,26 @@ jobs:
         timeout-minutes: 1
         run: |
           TITLES=(
-            "✨ GOD'S PROMISE FOR YOU TODAY ✨"
-            "🙏 A MESSAGE FROM HEAVEN 🙏"
-            "💫 DIVINE ENCOURAGEMENT 💫"
-            "⭐ TRUTH THAT SETS YOU FREE ⭐"
-            "🕊️ PEACE FOR YOUR SOUL 🕊️"
-            "🔥 WORD FOR THE WEARY 🔥"
-            "❤️ UNCONDITIONAL LOVE ❤️"
-            "🌅 MORNING MANNA 🌅"
-            "🎯 YOUR DAILY BREAD 🎯"
-            "✨ HEAVEN'S DECLARATION ✨"
-            "🙌 WORTHY OF ALL PRAISE 🙌"
-            "💎 TREASURE IN HEAVEN 💎"
-            "⚡ POWER FROM ON HIGH ⚡"
-            "🌿 STILL WATERS 🌿"
-            "🕯️ LIGHT IN DARKNESS 🕯️"
-            "🎁 PERFECT GIFT 🎁"
-            "🏃 RACE OF FAITH 🏃"
-            "🛡️ SHIELD OF FAITH 🛡️"
-            "⚓ ANCHOR FOR THE SOUL ⚓"
-            "🎺 TRUMPET CALL 🎺"
+            "🙏 PAUSE AND RECEIVE THIS 🙏"
+            "✨ STOP SCROLLING, GOD HAS A WORD FOR YOU ✨"
+            "🔥 STAY WITH ME FOR 20 SECONDS 🔥"
+            "❤️ BEFORE YOU GO, READ THIS ❤️"
+            "🕊️ TAKE A DEEP BREATH AND WATCH 🕊️"
+            "⭐ THIS MESSAGE IS FOR YOU ⭐"
+            "🙌 DON'T SKIP, GOD IS SPEAKING 🙌"
+            "💫 YOU WERE MEANT TO SEE THIS 💫"
+            "🎯 THIS WILL CHANGE YOUR DAY 🎯"
+            "🌅 WAIT... READ THIS FIRST 🌅"
+            "⚡ TRUTH THAT HITS DIFFERENT ⚡"
+            "💎 A GIFT FROM HEAVEN FOR YOU 💎"
+            "🎁 OPEN THIS, IT'S FOR YOU 🎁"
+            "🕯️ LET THIS SINK IN 🕯️"
+            "🌿 QUIET YOUR HEART AND WATCH 🌿"
+            "📖 GOD WANTS YOU TO HEAR THIS 📖"
+            "🎺 A MESSAGE YOU NEED TODAY 🎺"
+            "⚓ HOLD ONTO THIS PROMISE ⚓"
+            "🛡️ THIS IS YOUR SHIELD FOR TODAY 🛡️"
+            "🏃 DON'T LEAVE WITHOUT THIS 🏃"
           )
           IDX=$((RANDOM % ${#TITLES[@]}))
           PICKED="${TITLES[$IDX]}"
@@ -395,7 +395,7 @@ jobs:
         id: cta
         timeout-minutes: 1
         run: |
-          CTAS=("Follow for daily Word" "Share this with someone" "Tag a friend who needs this" "Save this verse" "Follow for more Gospel" "Send this to someone today")
+          CTAS=("🙏 FOLLOW FOR DAILY WORD 🙏" "✨ SHARE THIS WITH SOMEONE ✨" "❤️ TAG A FRIEND WHO NEEDS THIS ❤️" "📖 SAVE THIS VERSE 📖" "⭐ FOLLOW FOR MORE GOSPEL ⭐" "💫 SEND THIS TO SOMEONE TODAY 💫")
           IDX=$((RANDOM % ${#CTAS[@]}))
           PICKED="${CTAS[$IDX]}"
           echo "cta=$PICKED" >> "$GITHUB_OUTPUT"
@@ -414,7 +414,7 @@ jobs:
           VERSE_COLOR="${{ steps.color.outputs.verse_color }}"
           FETCH=$(echo "$DUR + 5" | bc)
           FADEOUT=$(echo "$DUR - 1.5" | bc)
-          CTA_START=$(echo "$DUR - 4" | bc)
+          CTA_START=2.5
           TITLE_START=0.5
 
           echo "Downloading video..."
@@ -426,7 +426,6 @@ jobs:
           MSTART=$((RANDOM % MMAX))
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
-          # ORIGINAL SCRIPT METHOD - exactly as you had it
           python3 << 'PYEOF'
           import os, sys, math
 
@@ -434,7 +433,7 @@ jobs:
           dur = float(os.environ.get("DUR", "20"))
           fadeout = float(os.environ.get("FADEOUT", "18.5"))
           cta = os.environ.get("CTA", "Follow for daily Word")
-          cta_start = float(os.environ.get("CTA_START", "16"))
+          cta_start = float(os.environ.get("CTA_START", "2.5"))
           title = os.environ.get("TITLE", "✨ GOD'S PROMISE ✨")
           title_start = float(os.environ.get("TITLE_START", "0.5"))
           verse_color = os.environ.get("VERSE_COLOR", "#FFFFFF")
@@ -467,7 +466,7 @@ jobs:
 
           filters = []
           
-          # Add TITLE at top
+          # TITLE at top (moved down slightly)
           title_fade_in = f"min(1,(t-{title_start})/1.5)"
           title_fade_out = f"max(0,1-((t-3.5)/0.5))"
           title_alpha = f"if(lt(t,{title_start}),0,{title_fade_in})*{title_fade_out}"
@@ -476,14 +475,30 @@ jobs:
               f"drawtext=text='{title}'"
               f":fontfile={font}"
               f":fontcolor=white"
-              f":fontsize=75"
+              f":fontsize=65"
               f":x=(w-text_w)/2"
-              f":y=100"
+              f":y=150"
               f":alpha='{title_alpha}'"
               f":shadowcolor=black@0.8"
               f":shadowx=3:shadowy=3"
           )
           filters.append(title_filter)
+          
+          # CTA just below title (appears after title fades)
+          cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
+          cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"
+          cta_filter = (
+              f"drawtext=text='{cta_escaped}'"
+              f":fontfile={font}"
+              f":fontcolor=#FFD700"
+              f":fontsize=48"
+              f":x=(w-text_w)/2"
+              f":y=240"
+              f":alpha='{cta_alpha}'"
+              f":shadowcolor=black@0.8"
+              f":shadowx=2:shadowy=2"
+          )
+          filters.append(cta_filter)
           
           word_idx = 0
           for line_num, line_words in enumerate(lines):
@@ -512,22 +527,6 @@ jobs:
                   )
                   filters.append(ft)
                   word_idx += 1
-
-          # CTA at BOTTOM (moved from end)
-          cta_escaped = cta.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-          cta_alpha = f"if(lt(t,{cta_start:.2f}),0,min(1,(t-{cta_start:.2f})/1.5))"
-          cta_filter = (
-              f"drawtext=text='✨ {cta_escaped} ✨'"
-              f":fontfile={font}"
-              f":fontcolor=#FFD700"
-              f":fontsize=52"
-              f":x=(w-text_w)/2"
-              f":y=h-100"
-              f":alpha='{cta_alpha}'"
-              f":shadowcolor=black@0.8"
-              f":shadowx=2:shadowy=2"
-          )
-          filters.append(cta_filter)
 
           all_dt = ",".join(filters)
 
@@ -568,7 +567,7 @@ jobs:
           VERSE: ${{ steps.verse.outputs.verse }}
           DUR: "20"
           FADEOUT: "18.5"
-          CTA_START: "16"
+          CTA_START: "2.5"
           CTA: ${{ steps.cta.outputs.cta }}
           TITLE: ${{ steps.title.outputs.title }}
           TITLE_START: "0.5"

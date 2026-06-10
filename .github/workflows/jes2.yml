@@ -38,10 +38,8 @@ jobs:
           MIN_DUR=$((SKIP_HEAD + CLIP + SKIP_TAIL))
           VIDEO_URL=""
           VALID_VIDEO=0
-
           TERMS="sky| clouds| sunrise| sunset| nature| mountains| forest| ocean| river| stars| light rays| fog| meadow| waterfall| peaceful nature"
           IFS='|' read -ra TERM_ARR <<< "$TERMS"
-
           for TERM in $(printf "%s\n" "${TERM_ARR[@]}" | shuf); do
             [ "$VALID_VIDEO" -eq 1 ] && break
             PAGE=$((RANDOM % 10 + 1))
@@ -79,7 +77,6 @@ jobs:
               echo "Found valid video: start=${START}s dur=${DUR}s"
             done
           done
-
           if [ -z "$VIDEO_URL" ]; then
             echo "No valid video found"
             exit 1
@@ -174,7 +171,7 @@ jobs:
             "Read this slowly. #Scripture #Jesus #Hope #Faith #Blessed"
             "Someone needed this today. Share it. #Faith #Word #Blessed #Gospel #God"
             "Let this sink in. #Gospel #Jesus #Grace #Faith #Scripture"
-            "This is for you. Don't scroll past. #Bible #Faith #God #Jesus #Hope"
+            "This is for you. Dont scroll past. #Bible #Faith #God #Jesus #Hope"
             "Breathe. Read. Believe. #Scripture #Hope #Jesus #Faith #Grace"
             "Tag someone who needs this today. #Gospel #Faith #Blessed #Jesus #Word"
             "Your reminder for today. #Word #Grace #Jesus #Faith #Bible"
@@ -207,7 +204,6 @@ jobs:
           IDX=$((RANDOM % ${#CTAS[@]}))
           PICKED="${CTAS[$IDX]}"
           echo "cta=$PICKED" >> "$GITHUB_OUTPUT"
-          echo "Selected CTA: $PICKED"
 
       - name: process-video
         timeout-minutes: 8
@@ -232,9 +228,7 @@ jobs:
           MSTART=$((RANDOM % MMAX))
           timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
 
-          # Python builds and EXECUTES the ffmpeg command directly
-          # Never passing the filter through a shell variable
-          python3 << 'PYEOF'
+          cat > /tmp/build_video.py << 'ENDOFPYTHON'
 import os, random, subprocess, sys
 
 verse     = os.environ.get("VERSE", "God is with you - Psalm 46 v5")
@@ -247,30 +241,16 @@ cta_start = 15.0
 font_bold   = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
 font_italic = "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
 font_reg    = "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"
-
 if not os.path.exists(font_italic):
     font_italic = font_bold
 
-# Random color for this video
-palettes = [
-    "ffffff",  # white
-    "FFD700",  # gold
-    "F5C842",  # soft gold
-    "AEE4FF",  # sky blue
-    "FFB6C1",  # rose gold
-    "B5EAD7",  # mint
-    "FFBF00",  # amber
-    "FFF8DC",  # cream
-    "E6CCFF",  # lavender
-    "FF8C69",  # coral
-]
+palettes = ["ffffff","FFD700","F5C842","AEE4FF","FFB6C1","B5EAD7","FFBF00","FFF8DC","E6CCFF","FF8C69"]
 hex_color  = random.choice(palettes)
-text_color = f"#{hex_color}"
+text_color = "#" + hex_color
 
-def escape_dt(s):
-    """Escape string for ffmpeg drawtext value."""
+def esc(s):
     s = s.replace("\\", "\\\\")
-    s = s.replace("'",  "\u2019")    # curly quote - safe in drawtext
+    s = s.replace("'",  "\u2019")
     s = s.replace("%",  "\\%")
     s = s.replace(":",  "\\:")
     s = s.replace(",",  "\\,")
@@ -278,22 +258,20 @@ def escape_dt(s):
     s = s.replace("]",  "\\]")
     return s
 
-# ── HOOK (top, stays whole video) ─────────────────────────────────
-hook_e     = escape_dt(hook)
+hook_e     = esc(hook)
 hook_alpha = "if(lt(t,0.5),0,min(1,(t-0.5)/0.6))"
 dt_hook = (
-    f"drawtext=text='{hook_e}'"
-    f":fontfile='{font_bold}'"
-    f":fontcolor={text_color}"
-    f":fontsize=58"
-    f":x=(w-text_w)/2"
-    f":y=110"
-    f":alpha='{hook_alpha}'"
-    f":shadowcolor=black@0.85"
-    f":shadowx=3:shadowy=3"
+    "drawtext=text='" + hook_e + "'"
+    ":fontfile=" + font_bold +
+    ":fontcolor=" + text_color +
+    ":fontsize=58"
+    ":x=(w-text_w)/2"
+    ":y=110"
+    ":alpha='" + hook_alpha + "'"
+    ":shadowcolor=black@0.85"
+    ":shadowx=3:shadowy=3"
 )
 
-# ── VERSE word by word ─────────────────────────────────────────────
 words      = verse.split()
 text_start = 1.5
 text_end   = dur * 0.76
@@ -306,100 +284,85 @@ block_top  = 960 - (len(lines) * line_h) // 2
 
 dt_filters = [dt_hook]
 word_idx   = 0
-
-# Character width estimate at fontsize 70 (serif italic)
-char_px  = 34
-space_px = 16
+char_px    = 34
+space_px   = 16
 
 for line_num, line_words in enumerate(lines):
-    y_pos  = block_top + line_num * line_h
-    line_w = sum(len(w) * char_px for w in line_words) + space_px * (len(line_words) - 1)
+    y_pos    = block_top + line_num * line_h
+    line_w   = sum(len(w) * char_px for w in line_words) + space_px * (len(line_words) - 1)
     x_cursor = (1080 - line_w) // 2
-
     for word in line_words:
         t_show = text_start + word_idx * interval
-        alpha  = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
-        ew     = escape_dt(word)
-
+        alpha  = "if(lt(t," + f"{t_show:.2f}" + "),0,min(1,(t-" + f"{t_show:.2f}" + ")/0.3))"
+        ew     = esc(word)
         dt = (
-            f"drawtext=text='{ew}'"
-            f":fontfile='{font_italic}'"
-            f":fontcolor={text_color}"
-            f":fontsize=70"
-            f":x={x_cursor}"
-            f":y={y_pos}"
-            f":alpha='{alpha}'"
-            f":shadowcolor=black@0.85"
-            f":shadowx=3:shadowy=3"
+            "drawtext=text='" + ew + "'"
+            ":fontfile=" + font_italic +
+            ":fontcolor=" + text_color +
+            ":fontsize=70"
+            ":x=" + str(x_cursor) +
+            ":y=" + str(y_pos) +
+            ":alpha='" + alpha + "'"
+            ":shadowcolor=black@0.85"
+            ":shadowx=3:shadowy=3"
         )
         dt_filters.append(dt)
         x_cursor += len(word) * char_px + space_px
         word_idx += 1
 
-# ── CTA below verse ────────────────────────────────────────────────
 cta_y     = block_top + len(lines) * line_h + 80
-cta_alpha = f"if(lt(t,{cta_start:.1f}),0,min(1,(t-{cta_start:.1f})/1.2))"
-cta_e     = escape_dt(cta)
+cta_alpha = "if(lt(t," + f"{cta_start:.1f}" + "),0,min(1,(t-" + f"{cta_start:.1f}" + ")/1.2))"
+cta_e     = esc(cta)
 dt_cta = (
-    f"drawtext=text='+ {cta_e} +'"
-    f":fontfile='{font_reg}'"
-    f":fontcolor={text_color}"
-    f":fontsize=52"
-    f":x=(w-text_w)/2"
-    f":y={cta_y}"
-    f":alpha='{cta_alpha}'"
-    f":shadowcolor=black@0.9"
-    f":shadowx=3:shadowy=3"
+    "drawtext=text='+ " + cta_e + " +'"
+    ":fontfile=" + font_reg +
+    ":fontcolor=" + text_color +
+    ":fontsize=52"
+    ":x=(w-text_w)/2"
+    ":y=" + str(cta_y) +
+    ":alpha='" + cta_alpha + "'"
+    ":shadowcolor=black@0.9"
+    ":shadowx=3:shadowy=3"
 )
 dt_filters.append(dt_cta)
 
-# ── Build full filter complex string ──────────────────────────────
-all_dt  = ",".join(dt_filters)
-vf      = (
-    f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
-    f"crop=1080:1920,setsar=1,"
-    f"gblur=sigma=25,"
-    f"fade=t=in:st=0:d=1,"
-    f"fade=t=out:st={fadeout}:d=1.5,"
-    f"{all_dt}[vout];"
-    f"[1:a]volume=1.0,afade=t=in:st=0:d=1,afade=t=out:st={fadeout}:d=1.5[aout]"
+all_dt = ",".join(dt_filters)
+vf = (
+    "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
+    "crop=1080:1920,setsar=1,"
+    "gblur=sigma=25,"
+    "fade=t=in:st=0:d=1,"
+    "fade=t=out:st=" + str(fadeout) + ":d=1.5,"
+    + all_dt + "[vout];"
+    "[1:a]volume=1.0,afade=t=in:st=0:d=1,afade=t=out:st=" + str(fadeout) + ":d=1.5[aout]"
 )
 
-print(f"Built filter: {len(words)} words, {len(lines)} lines, color={hex_color}, interval={interval:.2f}s")
+print("Built: " + str(len(words)) + " words, color=" + hex_color + ", interval=" + f"{interval:.2f}s")
 
-# ── Write ffmpeg command to shell script and run it ────────────────
-# This avoids ALL shell variable expansion issues with special chars
-cmd_lines = [
-    "#!/bin/bash",
-    "set -e",
-    "timeout 240 ffmpeg -hide_banner -loglevel error -y \\",
-    "  -i source.mp4 \\",
-    "  -i music_clip.mp3 \\",
-    "  -filter_complex '" + vf.replace("'", "'\\''") + "' \\",
-    "  -map '[vout]' \\",
-    "  -map '[aout]' \\",
-    "  -t 20 \\",
-    "  -c:v libx264 -preset medium -crf 16 \\",
-    "  -c:a aac -b:a 192k \\",
-    "  -movflags +faststart \\",
-    "  -pix_fmt yuv420p \\",
-    "  final.mp4",
+cmd = [
+    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+    "-i", "source.mp4",
+    "-i", "music_clip.mp3",
+    "-filter_complex", vf,
+    "-map", "[vout]",
+    "-map", "[aout]",
+    "-t", "20",
+    "-c:v", "libx264", "-preset", "medium", "-crf", "16",
+    "-c:a", "aac", "-b:a", "192k",
+    "-movflags", "+faststart",
+    "-pix_fmt", "yuv420p",
+    "final.mp4"
 ]
 
-script = "\n".join(cmd_lines)
-with open("/tmp/run_ffmpeg.sh", "w") as f:
-    f.write(script)
-
-os.chmod("/tmp/run_ffmpeg.sh", 0o755)
 print("Running ffmpeg...")
-result = subprocess.run(["/bin/bash", "/tmp/run_ffmpeg.sh"], capture_output=False)
+result = subprocess.run(cmd)
 if result.returncode != 0:
-    print(f"ffmpeg failed with code {result.returncode}", file=sys.stderr)
+    print("ffmpeg failed with code " + str(result.returncode), file=sys.stderr)
     sys.exit(result.returncode)
+print("Done.")
+ENDOFPYTHON
 
-print("ffmpeg done.")
-PYEOF
-
+          python3 /tmp/build_video.py
           ls -lh final.mp4
 
       - name: post-to-facebook
@@ -413,25 +376,21 @@ PYEOF
           FILE="final.mp4"
           SIZE=$(stat -c%s "$FILE")
           API="https://graph.facebook.com/v19.0"
-
           for attempt in 1 2 3; do
             echo "Facebook post attempt $attempt..."
             INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"access_token\":\"${PAGE_TOKEN}\"}") || true
             SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
             VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
-
             if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
               INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"file_size\":${SIZE},\"access_token\":\"${PAGE_TOKEN}\"}") || true
               SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
               VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
               S_OFF=$(echo "$INIT" | jq -r '.start_offset' 2>/dev/null)
-
               if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
                 echo "Session failed attempt $attempt: $INIT"
                 sleep 10
                 continue
               fi
-
               timeout 90 curl -sf -X POST "${API}/${PAGE_ID}/videos" -F "upload_phase=transfer" -F "upload_session_id=${SESSION}" -F "start_offset=${S_OFF}" -F "video_file_chunk=@${FILE};type=video/mp4" -F "access_token=${PAGE_TOKEN}" > /dev/null || true
               FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"upload_session_id\":\"${SESSION}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
             else
@@ -439,16 +398,13 @@ PYEOF
               timeout 90 curl -sf -X POST "$UPLOAD_URL" -H "Authorization: OAuth ${PAGE_TOKEN}" -H "offset: 0" -H "file_size: ${SIZE}" --data-binary "@${FILE}" > /dev/null || true
               FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"video_id\":\"${VID_ID}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
             fi
-
             OK=$(echo "$FINISH" | jq -r '.success // .id // empty' 2>/dev/null)
             if [ -n "$OK" ]; then
               echo "Posted! Video ID: $VID_ID"
               exit 0
             fi
-
             echo "Post failed attempt $attempt: $FINISH"
             sleep 10
           done
-
           echo "All post attempts failed"
           exit 1

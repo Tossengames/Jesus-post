@@ -1,0 +1,251 @@
+name: ✝️ Post Christian Faith Reel to Facebook
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 16 * * *"
+
+jobs:
+  post:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache apt
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-ubuntu22-faith-v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            xvfb chromium-browser libnss3 libgbm1 libasound2 ffmpeg pulseaudio
+
+      - name: Cache pip and ChromeDriver
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.wdm
+          key: pip-wdm-faith-v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install selenium webdriver-manager requests
+
+      - name: Set timestamp
+        run: echo "TS=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
+
+      - name: Start virtual display and audio
+        run: |
+          Xvfb :99 -screen 0 540x960x24 -ac &
+          pulseaudio --start --exit-idle-time=-1 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          sleep 3
+
+      - name: Record and Post to Facebook
+        run: |
+          python3 << 'PYEOF'
+          import os, time, subprocess, random, requests, base64, glob
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.chrome.service import Service
+          from webdriver_manager.chrome import ChromeDriverManager
+
+          MUSIC_FOLDERS = ["bgmusic3", "Bgmusic3"]
+          MUSIC_EXTENSIONS = ["mp3", "wav", "m4a", "mp4", "aac", "ogg", "flac"]
+
+          ts         = os.environ.get("TS", "test")
+          webm_file  = f"/tmp/faith_{ts}.webm"
+          mp4_file   = f"/tmp/faith_{ts}.mp4"
+          html_path  = os.path.abspath("faith_facts.html")
+          fb_token   = os.environ.get("FB_PAGE_TOKEN")
+          fb_page_id = os.environ.get("FB_PAGE_ID")
+
+          if not fb_token or not fb_page_id:
+            raise RuntimeError("FB_PAGE_TOKEN or FB_PAGE_ID secret is missing")
+
+          opts = Options()
+          opts.add_argument("--no-sandbox")
+          opts.add_argument("--disable-dev-shm-usage")
+          opts.add_argument("--disable-gpu")
+          opts.add_argument("--window-size=540,960")
+          opts.add_argument("--window-position=0,0")
+          opts.add_argument("--force-device-scale-factor=1")
+          opts.add_argument("--autoplay-policy=no-user-gesture-required")
+          opts.add_argument("--disable-background-timer-throttling")
+          opts.add_argument("--disable-renderer-backgrounding")
+          opts.add_argument("--disable-backgrounding-occluded-windows")
+          opts.add_argument("--no-first-run")
+          opts.add_argument("--disable-infobars")
+          opts.add_argument("--disable-notifications")
+          opts.add_argument("--use-fake-ui-for-media-stream")
+          opts.add_argument("--use-fake-device-for-media-stream")
+          opts.add_argument("--allow-file-access-from-files")
+          opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+          opts.add_experimental_option("useAutomationExtension", False)
+          opts.add_experimental_option("mobileEmulation", {
+            "deviceMetrics": {"width": 540, "height": 960, "pixelRatio": 1.0},
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+          })
+
+          print("Starting Chrome...")
+          driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+          driver.set_window_size(540, 960)
+          driver.set_script_timeout(120)
+
+          print(f"Loading file://{html_path}")
+          driver.get(f"file://{html_path}")
+          time.sleep(3)
+
+          driver.execute_script("""
+            document.body.click();
+            if(typeof AC !== 'undefined') AC.resume();
+            window.startRecordingFreshScene(30);
+          """)
+
+          print("Recording 10 seconds...")
+          time.sleep(10)
+
+          driver.execute_script("window.stopRecording();")
+          time.sleep(1)
+          driver.execute_script("window.forceFinalize();")
+          time.sleep(1)
+
+          for _ in range(30):
+            done = driver.execute_script("return window._recordingDone;")
+            if done:
+              print("Recording finalised.")
+              break
+            time.sleep(0.4)
+          else:
+            driver.quit()
+            raise RuntimeError("Recording failed to finalise")
+
+          b64 = driver.execute_async_script("""
+            var done = arguments[0];
+            window.getRecordingBase64().then(done).catch(function(e){ done(null); });
+          """)
+          category = driver.execute_script("return window._lastCategory || 'inspiration';")
+          print(f"Scene category: {category}")
+          driver.quit()
+
+          if not b64:
+            raise RuntimeError("Failed to get base64 data")
+
+          with open(webm_file, 'wb') as f:
+            f.write(base64.b64decode(b64))
+          print(f"WebM: {os.path.getsize(webm_file)/1024/1024:.1f} MB")
+
+          result = subprocess.run([
+            "ffmpeg", "-y", "-i", webm_file,
+            "-c:v", "libx264", "-preset", "veryslow", "-crf", "10",
+            "-b:v", "20M", "-maxrate", "25M", "-bufsize", "40M",
+            "-pix_fmt", "yuv420p", "-vf", "scale=1080:1920:flags=lanczos",
+            "-c:a", "aac", "-b:a", "320k", "-ar", "48000",
+            "-movflags", "+faststart", mp4_file
+          ], capture_output=True, text=True)
+
+          if not os.path.exists(mp4_file) or os.path.getsize(mp4_file) < 10000:
+            print("ffmpeg stderr:", result.stderr[-2000:])
+            raise RuntimeError("mp4 conversion failed")
+
+          os.remove(webm_file)
+          print(f"MP4: {os.path.getsize(mp4_file)/1024/1024:.1f} MB")
+
+          def pick_music_file(folders):
+            for folder in folders:
+              if not os.path.isdir(folder): continue
+              candidates = []
+              for ext in MUSIC_EXTENSIONS:
+                candidates.extend(glob.glob(os.path.join(folder, f"*.{ext}")))
+              if candidates:
+                print(f"Using music folder '{folder}'.")
+                return random.choice(candidates)
+            print("No music folder found — skipping.")
+            return None
+
+          music_file = pick_music_file(MUSIC_FOLDERS)
+
+          if music_file:
+            mixed_file = f"/tmp/faith_{ts}_mixed.mp4"
+            probe = subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",music_file],capture_output=True,text=True)
+            try: mdur = float(probe.stdout.strip())
+            except: mdur = 0
+            mstart = random.uniform(0, max(0, mdur-12)) if mdur > 15 else 0
+            mix = subprocess.run([
+              "ffmpeg","-y","-i",mp4_file,"-ss",str(mstart),"-t","10","-i",music_file,
+              "-filter_complex","[1:a]volume=0.45,afade=t=in:st=0:d=1,afade=t=out:st=8.5:d=1.5[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+              "-map","0:v","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","256k","-movflags","+faststart",mixed_file
+            ], capture_output=True, text=True)
+            if os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000:
+              os.remove(mp4_file); mp4_file = mixed_file
+              print("Music mixed in.")
+            else:
+              print("Music mix failed, posting without.")
+
+          CAPTIONS = {
+            "jesus": [
+              "The greatest life ever lived. #Jesus #Christ #Faith #Christian",
+              "His words still change lives today. #Jesus #Gospel #Faith #Bible",
+              "Love incarnate. #Jesus #Christ #Christian #Faith",
+              "He came not to be served, but to serve. #Jesus #Christian #Faith",
+            ],
+            "bible": [
+              "God's word, alive and active. #Bible #Scripture #Christian #Faith",
+              "The world's most read book — for good reason. #Bible #Scripture #Faith",
+              "Every promise in the Bible is yes and amen. #Bible #Faith #Christian",
+              "The greatest story ever told. #Bible #Faith #Christian #Scripture",
+            ],
+            "faith": [
+              "Walk by faith, not by sight. #Faith #Christian #God #Prayer",
+              "His grace is enough. #Faith #Grace #Christian #Jesus",
+              "Called, chosen, loved. #Faith #Christian #God #Hope",
+              "Faith that moves mountains. #Faith #Christian #God #Prayer",
+            ],
+            "history": [
+              "Two thousand years and still counting. #ChurchHistory #Christian #Faith",
+              "The cross changed everything. #Christian #Faith #History #Jesus",
+              "Saints who shaped the world. #ChurchHistory #Christian #Faith",
+              "The gospel has outlasted every empire. #Christian #Faith #History",
+            ],
+            "inspiration": [
+              "You are loved more than you know. #Hope #Faith #Christian #Jesus",
+              "There is always hope in Him. #Hope #Christian #Faith #Jesus",
+              "His mercies are new every morning. #Hope #Faith #Christian #God",
+              "You were made for a purpose. #Faith #Hope #Christian #God",
+            ],
+          }
+          description = random.choice(CAPTIONS.get(category, CAPTIONS["inspiration"]))
+
+          print("Posting to Facebook...")
+          with open(mp4_file, 'rb') as f:
+            response = requests.post(
+              f"https://graph-video.facebook.com/v18.0/{fb_page_id}/videos",
+              data={"description": description, "access_token": fb_token},
+              files={"source": (os.path.basename(mp4_file), f, "video/mp4")}
+            )
+
+          print(f"Facebook response: {response.status_code}")
+          print(response.text)
+          if response.status_code == 200:
+            print(f"Posted! Video ID: {response.json().get('id')}")
+          else:
+            raise RuntimeError(f"Post failed: {response.text}")
+
+          os.remove(mp4_file)
+          print("Done!")
+          PYEOF
+        env:
+          TS:            ${{ env.TS }}
+          DISPLAY:       ":99"
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID:    ${{ secrets.FB_PAGE_ID }}

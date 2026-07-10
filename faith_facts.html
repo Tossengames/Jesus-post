@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Faith & Hope Reel</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;900&family=Great+Vibes&family=EB+Garamond:wght@500;700&family=Noto+Sans:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a0a2a;}
+#bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
+#vig{position:fixed;inset:0;z-index:2;pointer-events:none;}
+#ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8vw;gap:3vw;}
+#label{position:fixed;top:0;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:7vw 6vw 2vw;z-index:11;opacity:0;transform:translateY(-16px);transition:opacity .5s ease,transform .5s ease;}
+#label-eyebrow{font-family:'Noto Sans',sans-serif;font-weight:600;font-size:clamp(0.5rem,2.4vw,0.7rem);letter-spacing:0.45em;text-transform:uppercase;}
+#label-rule{width:44px;height:1.5px;opacity:0.6;margin-top:1.4vw;}
+#quote-wrap{display:flex;flex-direction:column;align-items:center;gap:1.6vw;width:100%;}
+.qline{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(1.6rem,6.8vw,2.35rem);text-align:center;line-height:1.16;opacity:0;paint-order:stroke fill;max-width:100%;white-space:normal;word-break:keep-all;}
+.qline.script{font-family:'Great Vibes',cursive;font-size:clamp(2rem,8.5vw,3rem);font-weight:400;line-height:1.2;}
+.qline.small{font-family:'EB Garamond',serif;font-weight:700;font-size:clamp(0.95rem,4.3vw,1.38rem);line-height:1.35;paint-order:stroke fill;}
+.qline.ref{font-family:'Noto Sans',sans-serif;font-weight:600;font-size:clamp(0.52rem,2.5vw,0.75rem);letter-spacing:0.32em;text-transform:uppercase;margin-top:0.5vw;}
+#underbar{height:2px;width:0;max-width:60vw;transition:width .6s cubic-bezier(.22,1,.36,1);margin-top:0.4vw;}
+#bottom{position:fixed;bottom:0;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:3vw 6vw 8vw;z-index:11;opacity:0;transform:translateY(12px);transition:opacity .6s ease,transform .6s ease;}
+#cta{font-family:'Noto Sans',sans-serif;font-weight:600;font-size:clamp(0.48rem,2.2vw,0.68rem);letter-spacing:0.38em;text-transform:uppercase;}
+/* REVEAL ANIMS */
+.s-pinkcloud .qline{transform:translateY(-22px);transition:opacity .6s ease,transform .75s cubic-bezier(.16,1,.3,1);}
+.s-pinkcloud .qline.in{opacity:1;transform:translateY(0);}
+.s-cloudcross .qline{transform:scale(0.85) translateY(16px);transition:opacity .6s ease,transform .75s cubic-bezier(.22,1,.36,1);}
+.s-cloudcross .qline.in{opacity:1;transform:scale(1) translateY(0);}
+.s-stormcross .qline{transform:translateY(40px);transition:opacity .55s ease,transform .7s cubic-bezier(.22,1,.36,1);}
+.s-stormcross .qline.in{opacity:1;transform:translateY(0);}
+.s-galaxy .qline{transform:translateX(40px);transition:opacity .38s ease,transform .5s cubic-bezier(.34,1.56,.64,1);}
+.s-galaxy .qline.in{opacity:1;transform:translateX(0);}
+.s-crownhand .qline{transform:scale(0.9);transition:opacity .6s ease,transform .8s cubic-bezier(.16,1,.3,1);}
+.s-crownhand .qline.in{opacity:1;transform:scale(1);}
+.s-woodencross .qline{transform:translateY(30px) scale(0.96);transition:opacity .55s ease,transform .7s cubic-bezier(.22,1,.36,1);}
+.s-woodencross .qline.in{opacity:1;transform:translateY(0) scale(1);}
+@keyframes qSettle{0%{filter:brightness(1.6);}100%{filter:brightness(1);}}
+.qline.in{animation:qSettle .5s ease-out;}
+#text-scrim{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:94vw;max-width:680px;height:52vh;border-radius:36px;opacity:0;transition:opacity .5s ease;pointer-events:none;z-index:-1;}
+</style>
+</head>
+<body class="s-pinkcloud">
+<canvas id="bgCanvas"></canvas>
+<div id="vig"></div>
+<div id="label"><div id="label-eyebrow">✦ Faith &amp; Hope ✦</div><div id="label-rule"></div></div>
+<div id="ui"><div id="text-scrim"></div><div id="quote-wrap"></div><div id="underbar"></div></div>
+<div id="bottom"><div id="cta">Share this truth</div></div>
+<script>
+(()=>{
+'use strict';
+function safeR(v){return Math.max(0.01,isFinite(v)?v:0.01);}
+function easeOut(x){return 1-Math.pow(1-x,3);}
+function wrap(text,max){const w=text.split(' ');const l=[];for(let i=0;i<w.length;i+=max)l.push(w.slice(i,i+max).join(' '));return l;}
+
+/* ── CONTENT ─────────────────────────────────────── */
+const CONTENT=[
+  // JESUS
+  {cat:'jesus',lines:['JESUS WALKED','ON WATER'],sub:'He called Peter out to meet him on the sea.',ref:'Matthew 14:29'},
+  {cat:'jesus',lines:['JESUS FED','FIVE THOUSAND'],sub:'With just five loaves and two fish.',ref:'John 6:11'},
+  {cat:'jesus',lines:['JESUS WEPT'],sub:'The shortest verse in the Bible — his grief for Lazarus.',ref:'John 11:35'},
+  {cat:'jesus',lines:['JESUS ROSE','ON THE THIRD DAY'],sub:'The resurrection is the cornerstone of Christian faith.',ref:'Luke 24:6'},
+  {cat:'jesus',lines:['JESUS CALMED','THE STORM'],sub:'With just three words — Peace, be still.',ref:'Mark 4:39'},
+  {cat:'jesus',lines:['JESUS IS THE','GOOD SHEPHERD'],sub:'He leaves the ninety-nine to find the one lost sheep.',ref:'John 10:11'},
+  {cat:'jesus',lines:['JESUS IS THE','LIGHT OF THE WORLD'],sub:'Whoever follows him will never walk in darkness.',ref:'John 8:12'},
+  {cat:'jesus',lines:['JESUS RAISED','LAZARUS'],sub:'Four days in the tomb — and still he came forth.',ref:'John 11:43'},
+  {cat:'jesus',lines:['JESUS IS THE','WAY, TRUTH, LIFE'],sub:'No one comes to the Father except through him.',ref:'John 14:6'},
+  {cat:'jesus',lines:['JESUS DIED','FOR ALL'],sub:'While we were still sinners, Christ died for us.',ref:'Romans 5:8'},
+  {cat:'jesus',lines:['JESUS CONQUERED','DEATH ITSELF'],sub:'The grave could not hold the Son of God.',ref:'Acts 2:24'},
+  {cat:'jesus',lines:['JESUS GAVE US','A NEW COMMAND'],sub:'Love one another as I have loved you.',ref:'John 13:34'},
+  {cat:'jesus',lines:['JESUS IS','EMMANUEL'],sub:'God with us — a name that changes everything.',ref:'Matthew 1:23'},
+  {cat:'jesus',lines:['JESUS FORGAVE','FROM THE CROSS'],sub:'Father, forgive them — they know not what they do.',ref:'Luke 23:34'},
+  {cat:'jesus',lines:['JESUS WILL','COME AGAIN'],sub:'The promise of his return is the hope of every believer.',ref:'John 14:3'},
+  // BIBLE
+  {cat:'bible',lines:['THE BIBLE HAS','66 BOOKS'],sub:'Written by around 40 authors over 1,500 years.',ref:null},
+  {cat:'bible',lines:['JOHN 3:16','IS THE MOST QUOTED'],sub:'Verse in all of scripture, worldwide.',ref:'John 3:16'},
+  {cat:'bible',lines:['ISAIAH FORETOLD','THE MESSIAH'],sub:'Seven centuries before Jesus was born.',ref:'Isaiah 53:5'},
+  {cat:'bible',lines:['ROMANS 8:28','PROMISES ALL'],sub:'Things work together for good to those who love God.',ref:'Romans 8:28'},
+  {cat:'bible',lines:['PHILIPPIANS 4:13'],sub:'I can do all things through Christ who strengthens me.',ref:'Philippians 4:13'},
+  {cat:'bible',lines:['SCRIPTURE IS','GOD-BREATHED'],sub:'Useful for teaching, rebuking, and training in righteousness.',ref:'2 Timothy 3:16'},
+  {cat:'bible',lines:['EVERY PROMISE','IN THE BIBLE'],sub:'Is yes and amen in Christ Jesus.',ref:'2 Corinthians 1:20'},
+  {cat:'bible',lines:['THE GOSPEL','MEANS GOOD NEWS'],sub:'From the Greek word euangelion.',ref:null},
+  {cat:'bible',lines:['PSALM 23 IS','THE MOST LOVED'],sub:'Psalm in all of scripture — the Lord is my shepherd.',ref:'Psalm 23:1'},
+  // FAITH
+  {cat:'faith',lines:['FAITH IS','THE SUBSTANCE'],sub:'Of things hoped for, the evidence of things not seen.',ref:'Hebrews 11:1'},
+  {cat:'faith',lines:['GRACE MEANS','UNEARNED FAVOR'],sub:'God gives what we could never deserve.',ref:'Ephesians 2:8'},
+  {cat:'faith',lines:['GOD IS LOVE','NOT JUST LOVING'],sub:'His very nature is love.',ref:'1 John 4:8'},
+  {cat:'faith',lines:['SALVATION IS','A FREE GIFT'],sub:'Not by works, so no one can boast.',ref:'Ephesians 2:9'},
+  {cat:'faith',lines:['THE LORD IS','MY SHEPHERD'],sub:'I shall not want — one of the most beloved promises.',ref:'Psalm 23:1'},
+  {cat:'faith',lines:['NOTHING CAN','SEPARATE US'],sub:'From the love of God in Christ Jesus.',ref:'Romans 8:39'},
+  {cat:'faith',lines:['BE STILL AND','KNOW THAT I AM GOD'],sub:'A command and a comfort all at once.',ref:'Psalm 46:10'},
+  {cat:'faith',lines:['LOVE IS THE','GREATEST OF ALL'],sub:'Faith, hope, and love — and the greatest is love.',ref:'1 Corinthians 13:13'},
+  {cat:'faith',lines:['GOD IS OUR','REFUGE AND STRENGTH'],sub:'An ever-present help in times of trouble.',ref:'Psalm 46:1'},
+  // HISTORY
+  {cat:'history',lines:['PENTECOST BIRTHED','THE CHURCH'],sub:'Three thousand were baptized in a single day.',ref:'Acts 2:41'},
+  {cat:'history',lines:['MARTIN LUTHER','SPARKED THE'],sub:'Reformation by nailing 95 theses in 1517.',ref:null},
+  {cat:'history',lines:['THE APOSTLES','DIED FOR THEIR FAITH'],sub:'They saw the risen Christ and would not deny it.',ref:null},
+  {cat:'history',lines:['WILLIAM WILBERFORCE','USED FAITH TO'],sub:'Drive his lifelong campaign to end the slave trade.',ref:null},
+  {cat:'history',lines:['MOTHER TERESA','SERVED THE POOREST'],sub:'Of the poor in Calcutta for decades.',ref:null},
+  {cat:'history',lines:['THE CROSS WAS','A SYMBOL OF SHAME'],sub:'That Christ transformed into a symbol of eternal hope.',ref:null},
+  {cat:'history',lines:['STEPHEN WAS','THE FIRST MARTYR'],sub:'Stoned to death for his faith in Jesus.',ref:'Acts 7:59'},
+  {cat:'history',lines:['THE GOSPEL HAS','OUTLASTED EVERY'],sub:'Empire that tried to destroy it.',ref:null},
+  // INSPIRATION
+  {cat:'inspiration',lines:['YOU ARE LOVED','MORE THAN YOU KNOW'],sub:'Nothing you have done can separate you from his love.',ref:'Romans 8:38'},
+  {cat:'inspiration',lines:['HIS MERCIES ARE','NEW EVERY MORNING'],sub:'Great is your faithfulness, O Lord.',ref:'Lamentations 3:23'},
+  {cat:'inspiration',lines:['CAST YOUR ANXIETY','ON HIM'],sub:'Because he cares for you — every worry, every fear.',ref:'1 Peter 5:7'},
+  {cat:'inspiration',lines:['YOU WERE MADE','FOR A PURPOSE'],sub:'Before you were born, he knew your name.',ref:'Jeremiah 1:5'},
+  {cat:'inspiration',lines:['DO NOT BE','AFRAID'],sub:'For I am with you — he says it over and over in scripture.',ref:'Isaiah 41:10'},
+  {cat:'inspiration',lines:['YOU ARE SEEN','YOU ARE KNOWN'],sub:'The God who made the stars knows you by name.',ref:'Isaiah 43:1'},
+  {cat:'inspiration',lines:['HE WILL NEVER','LEAVE YOU'],sub:'Nor forsake you — a promise that never expires.',ref:'Hebrews 13:5'},
+  {cat:'inspiration',lines:['WEEPING MAY','LAST THE NIGHT'],sub:'But joy comes in the morning.',ref:'Psalm 30:5'},
+  {cat:'inspiration',lines:['YOUR STORY','IS NOT OVER'],sub:'The God of second chances is still writing your chapter.',ref:null},
+  {cat:'inspiration',lines:['WITH GOD','ALL THINGS ARE POSSIBLE'],sub:'Not most things — all things.',ref:'Matthew 19:26'},
+  {cat:'inspiration',lines:['HE FIGHTS','FOR YOU'],sub:'You need only to be still and trust.',ref:'Exodus 14:14'},
+  {cat:'inspiration',lines:['PLANS TO PROSPER','YOU AND NOT TO HARM'],sub:'Plans to give you a future and a hope.',ref:'Jeremiah 29:11'},
+  {cat:'inspiration',lines:['EVEN IN THE VALLEY','HE IS THERE'],sub:'You do not walk through darkness alone.',ref:'Psalm 23:4'},
+  {cat:'inspiration',lines:['COME AS YOU ARE'],sub:'He never asked you to clean yourself up before coming.',ref:'Matthew 11:28'},
+  {cat:'inspiration',lines:['HIS GRACE IS','ENOUGH FOR TODAY'],sub:'You do not need to carry tomorrow yet.',ref:'2 Corinthians 12:9'},
+  {cat:'inspiration',lines:['YOU ARE ENOUGH','BECAUSE HE IS'],sub:'His strength is made perfect in your weakness.',ref:'2 Corinthians 12:9'},
+];
+
+const bgC=document.getElementById('bgCanvas');
+const bgCtx=bgC.getContext('2d');
+let W=window.innerWidth,H=window.innerHeight;
+bgC.width=W;bgC.height=H;
+let _t=0,_ss=0,_si=0;
+
+/* ═══════════════════════════════════════════════════
+   THEME 1: PINK CLOUD SKY  (Image 1 — soft pink/purple clouds)
+   ═══════════════════════════════════════════════════ */
+function drawPinkCloud(ctx,t,w,h,st){
+  // soft pink-purple sky gradient
+  const sky=ctx.createLinearGradient(0,0,0,h);
+  sky.addColorStop(0,'#e8c0e0');
+  sky.addColorStop(0.4,'#f0d0ec');
+  sky.addColorStop(0.75,'#f8e0f4');
+  sky.addColorStop(1,'#fce8f8');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+
+  // soft haze overlay
+  const hz=ctx.createRadialGradient(w*0.5,h*0.3,0,w*0.5,h*0.3,safeR(w*0.8));
+  hz.addColorStop(0,'rgba(255,240,255,0.45)');hz.addColorStop(1,'rgba(230,180,230,0)');
+  ctx.save();ctx.fillStyle=hz;ctx.fillRect(0,0,w,h);ctx.restore();
+
+  // big fluffy clouds — layered ellipses, soft white/pink
+  const clouds=[
+    {x:w*0.5,y:h*0.32,rx:w*0.38,ry:h*0.18,a:0.85,c:'rgba(255,255,255,0.82)'},
+    {x:w*0.38,y:h*0.42,rx:w*0.28,ry:h*0.12,a:0.7,c:'rgba(255,245,255,0.75)'},
+    {x:w*0.65,y:h*0.38,rx:w*0.26,ry:h*0.1,a:0.7,c:'rgba(255,240,255,0.7)'},
+    {x:w*0.22,y:h*0.55,rx:w*0.22,ry:h*0.09,a:0.6,c:'rgba(245,230,250,0.65)'},
+    {x:w*0.78,y:h*0.58,rx:w*0.24,ry:h*0.09,a:0.55,c:'rgba(245,230,250,0.6)'},
+    {x:w*0.5,y:h*0.65,rx:w*0.42,ry:h*0.1,a:0.65,c:'rgba(250,235,252,0.72)'},
+    // puffy tops
+    {x:w*0.42,y:h*0.22,rx:w*0.18,ry:h*0.1,a:0.78,c:'rgba(255,255,255,0.88)'},
+    {x:w*0.58,y:h*0.2,rx:w*0.14,ry:h*0.09,a:0.75,c:'rgba(255,255,255,0.85)'},
+    {x:w*0.5,y:h*0.17,rx:w*0.12,ry:h*0.08,a:0.82,c:'rgba(255,255,255,0.9)'},
+    // lower clouds
+    {x:w*0.3,y:h*0.72,rx:w*0.2,ry:h*0.07,a:0.5,c:'rgba(240,220,248,0.6)'},
+    {x:w*0.7,y:h*0.75,rx:w*0.22,ry:h*0.07,a:0.5,c:'rgba(240,220,248,0.58)'},
+  ];
+  const p=easeOut(Math.min(1,st/1.0));
+  clouds.forEach(cl=>{
+    ctx.save();ctx.globalAlpha=cl.a*p;ctx.fillStyle=cl.c;
+    ctx.beginPath();ctx.ellipse(cl.x,cl.y+Math.sin(t*0.2)*4,cl.rx,cl.ry,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
+
+  // soft pink glow centre
+  const cg=ctx.createRadialGradient(w*0.5,h*0.35,0,w*0.5,h*0.35,safeR(w*0.45));
+  cg.addColorStop(0,'rgba(255,220,245,0.55)');cg.addColorStop(1,'rgba(255,220,245,0)');
+  ctx.save();ctx.fillStyle=cg;ctx.fillRect(0,0,w,h);ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════
+   THEME 2: CLOUD CROSS  (Image 2 — blue sky, clouds parting, blazing white cross)
+   ═══════════════════════════════════════════════════ */
+function drawCloudCross(ctx,t,w,h,st){
+  // rich blue sky
+  const sky=ctx.createLinearGradient(0,0,0,h);
+  sky.addColorStop(0,'#1a4a7a');
+  sky.addColorStop(0.4,'#2a6aaa');
+  sky.addColorStop(0.7,'#3a80c0');
+  sky.addColorStop(1,'#4a90d0');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+
+  const p=easeOut(Math.min(1,st/1.1));
+  const cx=w*0.5,cy=h*0.44;
+
+  // parting cloud ring — swirling white clouds around a circular opening
+  const cloudRing=[
+    {a:0,rx:w*0.32,ry:h*0.1},{a:0.5,rx:w*0.3,ry:h*0.1},{a:1.0,rx:w*0.28,ry:h*0.1},
+    {a:1.5,rx:w*0.32,ry:h*0.1},{a:2.0,rx:w*0.3,ry:h*0.1},{a:2.5,rx:w*0.28,ry:h*0.1},
+    {a:3.0,rx:w*0.32,ry:h*0.1},{a:3.5,rx:w*0.3,ry:h*0.1},{a:4.0,rx:w*0.28,ry:h*0.1},
+    {a:4.5,rx:w*0.32,ry:h*0.1},{a:5.0,rx:w*0.3,ry:h*0.1},{a:5.5,rx:w*0.28,ry:h*0.1},
+  ];
+  const ringR=Math.min(w,h)*0.36;
+  cloudRing.forEach(cl=>{
+    const bx=cx+Math.cos(cl.a+t*0.04)*ringR;
+    const by=cy+Math.sin(cl.a+t*0.04)*ringR*0.62;
+    ctx.save();ctx.globalAlpha=0.88*p;ctx.fillStyle='rgba(255,255,255,0.92)';
+    ctx.beginPath();ctx.ellipse(bx,by,cl.rx,cl.ry,cl.a*0.3,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
+  // extra cloud mass top/bottom
+  [[cx,cy-ringR*0.7,w*0.45,h*0.14],[cx,cy+ringR*0.62,w*0.42,h*0.12],[cx-ringR,cy,w*0.16,h*0.14],[cx+ringR,cy,w*0.16,h*0.14]].forEach(([bx,by,rx,ry])=>{
+    ctx.save();ctx.globalAlpha=0.82*p;ctx.fillStyle='rgba(255,255,255,0.9)';ctx.beginPath();ctx.ellipse(bx,by,rx,ry,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
+
+  // deep blue opening behind cross
+  const opening=ctx.createRadialGradient(cx,cy,0,cx,cy,safeR(ringR*0.55));
+  opening.addColorStop(0,'rgba(30,80,160,0.9)');opening.addColorStop(0.6,'rgba(20,60,130,0.5)');opening.addColorStop(1,'rgba(20,60,130,0)');
+  ctx.save();ctx.fillStyle=opening;ctx.fillRect(0,0,w,h);ctx.restore();
+
+  // blazing glow behind cross
+  const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,safeR(Math.min(w,h)*0.38));
+  glow.addColorStop(0,'rgba(255,255,255,0.95)');glow.addColorStop(0.2,'rgba(200,230,255,0.6)');glow.addColorStop(0.5,'rgba(100,180,255,0.25)');glow.addColorStop(1,'rgba(100,180,255,0)');
+  ctx.save();ctx.globalAlpha=p;ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);ctx.restore();
+
+  // rays
+  for(let i=0;i<16;i++){
+    const ang=(Math.PI*2/16)*i;
+    const len=Math.min(w,h)*(0.22+0.05*Math.sin(t*0.5+i));
+    ctx.save();ctx.globalAlpha=0.22*p;ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(ang)*len,cy+Math.sin(ang)*len);ctx.stroke();ctx.restore();
+  }
+
+  // white blazing cross
+  const aW=w*0.065,cH=h*0.42,cW=w*0.3;
+  ctx.save();ctx.globalAlpha=p;
+  ctx.shadowColor='rgba(200,230,255,0.9)';ctx.shadowBlur=40;ctx.fillStyle='#ffffff';
+  ctx.fillRect(cx-aW/2,cy-cH/2,aW,cH);
+  ctx.fillRect(cx-cW/2,cy-cH*0.16,cW,aW);
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════
+   THEME 3: STORM CROSS  (Image 3 — dark waves, cross rising from ocean)
+   ═══════════════════════════════════════════════════ */
+function drawStormCross(ctx,t,w,h,st){
+  // dark stormy sky
+  const sky=ctx.createLinearGradient(0,0,0,h);
+  sky.addColorStop(0,'#0a0e18');sky.addColorStop(0.3,'#0d1828');sky.addColorStop(0.55,'#152238');sky.addColorStop(1,'#0a1020');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+
+  // storm cloud masses
+  const sclouds=[
+    {x:w*0.2,y:h*0.18,rx:w*0.35,ry:h*0.12},{x:w*0.7,y:h*0.14,rx:w*0.38,ry:h*0.11},
+    {x:w*0.45,y:h*0.24,rx:w*0.4,ry:h*0.1},{x:w*0.15,y:h*0.32,rx:w*0.28,ry:h*0.09},
+    {x:w*0.8,y:h*0.28,rx:w*0.3,ry:h*0.09},
+  ];
+  sclouds.forEach(cl=>{ctx.save();ctx.globalAlpha=0.75;ctx.fillStyle='rgba(20,35,58,0.9)';ctx.beginPath();ctx.ellipse(cl.x,cl.y,cl.rx,cl.ry,0,0,Math.PI*2);ctx.fill();ctx.restore();});
+
+  // dramatic backlight behind clouds
+  const bl=ctx.createRadialGradient(w*0.5,h*0.42,0,w*0.5,h*0.42,safeR(w*0.55));
+  bl.addColorStop(0,'rgba(100,160,220,0.38)');bl.addColorStop(0.4,'rgba(60,100,160,0.18)');bl.addColorStop(1,'rgba(60,100,160,0)');
+  ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=bl;ctx.fillRect(0,0,w,h);ctx.restore();
+
+  // dark rolling ocean waves
+  const waveColors=['#0a1a2e','#0d2038','#102440'];
+  for(let layer=0;layer<3;layer++){
+    ctx.save();ctx.fillStyle=waveColors[layer];
+    ctx.beginPath();ctx.moveTo(0,h*(0.58+layer*0.05));
+    for(let x=0;x<=w;x+=14){
+      const y=h*(0.58+layer*0.05)+Math.sin(x*0.018+t*(0.4+layer*0.1))*h*0.03+Math.sin(x*0.032+t*(0.25+layer*0.08))*h*0.015;
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();ctx.restore();
+  }
+  // whitecaps
+  ctx.save();ctx.globalAlpha=0.22;ctx.fillStyle='rgba(180,210,240,0.8)';
+  for(let x=0;x<w;x+=28){const y=h*0.58+Math.sin(x*0.018+t*0.4)*h*0.03;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+7,y-8,x+14,y-1);ctx.quadraticCurveTo(x+7,y+2,x,y);ctx.fill();}
+  ctx.restore();
+
+  // THE CROSS — dark silhouette rising from water, backlit
+  const p=easeOut(Math.min(1,st/1.0));
+  const cx=w*0.5,cy=h*0.38;
+  const aW=w*0.055,cH=h*0.44,cW=w*0.28;
+  // light halo behind cross
+  const xGlow=ctx.createRadialGradient(cx,cy,0,cx,cy,safeR(Math.min(w,h)*0.35));
+  xGlow.addColorStop(0,'rgba(100,160,220,0.45)');xGlow.addColorStop(0.4,'rgba(60,100,180,0.2)');xGlow.addColorStop(1,'rgba(60,100,180,0)');
+  ctx.save();ctx.globalAlpha=p;ctx.globalCompositeOperation='screen';ctx.fillStyle=xGlow;ctx.fillRect(0,0,w,h);ctx.restore();
+  // dark cross silhouette
+  ctx.save();ctx.globalAlpha=p;ctx.fillStyle='#0a0e16';
+  ctx.fillRect(cx-aW/2,cy-cH/2,aW,cH);
+  ctx.fillRect(cx-cW/2,cy-cH*0.22,cW,aW);
+  ctx.restore();
+  // subtle rim light on cross edges
+  ctx.save();ctx.globalAlpha=0.35*p;ctx.strokeStyle='rgba(100,160,220,0.7)';ctx.lineWidth=2;
+  ctx.strokeRect(cx-aW/2,cy-cH/2,aW,cH);
+  ctx.strokeRect(cx-cW/2,cy-cH*0.22,cW,aW);
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════
+   THEME 4: GALAXY CROSS  (Image 4 — deep purple/blue cosmos, glowing neon cross)
+   ═══════════════════════════════════════════════════ */
+function drawGalaxy(ctx,t,w,h,st){
+  // deep purple-blue cosmos
+  const sky=ctx.createLinearGradient(0,0,w,h);
+  sky.addColorStop(0,'#12003a');sky.addColorStop(0.3,'#1a0850');sky.addColorStop(0.6,'#0a1850');sky.addColorStop(1,'#080830');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+
+  // nebula colour washes
+  const nebulae=[
+    {x:w*0.25,y:h*0.3,r:w*0.5,c0:'rgba(80,20,140,0.35)',c1:'rgba(80,20,140,0)'},
+    {x:w*0.75,y:h*0.6,r:w*0.45,c0:'rgba(20,60,160,0.3)',c1:'rgba(20,60,160,0)'},
+    {x:w*0.5,y:h*0.5,r:w*0.6,c0:'rgba(40,10,100,0.25)',c1:'rgba(40,10,100,0)'},
+  ];
+  nebulae.forEach(n=>{const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,safeR(n.r));g.addColorStop(0,n.c0);g.addColorStop(1,n.c1);ctx.save();ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.restore();});
+
+  // stars
+  for(let i=0;i<80;i++){
+    const sx=(i*137.5)%w,sy=(i*97.3)%(h*0.85),ss=0.6+Math.sin(t*1.2+i)*0.5;
+    ctx.save();ctx.globalAlpha=Math.max(0,0.55*ss);ctx.fillStyle=i%5===0?'#a0d0ff':i%3===0?'#c0a0ff':'#e0e8ff';
+    ctx.beginPath();ctx.arc(sx,sy,0.8+ss*0.5,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  // sparkle stars (4-point)
+  [[w*0.15,h*0.12,'#80d0ff'],[w*0.82,h*0.08,'#c0a0ff'],[w*0.05,h*0.55,'#80d0ff'],[w*0.92,h*0.42,'#a0d0ff'],[w*0.7,h*0.85,'#c0a0ff']].forEach(([sx,sy,col])=>{
+    const ts=0.5+Math.sin(t*1.5+sx)*0.5;const ss2=Math.min(w,h)*0.012*ts;
+    ctx.save();ctx.globalAlpha=ts;ctx.fillStyle=col;
+    ctx.beginPath();ctx.moveTo(sx,sy-ss2);ctx.lineTo(sx+ss2*0.2,sy-ss2*0.2);ctx.lineTo(sx+ss2,sy);ctx.lineTo(sx+ss2*0.2,sy+ss2*0.2);ctx.lineTo(sx,sy+ss2);ctx.lineTo(sx-ss2*0.2,sy+ss2*0.2);ctx.lineTo(sx-ss2,sy);ctx.lineTo(sx-ss2*0.2,sy-ss2*0.2);ctx.closePath();ctx.fill();ctx.restore();
+  });
+
+  // light beam sweeping down
+  ctx.save();ctx.globalAlpha=0.2+0.08*Math.sin(t*0.4);
+  const beam=ctx.createLinearGradient(w*0.6,0,w*0.3,h);beam.addColorStop(0,'rgba(80,160,255,0.5)');beam.addColorStop(1,'rgba(80,160,255,0)');
+  ctx.fillStyle=beam;ctx.beginPath();ctx.moveTo(w*0.58,0);ctx.lineTo(w*0.38,h);ctx.lineTo(w*0.5,h);ctx.lineTo(w*0.72,0);ctx.closePath();ctx.fill();ctx.restore();
+
+  // neon glowing cross
+  const p=easeOut(Math.min(1,st/1.0));
+  const cx=w*0.5,cy=h*0.44;const aW=w*0.065,cH=h*0.42,cW=w*0.3;
+
+  // platform / ground glow
+  const platG=ctx.createRadialGradient(cx,cy+cH/2,0,cx,cy+cH/2,safeR(w*0.35));
+  platG.addColorStop(0,'rgba(80,160,255,0.35)');platG.addColorStop(1,'rgba(80,160,255,0)');
+  ctx.save();ctx.globalAlpha=p;ctx.fillStyle=platG;ctx.fillRect(0,cy+cH*0.3,w,h);ctx.restore();
+
+  // outer glow
+  const xg=ctx.createRadialGradient(cx,cy,0,cx,cy,safeR(Math.min(w,h)*0.38));
+  xg.addColorStop(0,'rgba(180,220,255,0.7)');xg.addColorStop(0.25,'rgba(80,160,255,0.4)');xg.addColorStop(0.6,'rgba(60,100,220,0.15)');xg.addColorStop(1,'rgba(40,60,160,0)');
+  ctx.save();ctx.globalAlpha=p;ctx.globalCompositeOperation='screen';ctx.fillStyle=xg;ctx.fillRect(0,0,w,h);ctx.restore();
+
+  ctx.save();ctx.globalAlpha=p;
+  ctx.shadowColor='rgba(120,200,255,0.95)';ctx.shadowBlur=35;ctx.fillStyle='#e8f4ff';
+  ctx.fillRect(cx-aW/2,cy-cH/2,aW,cH);
+  ctx.fillRect(cx-cW/2,cy-cH*0.18,cW,aW);
+  // bright centre highlight
+  ctx.shadowBlur=60;ctx.fillStyle='#ffffff';
+  ctx.fillRect(cx-aW*0.4,cy-cH/2,aW*0.4,cH);
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════
+   THEME 5: CROWN & HAND  (Image 5 — near-black, crown of thorns, glowing cross, reaching hand)
+   ═══════════════════════════════════════════════════ */
+function drawCrownHand(ctx,t,w,h,st){
+  // near-black warm background
+  const sky=ctx.createLinearGradient(0,0,0,h);
+  sky.addColorStop(0,'#050302');sky.addColorStop(0.5,'#0c0804');sky.addColorStop(1,'#080502');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+
+  const p=easeOut(Math.min(1,st/1.1));
+  const cx=w*0.5,cy=h*0.36;
+
+  // warm glow behind everything
+  const warmG=ctx.createRadialGradient(cx,cy,0,cx,cy,safeR(Math.min(w,h)*0.55));
+  warmG.addColorStop(0,'rgba(200,140,60,0.28)');warmG.addColorStop(0.4,'rgba(160,100,30,0.14)');warmG.addColorStop(1,'rgba(100,60,10,0)');
+  ctx.save();ctx.globalAlpha=p;ctx.fillStyle=warmG;ctx.fillRect(0,0,w,h);ctx.restore();
+
+  // crown of thorns — circular arc with thorn spikes, golden-brown
+  ctx.save();ctx.globalAlpha=0.88*p;
+  const crownR=Math.min(w,h)*0.27;
+  // crown base arc
+  ctx.strokeStyle='#8a5520';ctx.lineWidth=Math.max(3,w*0.008);
+  ctx.beginPath();ctx.arc(cx,cy,crownR,Math.PI*0.1,Math.PI*0.9);ctx.stroke();
+  // thorn spikes
+  for(let i=0;i<18;i++){
+    const a=Math.PI*0.1+(Math.PI*0.8/17)*i;
+    const bx=cx+Math.cos(a)*crownR,by=cy+Math.sin(a)*crownR;
+    const thornh=Math.min(w,h)*(0.04+((i*31)%6)/100);
+    const ta=a-Math.PI/2;
+    ctx.strokeStyle='#6a3c10';ctx.lineWidth=Math.max(1.5,w*0.004);
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+Math.cos(ta)*thornh,by+Math.sin(ta)*thornh);ctx.stroke();
+  }
+  ctx.restore();
+
+  // face silhouette hint (very subtle) — profile
+  ctx.save();ctx.globalAlpha=0.12*p;ctx.fillStyle='#4a2808';
+  ctx.beginPath();ctx.ellipse(cx*0.95,cy,crownR*0.6,crownR*0.8,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  // glowing cross centre of crown
+  const xox=cx*1.02,xoy=cy-crownR*0.08;
+  const xaW=w*0.05,xcH=h*0.22,xcW=w*0.16;
+  const xGlow2=ctx.createRadialGradient(xox,xoy,0,xox,xoy,safeR(Math.min(w,h)*0.22));
+  xGlow2.addColorStop(0,'rgba(255,255,230,0.9)');xGlow2.addColorStop(0.3,'rgba(255,220,160,0.5)');xGlow2.addColorStop(1,'rgba(255,200,100,0)');
+  ctx.save();ctx.globalAlpha=p;ctx.globalCompositeOperation='screen';ctx.fillStyle=xGlow2;ctx.fillRect(0,0,w,h);ctx.restore();
+  ctx.save();ctx.globalAlpha=p;ctx.shadowColor='rgba(255,240,200,0.95)';ctx.shadowBlur=30;ctx.fillStyle='#ffffff';
+  ctx.fillRect(xox-xaW/2,xoy-xcH/2,xaW,xcH);
+  ctx.fillRect(xox-xcW/2,xoy-xcH*0.18,xcW,xaW);
+  ctx.restore();
+
+  // reaching hand silhouette from bottom
+  const handY=h*0.82-(1-p)*30;
+  ctx.save();ctx.translate(cx,handY);ctx.globalAlpha=p;
+  const hs=Math.min(w,h)*0.0016;ctx.scale(hs,hs);
+  // subtle warm glow on hand
+  const hg=ctx.createRadialGradient(0,-60,0,0,-60,safeR(120));hg.addColorStop(0,'rgba(180,100,30,0.2)');hg.addColorStop(1,'rgba(180,100,30,0)');
+  ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=hg;ctx.fillRect(-180,-200,360,320);ctx.restore();
+  // hand silhouette — palm and fingers reaching up
+  ctx.fillStyle='#0c0604';
+  ctx.beginPath();ctx.moveTo(-32,80);ctx.lineTo(-38,-10);ctx.lineTo(-24,-80);ctx.lineTo(-16,-90);ctx.lineTo(-10,-50);ctx.lineTo(-8,-95);ctx.lineTo(0,-105);ctx.lineTo(8,-95);ctx.lineTo(10,-50);ctx.lineTo(14,-88);ctx.lineTo(22,-80);ctx.lineTo(24,-40);ctx.lineTo(28,-70);ctx.lineTo(36,-62);ctx.lineTo(36,-20);ctx.lineTo(38,80);ctx.closePath();ctx.fill();
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════
+   THEME 6: WOODEN CROSS  (Image 6 — warm spotlight on textured wall, simple wooden cross)
+   ═══════════════════════════════════════════════════ */
+function drawWoodenCross(ctx,t,w,h,st){
+  // dark warm background — like a plaster/stone wall
+  ctx.fillStyle='#0a0806';ctx.fillRect(0,0,w,h);
+
+  // wall texture — subtle warm tone
+  const wg=ctx.createRadialGradient(w*0.5,h*0.42,0,w*0.5,h*0.42,safeR(Math.min(w,h)*0.65));
+  wg.addColorStop(0,'rgba(200,165,110,0.55)');
+  wg.addColorStop(0.4,'rgba(160,125,80,0.3)');
+  wg.addColorStop(0.7,'rgba(100,75,45,0.12)');
+  wg.addColorStop(1,'rgba(60,40,20,0)');
+  ctx.fillStyle=wg;ctx.fillRect(0,0,w,h);
+
+  // subtle wall texture lines
+  ctx.save();ctx.globalAlpha=0.04;ctx.strokeStyle='rgba(200,160,100,0.6)';ctx.lineWidth=1;
+  for(let i=0;i<20;i++){ctx.beginPath();ctx.moveTo(0,h*(i/20));ctx.lineTo(w,h*(i/20)+15);ctx.stroke();}
+  for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(w*(i/12),0);ctx.lineTo(w*(i/12)+10,h);ctx.stroke();}
+  ctx.restore();
+
+  // soft spotlight from above — the key element of Image 6
+  const spot=ctx.createRadialGradient(w*0.5,h*0.1,0,w*0.5,h*0.5,safeR(Math.min(w,h)*0.6));
+  spot.addColorStop(0,'rgba(240,210,160,0.7)');
+  spot.addColorStop(0.3,'rgba(200,165,110,0.45)');
+  spot.addColorStop(0.65,'rgba(140,105,60,0.18)');
+  spot.addColorStop(1,'rgba(80,55,25,0)');
+  ctx.fillStyle=spot;ctx.fillRect(0,0,w,h);
+
+  // THE WOODEN CROSS — lower centre like in Image 6, simple and dignified
+  const p=easeOut(Math.min(1,st/1.0));
+  const cx=w*0.5,cy=h*0.58;
+  const aW=w*0.055,cH=h*0.3,cW=w*0.22;
+  ctx.save();ctx.globalAlpha=p;
+
+  // wood grain effect — gradient
+  const wdg=ctx.createLinearGradient(cx-aW,cy-cH/2,cx+aW,cy+cH/2);
+  wdg.addColorStop(0,'#3a1e08');wdg.addColorStop(0.2,'#6a3c18');wdg.addColorStop(0.5,'#7a4820');wdg.addColorStop(0.8,'#5a3010');wdg.addColorStop(1,'#3a1e08');
+  ctx.fillStyle=wdg;
+  ctx.fillRect(cx-aW/2,cy-cH/2,aW,cH);
+
+  const hwdg=ctx.createLinearGradient(cx-cW/2,cy-cH*0.22,cx+cW/2,cy-cH*0.22+aW);
+  hwdg.addColorStop(0,'#3a1e08');hwdg.addColorStop(0.3,'#6a3c18');hwdg.addColorStop(0.6,'#7a4820');hwdg.addColorStop(1,'#3a1e08');
+  ctx.fillStyle=hwdg;ctx.fillRect(cx-cW/2,cy-cH*0.22,cW,aW);
+
+  // wood highlight
+  ctx.fillStyle='rgba(200,150,80,0.18)';ctx.fillRect(cx-aW*0.45,cy-cH/2+4,aW*0.25,cH-8);
+  ctx.fillStyle='rgba(200,150,80,0.1)';ctx.fillRect(cx-cW/2+4,cy-cH*0.22+2,cW*0.18,aW-4);
+
+  // subtle warm glow reflection on wall around cross
+  const refG=ctx.createRadialGradient(cx,cy,0,cx,cy,safeR(Math.min(w,h)*0.32));
+  refG.addColorStop(0,'rgba(180,130,70,0.18)');refG.addColorStop(1,'rgba(180,130,70,0)');
+  ctx.save();ctx.fillStyle=refG;ctx.fillRect(0,0,w,h);ctx.restore();
+  ctx.restore();
+}
+
+/* ── STYLES ──────────────────────────────────────── */
+const STYLES=[
+  {id:'pinkcloud',  category:'inspiration', bodyClass:'s-pinkcloud',  weight:2, onScene(){},           draw:drawPinkCloud,
+   text:{head:'#4a2060',hstroke:'rgba(255,255,255,0.88)',small:'#6a3a80',sstroke:'rgba(255,255,255,0.82)',ref:'#7a3a9a',rstroke:'rgba(255,255,255,0.82)',scrim:'light',cta:'#4a2060'}},
+  {id:'cloudcross', category:'faith',        bodyClass:'s-cloudcross', weight:2, onScene(){},           draw:drawCloudCross,
+   text:{head:'#ffffff',hstroke:'rgba(10,40,100,0.85)',small:'rgba(240,248,255,0.95)',sstroke:'rgba(10,40,100,0.78)',ref:'#c8e8ff',rstroke:'rgba(10,40,100,0.78)',scrim:'dark',cta:'#e0f0ff'}},
+  {id:'stormcross', category:'bible',        bodyClass:'s-stormcross', weight:2, onScene(){},           draw:drawStormCross,
+   text:{head:'#c8ddf0',hstroke:'rgba(5,10,20,0.92)',small:'rgba(180,210,240,0.95)',sstroke:'rgba(5,10,20,0.85)',ref:'#90b8e0',rstroke:'rgba(5,10,20,0.85)',scrim:'dark',cta:'#a0c0d8'}},
+  {id:'galaxy',     category:'jesus',        bodyClass:'s-galaxy',     weight:2, onScene(){},           draw:drawGalaxy,
+   text:{head:'#e0f0ff',hstroke:'rgba(10,5,40,0.9)',small:'rgba(200,230,255,0.95)',sstroke:'rgba(10,5,40,0.85)',ref:'#80c0ff',rstroke:'rgba(10,5,40,0.85)',scrim:'dark',cta:'#a0d0ff'}},
+  {id:'crownhand',  category:'history',      bodyClass:'s-crownhand',  weight:2, onScene(){},           draw:drawCrownHand,
+   text:{head:'#f8e8c0',hstroke:'rgba(5,2,0,0.92)',small:'rgba(240,220,170,0.95)',sstroke:'rgba(5,2,0,0.88)',ref:'#d4a840',rstroke:'rgba(5,2,0,0.88)',scrim:'dark',cta:'#e0c880'}},
+  {id:'woodencross',category:'inspiration',  bodyClass:'s-woodencross',weight:2, onScene(){},           draw:drawWoodenCross,
+   text:{head:'#f0ddb0',hstroke:'rgba(8,4,0,0.9)',small:'rgba(230,200,140,0.95)',sstroke:'rgba(8,4,0,0.85)',ref:'#c8a060',rstroke:'rgba(8,4,0,0.85)',scrim:'dark',cta:'#d8b878'}},
+];
+function pickIdx(){const total=STYLES.reduce((s,st)=>s+(st.weight||1),0);let r=Math.random()*total;for(let i=0;i<STYLES.length;i++){r-=(STYLES[i].weight||1);if(r<=0)return i;}return STYLES.length-1;}
+
+/* ── AUDIO ───────────────────────────────────────── */
+const AC=new (window.AudioContext||window.webkitAudioContext)();
+const master=AC.createGain();master.gain.value=0.78;master.connect(AC.destination);
+let _recDest=null,_audioOn=false;
+function unlockAC(){if(_audioOn)return;AC.resume().then(()=>{_audioOn=true;startPad();});}
+let _pads=[];
+function startPad(){stopPad();try{[261.63,329.63,392.00,523.25].forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain(),lfo=AC.createOscillator(),lg=AC.createGain();o.type='sine';o.frequency.value=f;lfo.type='sine';lfo.frequency.value=0.06+i*0.016;lg.gain.value=1.0;lfo.connect(lg);lg.connect(o.frequency);const n=AC.currentTime;g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(0.02-i*0.003,n+2.5);o.connect(g);g.connect(master);o.start(n);lfo.start(n);_pads.push({o,g,lfo});});}catch(e){}}
+function stopPad(){_pads.forEach(p=>{try{p.g.gain.setTargetAtTime(0,AC.currentTime,0.3);setTimeout(()=>{try{p.o.stop();p.lfo.stop();}catch(e){}},800);}catch(e){}});_pads=[];}
+function sfxChime(){if(!_audioOn)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(659.25,AC.currentTime);o.frequency.exponentialRampToValueAtTime(880,AC.currentTime+0.14);g.gain.setValueAtTime(0.048,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.8);o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+0.9);}catch(e){}}
+function sfxSoft(){if(!_audioOn)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(523.25,AC.currentTime);o.frequency.exponentialRampToValueAtTime(392,AC.currentTime+0.2);g.gain.setValueAtTime(0.034,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.65);o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+0.7);}catch(e){}}
+function sfxTick(){if(!_audioOn)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.setValueAtTime(1320,AC.currentTime);g.gain.setValueAtTime(0.04,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.13);o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+0.15);}catch(e){}}
+function sfxWhoosh(){if(!_audioOn)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(1100,AC.currentTime);o.frequency.exponentialRampToValueAtTime(300,AC.currentTime+0.3);g.gain.setValueAtTime(0.028,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.45);o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+0.5);}catch(e){}}
+
+/* ── CONTENT POOLS ───────────────────────────────── */
+let _pools={},_pidxs={};
+function nextC(cat){if(!_pools[cat]||_pidxs[cat]>=_pools[cat].length){_pools[cat]=CONTENT.filter(c=>c.cat===cat).sort(()=>Math.random()-0.5);_pidxs[cat]=0;}return _pools[cat][_pidxs[cat]++];}
+let _timers=[];
+function clearT(){_timers.forEach(clearTimeout);_timers=[];}
+
+function applyTheme(style){
+  const tc=style.text;
+  document.getElementById('label-eyebrow').style.color=tc.ref;
+  document.getElementById('label-rule').style.background=tc.ref;
+  document.getElementById('underbar').style.background=`linear-gradient(90deg,transparent,${tc.ref},transparent)`;
+  document.getElementById('cta').style.color=tc.cta+'99';
+  document.getElementById('text-scrim').style.background=tc.scrim==='light'
+    ?'radial-gradient(ellipse at center,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0.25) 55%,rgba(255,255,255,0) 78%)'
+    :'radial-gradient(ellipse at center,rgba(0,0,0,0.42) 0%,rgba(0,0,0,0.2) 55%,rgba(0,0,0,0) 78%)';
+  document.getElementById('vig').style.background=tc.scrim==='light'
+    ?'radial-gradient(ellipse at 50% 48%,transparent 32%,rgba(200,160,200,0.15) 100%)'
+    :'radial-gradient(ellipse at 50% 48%,transparent 30%,rgba(0,0,0,0.35) 100%)';
+}
+
+function showScene(){
+  clearT();unlockAC();
+  _si=pickIdx();const style=STYLES[_si];
+  document.body.className=style.bodyClass;window._lastCategory=style.category;
+  _ss=_t;style.onScene(W,H);applyTheme(style);
+  const C=nextC(style.category);const qw=document.getElementById('quote-wrap');qw.innerHTML='';const els=[];
+  C.lines.forEach(l=>{
+    const d=document.createElement('div');
+    // pinkcloud gets script font for the big line
+    if(style.id==='pinkcloud'&&C.lines.indexOf(l)===C.lines.length-1&&C.lines.length>1){d.className='qline script';}else{d.className='qline';}
+    d.style.color=style.text.head;d.style.webkitTextStroke=`0.04em ${style.text.hstroke}`;
+    d.innerHTML=wrap(l,3).join('<br>');qw.appendChild(d);els.push(d);
+  });
+  if(C.sub){const d=document.createElement('div');d.className='qline small';d.style.color=style.text.small;d.style.webkitTextStroke=`0.025em ${style.text.sstroke}`;d.innerHTML=wrap(C.sub,4).join('<br>');qw.appendChild(d);els.push(d);}
+  if(C.ref){const d=document.createElement('div');d.className='qline ref';d.style.color=style.text.ref;d.style.webkitTextStroke=`0.03em ${style.text.rstroke}`;d.textContent=C.ref;qw.appendChild(d);els.push(d);}
+  const label=document.getElementById('label'),bottom=document.getElementById('bottom'),ubar=document.getElementById('underbar'),scrim=document.getElementById('text-scrim');
+  label.style.opacity='0';label.style.transform='translateY(-16px)';bottom.style.opacity='0';bottom.style.transform='translateY(12px)';ubar.style.width='0';scrim.style.opacity='0';
+  sfxChime();
+  _timers.push(setTimeout(()=>{label.style.opacity='1';label.style.transform='translateY(0)';},220));
+  _timers.push(setTimeout(()=>{scrim.style.opacity='1';},340));
+  let delay=420;
+  els.forEach(el=>{el.classList.remove('in');_timers.push(setTimeout(()=>{el.classList.add('in');if(el.classList.contains('ref'))sfxTick();else if(el.classList.contains('small'))sfxSoft();else sfxChime();},delay));delay+=(el.classList.contains('small')||el.classList.contains('ref'))?560:420;});
+  _timers.push(setTimeout(()=>{ubar.style.width=Math.min(W*0.55,220)+'px';},delay-100));
+  _timers.push(setTimeout(()=>{bottom.style.opacity='1';bottom.style.transform='translateY(0)';sfxWhoosh();},delay+280));
+}
+
+/* ── RECORDING ───────────────────────────────────── */
+let _compC=null,_compCtx=null;
+window._recActive=false;window._recordingDone=false;window._recordingBlob=null;let _recChunks=[],_recorder=null;
+function drawOT(ctx,text,x,y,fc,sc,sw){ctx.lineJoin='round';ctx.miterLimit=2;ctx.lineWidth=sw;ctx.strokeStyle=sc;ctx.strokeText(text,x,y);ctx.fillStyle=fc;ctx.fillText(text,x,y);}
+function _drawComposite(){
+  if(!_compCtx)return;const ctx=_compCtx,cW=_compC.width,cH=_compC.height;ctx.clearRect(0,0,cW,cH);
+  try{ctx.drawImage(bgC,0,0,cW,cH);}catch(e){}
+  const style=STYLES[_si],tc=style.text,isLT=tc.scrim==='light';
+  const vg=ctx.createRadialGradient(cW/2,cH*0.48,cH*0.12,cW/2,cH*0.48,safeR(cH*0.8));vg.addColorStop(0,'transparent');vg.addColorStop(1,isLT?'rgba(200,160,200,0.14)':'rgba(0,0,0,0.32)');ctx.fillStyle=vg;ctx.fillRect(0,0,cW,cH);
+  const scrimEl=document.getElementById('text-scrim'),scOp=parseFloat(window.getComputedStyle(scrimEl).opacity)||0;
+  if(scOp>0.01){const sr=scrimEl.getBoundingClientRect();const sg=ctx.createRadialGradient(sr.left+sr.width/2,sr.top+sr.height/2,0,sr.left+sr.width/2,sr.top+sr.height/2,safeR(Math.max(sr.width,sr.height)*0.55));if(isLT){sg.addColorStop(0,'rgba(255,255,255,0.5)');sg.addColorStop(0.5,'rgba(255,255,255,0.25)');sg.addColorStop(1,'rgba(255,255,255,0)');}else{sg.addColorStop(0,'rgba(0,0,0,0.42)');sg.addColorStop(0.5,'rgba(0,0,0,0.2)');sg.addColorStop(1,'rgba(0,0,0,0)');}ctx.save();ctx.globalAlpha=scOp;ctx.fillStyle=sg;ctx.fillRect(sr.left,sr.top,sr.width,sr.height);ctx.restore();}
+  const lEl=document.getElementById('label'),lOp=parseFloat(window.getComputedStyle(lEl).opacity)||0;
+  if(lOp>0.01){const eb=document.getElementById('label-eyebrow'),er=eb.getBoundingClientRect();ctx.save();ctx.globalAlpha=lOp;ctx.font=`600 ${Math.max(11,er.height)}px 'Noto Sans',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';drawOT(ctx,eb.textContent,cW/2,er.top+er.height/2,tc.ref,tc.rstroke,Math.max(2,er.height*0.09));const rr=document.getElementById('label-rule').getBoundingClientRect();ctx.globalAlpha=lOp*0.55;ctx.strokeStyle=tc.ref;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cW/2-23,rr.top+rr.height/2);ctx.lineTo(cW/2+23,rr.top+rr.height/2);ctx.stroke();ctx.restore();}
+  document.querySelectorAll('.qline').forEach(el=>{
+    const op=parseFloat(window.getComputedStyle(el).opacity)||0;if(op<0.01)return;const r=el.getBoundingClientRect();if(r.width<1||r.height<1)return;
+    const fs=parseFloat(window.getComputedStyle(el).fontSize)||32;ctx.save();ctx.globalAlpha=op;ctx.textAlign='center';ctx.textBaseline='middle';const ecx=r.left+r.width/2;
+    if(el.classList.contains('ref')){ctx.font=`600 ${fs}px 'Noto Sans',sans-serif`;drawOT(ctx,el.textContent,ecx,r.top+r.height/2,tc.ref,tc.rstroke,Math.max(1.5,fs*0.07));}
+    else if(el.classList.contains('small')){ctx.font=`700 ${fs}px 'EB Garamond',serif`;const lines=el.innerHTML.split('<br>');const lh=r.height/lines.length;lines.forEach((ln,li)=>{drawOT(ctx,ln,ecx,r.top+lh*(li+0.5),tc.small,tc.sstroke,Math.max(1.5,fs*0.06));});}
+    else if(el.classList.contains('script')){ctx.font=`400 ${fs}px 'Great Vibes',cursive`;drawOT(ctx,el.innerHTML.replace(/<br>/g,' '),ecx,r.top+r.height/2,tc.head,tc.hstroke,Math.max(2,fs*0.05));}
+    else{ctx.font=`900 ${fs}px 'Cinzel',serif`;ctx.shadowColor='rgba(0,0,0,0.2)';ctx.shadowBlur=12;const lines=el.innerHTML.split('<br>');const lh=r.height/lines.length;lines.forEach((ln,li)=>{drawOT(ctx,ln,ecx,r.top+lh*(li+0.5),tc.head,tc.hstroke,Math.max(2,fs*0.085));});}
+    ctx.restore();
+  });
+  const ub=document.getElementById('underbar');if(ub.style.display!=='none'){const ubW=parseFloat(ub.style.width)||0;if(ubW>2){const ubR=ub.getBoundingClientRect();const ulg=ctx.createLinearGradient(cW/2-ubW/2,0,cW/2+ubW/2,0);ulg.addColorStop(0,tc.ref+'00');ulg.addColorStop(0.5,tc.ref+'ee');ulg.addColorStop(1,tc.ref+'00');ctx.save();ctx.fillStyle=ulg;ctx.fillRect(cW/2-ubW/2,ubR.top,ubW,2);ctx.restore();}}
+  const bEl=document.getElementById('bottom'),bOp=parseFloat(window.getComputedStyle(bEl).opacity)||0;if(bOp>0.01){const bR=bEl.getBoundingClientRect();ctx.save();ctx.globalAlpha=bOp*0.7;ctx.font=`600 ${Math.max(10,cW*0.022)}px 'Noto Sans',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';drawOT(ctx,'SHARE THIS TRUTH',cW/2,bR.top+bR.height*0.4,isLT?tc.cta:'#ffffff',isLT?'rgba(255,255,255,0.5)':'rgba(0,0,0,0.4)',Math.max(1.5,cW*0.022));ctx.restore();}
+}
+window.startRecordingFreshScene=function(fps){requestAnimationFrame(()=>requestAnimationFrame(()=>window.startRecording(fps)));};
+window.startRecording=function(fps){fps=fps||30;try{AC.resume().catch(()=>{});_compC=document.createElement('canvas');_compC.width=W;_compC.height=H;_compCtx=_compC.getContext('2d');window._recActive=true;window._recordingDone=false;_recChunks=[];_drawComposite();_recDest=AC.createMediaStreamDestination();master.connect(_recDest);const vs=_compC.captureStream(fps);const combined=new MediaStream([...vs.getVideoTracks(),..._recDest.stream.getAudioTracks()]);const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';_recorder=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:8000000,audioBitsPerSecond:192000});_recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)_recChunks.push(e.data);};_recorder.onstop=()=>{window._recActive=false;try{master.disconnect(_recDest);}catch(e){}window._recordingBlob=new Blob(_recChunks,{type:'video/webm'});window._recordingDone=true;};_recorder.start(200);console.log('Recording started');}catch(e){console.error('startRecording error:',e);}};
+window.stopRecording=function(){try{if(_recorder&&_recorder.state!=='inactive')_recorder.stop();}catch(e){}};
+window.forceFinalize=function(){window._recActive=false;if(_recChunks.length>0&&!window._recordingDone){window._recordingBlob=new Blob(_recChunks,{type:'video/webm'});window._recordingDone=true;}};
+window.getRecordingBase64=function(){return new Promise((resolve,reject)=>{const chk=()=>{if(!window._recordingBlob){setTimeout(chk,100);return;}const r=new FileReader();r.onloadend=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(window._recordingBlob);};chk();});};
+(function loop(){requestAnimationFrame(loop);_t+=0.016;const st=Math.max(0,_t-_ss);STYLES[_si].draw(bgCtx,_t,W,H,st);if(window._recActive)_drawComposite();})();
+window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;bgC.width=W;bgC.height=H;});
+document.body.addEventListener('click',showScene);
+document.body.addEventListener('touchend',e=>{e.preventDefault();showScene();},{passive:false});
+showScene();
+})();
+</script>
+</body>
+</html>

@@ -32,7 +32,7 @@ jobs:
           PIXABAY_KEY: "50973339-3e27fd59ddfd9c68378e78753"
         run: |
           set -e
-          CLIP=25
+          CLIP=18
           SKIP_HEAD=5
           SKIP_TAIL=5
           MIN_DUR=$((SKIP_HEAD + CLIP + SKIP_TAIL))
@@ -107,172 +107,166 @@ jobs:
         id: content
         timeout-minutes: 1
         run: |
-          # 150 short teaching pieces (30 of each type)
-          CONTENTS=(
-            # --- CULTURAL CONTEXT (30) ---
-            "Turning the other cheek wasn't weakness. It forced your enemy to treat you as an equal."
-            "The Good Samaritan was a hated enemy. Jesus said your neighbor is the one you least expect."
-            "Sin means 'missing the mark' in Greek. We all aim for God's best and fall short."
-            "God announced Jesus' birth to shepherds — outcasts. That's who Jesus came for."
-            "When Jesus said 'the poor are always with you' he was calling us to action, not giving an excuse."
-            "The woman at the well came alone at noon. Jesus crossed every social boundary to talk to her."
-            "A father's blessing meant everything in Jewish culture. Jesus said you get the same inheritance."
-            "The word 'gospel' meant Roman victory news. Paul used it to say: Jesus wins."
-            "Crucifixion was for the lowest criminals. Jesus died that way so you wouldn't be seen as one."
-            "A redeemer was a family member who bought you back from slavery. God is your redeemer."
-            "In Jesus' time, shepherds were considered untrustworthy. God chose them to hear the good news first."
-            "The Jewish temple had a curtain separating God from people. Jesus tore it when he died."
-            "Weddings in ancient Israel lasted a week. Jesus used wedding imagery to describe God's kingdom."
-            "Fishing was a common trade in Galilee. Jesus called fishermen to become fishers of men."
-            "Tax collectors were seen as traitors. Jesus ate with them anyway and changed their lives."
-            "The Samaritan woman was surprised Jesus talked to her. Jews didn't talk to Samaritans publicly."
-            "In ancient times, a widow's position was vulnerable. Jesus cared for them and honored their faith."
-            "The Passover meal was a remembrance of Israel's exodus. Jesus transformed it into the Last Supper."
-            "Roman soldiers were occupiers. Jesus healed their servant and showed love to enemies."
-            "Children had no status in ancient society. Jesus welcomed them and said the kingdom belongs to them."
-            "The Jordan River was where Israel crossed into the promised land. Jesus was baptized there."
-            "In Jewish law, leprosy made you unclean. Jesus touched lepers and healed them anyway."
-            "The fig tree was a symbol of Israel. Jesus cursed it to show what happens when there's no fruit."
-            "Carpenters were common tradesmen. Jesus worked as one before his ministry began."
-            "The Sea of Galilee was a busy fishing hub. Jesus did many miracles there."
-            "In ancient times, bread was a staple food. Jesus called himself the bread of life."
-            "The mustard seed was the smallest known seed. Jesus used it to show how faith grows."
-            "Jerusalem was the center of worship. Jesus wept over it because they rejected him."
-            "In Jewish weddings, the groom prepared a place. Jesus said he's preparing a place for us."
-            "The early church met in homes. They broke bread together and shared everything in common."
-
-            # --- THEOLOGICAL DISTINCTIONS (30) ---
-            "Faith isn't just believing facts. Even demons believe. Faith is trusting God like a child."
-            "Mercy is not getting what you deserve. Grace is getting what you don't deserve. Both are gifts."
-            "Fear of God isn't terror. It's reverent awe — knowing how big he is and how small you are."
-            "Forgiveness is free. Trust is earned. You can forgive someone and still set boundaries."
-            "Salvation isn't just going to heaven. Eternal life starts now — it's a new quality of life."
-            "Works are what you do for God. Fruit is what God produces through you. Abide and bear fruit."
-            "Legalism tries to earn approval. Obedience responds to approval you already have."
-            "Justice is about fairness. Righteousness is about right relationship with God. Both matter."
-            "Repentance isn't just feeling sorry. It means changing your mind and going the other way."
-            "Biblical hope isn't wishful thinking. It's confident expectation based on God's character."
-            "Love is a choice, not a feeling. Agape love stays when feelings fade."
-            "Truth isn't relative. Jesus said he IS the truth. It's a person, not a concept."
-            "Holiness isn't perfection. It's being set apart for God's purposes."
-            "Peace isn't the absence of conflict. It's the presence of God in the midst of it."
-            "Joy isn't happiness. Happiness depends on circumstances. Joy depends on God."
-            "Patience isn't just waiting. It's how you wait — with trust and peace."
-            "Humility isn't thinking less of yourself. It's thinking of yourself less."
-            "Self-control isn't willpower. It's the Spirit's power working in you."
-            "Freedom isn't doing whatever you want. It's being free to do what's right."
-            "Worship isn't just singing. It's surrendering your whole life to God."
-            "Prayer isn't just talking. It's listening too. Silence is part of prayer."
-            "The church isn't a building. It's the body of Christ — you and me."
-            "Baptism isn't just a ritual. It's identifying with Jesus' death and resurrection."
-            "Communion isn't just a symbol. It's connecting with Christ and his church."
-            "Healing isn't always physical. Sometimes it's emotional or spiritual."
-            "Blessing isn't always material. Sometimes it's knowing God is with you."
-            "Suffering isn't always punishment. Sometimes it's preparation for something greater."
-            "God's love isn't conditional. It's based on his character, not your performance."
-            "The cross isn't just an event. It's the demonstration of God's love for all time."
-            "The resurrection isn't just a miracle. It's the guarantee of your resurrection too."
-
-            # --- PRACTICAL FRAMEWORKS (30) ---
-            "Prayer changes you, not God. It aligns your heart with his will."
-            "ACTS prayer: Adoration, Confession, Thanksgiving, Supplication. Keep it balanced."
-            "Sabbath is a gift, not a rule. Rest says you don't have to earn your worth."
-            "Breath prayers: short phrases you repeat throughout the day. Try 'Lord, have mercy.'"
-            "When anxious, pray with thanksgiving. Then let God's peace guard your heart."
-            "Spend 5 minutes in scripture before your phone. Small habits create deep change."
-            "When you sin, run to God — not from him. He's already waiting."
-            "When reading the Bible, ask: What does this say about God? About me? What should I do?"
-            "The examen: Reflect on your day. Where did you see God? Where did you resist him?"
-            "When you feel distant, do what you did at the start. Obedience leads feelings."
-            "Scripture memorization renews your mind. Hide God's word in your heart."
-            "Journaling helps you see God's faithfulness. Write down what he's done."
-            "Fasting isn't just skipping meals. It's focusing on God without distractions."
-            "Giving isn't just money. It's generosity with your time and attention too."
-            "Serve others expecting nothing in return. That's what Jesus did."
-            "Confess your sins to someone you trust. Healing comes through honesty."
-            "Don't just read the Bible. Meditate on it. Think about what it means."
-            "Create a daily rhythm. Pray, read, rest, repeat. Consistency matters."
-            "When you're tired, rest. Even Jesus took time away from crowds."
-            "When you're tempted, remember the way out. God always provides one."
-            "Use your words to build people up. They're more powerful than you think."
-            "Forgive quickly. Holding grudges only hurts you, not them."
-            "Speak truth in love. Honesty without kindness is cruelty."
-            "Be present with people. Put your phone down and listen."
-            "Celebrate others. Rejoice with those who rejoice. That's love."
-            "When you fail, get back up. Failure isn't final. Keep going."
-            "Don't compare yourself to others. Your path is unique."
-            "Trust God with your future. He already knows what's coming."
-            "Be grateful daily. Gratitude changes your perspective."
-            "Practice patience. Growth takes time. Be kind to yourself."
-
-            # --- CORRECTIONS (30) ---
-            "'God helps those who help themselves' isn't in the Bible. God helps the helpless."
-            "'Money is the root of all evil' is a misquote. The love of money is the problem."
-            "'This too shall pass' isn't scripture. God's faithfulness is what gets you through."
-            "'God never gives you more than you can handle' isn't a promise. Paul was burdened beyond his strength."
-            "'Cleanliness is next to godliness' isn't in the Bible. Godliness is about the heart."
-            "'When God closes a door he opens a window' isn't scripture. Sometimes he says wait."
-            "Your purpose isn't self-fulfillment. It's knowing God and making him known."
-            "'Judge not' doesn't mean you can't call out sin. Jesus said to judge with right judgment."
-            "'God won't put more on you than you can bear' is about temptation, not suffering."
-            "'Follow your heart' is dangerous. Jeremiah says the heart is deceitful. Follow God instead."
-            "'God has a wonderful plan for your life' isn't a promise. It's true but not always comfortable."
-            "'The Lord helps those who help themselves' was said by Ben Franklin, not God."
-            "'To thine own self be true' isn't scripture. It's Shakespeare."
-            "'Pride comes before a fall' is close. Proverbs says 'Pride goes before destruction.'"
-            "'You reap what you sow' is scripture. But it's about generosity, not punishment."
-            "'Money answers all things' isn't scripture. It says money can help, but it's not the answer."
-            "'All things work together for good' is scripture. But it's for those who love God, not everyone."
-            "'Where two or three are gathered' is about church discipline, not prayer meetings."
-            "'The eye is the lamp of the body' isn't about vision. It's about focus and desire."
-            "'The body is a temple' is scripture. But it's about being set apart, not just diet."
-            "'Submit to authorities' is scripture. But it doesn't mean obey when they're unjust."
-            "'Spare the rod spoil the child' isn't scripture. It's a proverb about discipline."
-            "'You have to love yourself before you love others' isn't scripture. It's psychology."
-            "'God is love' is scripture. But he's also just, holy, and sovereign."
-            "'Jesus is the reason for the season' is true. But he's the reason for every season."
-            "'Let go and let God' is wisdom. But it's also action, not passive surrender."
-            "'Forgive and forget' isn't scripture. God remembers our sin no more, but we're human."
-            "'Good vibes only' isn't scripture. Lament is welcome and part of faith."
-            "'Everything happens for a reason' isn't scripture. But God works all things for good."
-            "'You do you' isn't scripture. We're called to die to self and follow Christ."
-
-            # --- TIMELINE (30) ---
-            "Jesus cleansed the temple twice — once early, once at the end."
-            "Abraham waited 25 years for Isaac. God's timing stretches faith."
-            "Israel was in Egypt for 430 years. God planned their rescue all along."
-            "The Bible was written over 1,000 years. Every book points to Jesus."
-            "Jesus died during Passover. The Lamb of God was sacrificed then."
-            "Jesus rose on Sunday. That's why Christians worship on the first day."
-            "Israel was exiled for exactly 70 years. God disciplines and restores."
-            "Pentecost birthed the church. The gospel went global immediately."
-            "Paul wrote most of the New Testament from prison. God used his chains."
-            "The Bible ends with a wedding. History moves toward Christ and his church."
-            "Moses spent 40 years in Egypt, 40 in the desert, and 40 leading Israel."
-            "Israel wandered in the desert for 40 years. One year for each day of spying."
-            "Joshua led Israel into the promised land. He was Moses' successor."
-            "David was king for 40 years. He united Israel and established Jerusalem."
-            "Solomon built the temple. It took 7 years and was magnificent."
-            "The temple was destroyed by Babylon in 586 BC. Judah was exiled."
-            "Cyrus allowed Jews to return to Jerusalem after 70 years. He was God's instrument."
-            "Nehemiah rebuilt the wall in just 52 days. God blessed the work."
-            "Israel had no prophet for 400 years. Then John the Baptist came."
-            "Jesus' ministry lasted 3 years. It was short but changed everything."
-            "The early church multiplied rapidly. Thousands were added daily."
-            "Stephen was the first martyr. His death sparked persecution and spread."
-            "Saul persecuted Christians. He became Paul and wrote most of the New Testament."
-            "The gospel spread to Gentiles through Peter and Paul. It was for all people."
-            "John wrote Revelation from Patmos. It's the final book and vision of hope."
-            "The New Testament was written within 50 years of Jesus' resurrection."
-            "The Gospels were written by eyewitnesses or those close to them."
-            "The Roman Empire persecuted the church. But it kept growing anyway."
-            "Constantine legalized Christianity in 313 AD. It became the Roman religion."
-            "The Bible was translated into Latin by Jerome. It became the common text."
+          # 150 tight teaches (1-2 sentences with wit + misconception) + engage + cta
+          # Format: "TEACH|ENGAGE|CTA"
+          CONTENT_RAW=(
+            "Turning the other cheek isn't weakness. It's the most savage move Jesus taught — you force your enemy to treat you as an equal.|Is this misunderstood today? Yes or No?|Drop 💥 if this changed how you see it."
+            "Samaritans and Jews hated each other. Jesus chose that example on purpose — your neighbor is the person you'd least expect.|Who's your 'Samaritan' — someone unexpected who helped you?|Tag them if you can."
+            "'God helps those who help themselves' isn't in the Bible. Actually, God helps the helpless. You don't need to clean up first.|Have you ever tried to 'fix yourself' before coming to God?|Drop 🙌 if you've been there."
+            "Believing in God isn't the same as trusting him. Even demons believe — and shudder. Faith is childlike trust, not just mental agreement.|Can you have one without the other?|Drop 🧒 if you're learning to trust like a child."
+            "Prayer isn't changing God's mind. It's changing yours. He already knows what you need. Prayer aligns your heart with his will.|What's the point of prayer if God already knows?|Drop 🙏 if prayer has changed your heart."
+            "The cross isn't just an event — it's the demonstration of God's love for all time. He didn't just die for you. He died like a criminal so you wouldn't be seen as one.|What shame are you still carrying that Jesus already took?|Drop 🕊️ if you're releasing shame today."
+            "Money isn't the root of all evil. The love of money is. Big difference. Money is neutral — your heart isn't.|What's your attitude toward money? Honest.|Drop 💰 if you're examining your heart today."
+            "The Good Samaritan wasn't just a nice guy. He was a hated enemy who showed mercy. Jesus said your neighbor is the one you'd least expect to help.|Who's someone you've written off that God loves anyway?|Drop 🌍 if you believe the gospel is for everyone."
+            "You've heard 'follow your heart' your whole life. But Jeremiah says the heart is deceitful. Don't follow your heart — lead it. Follow God instead.|What has your heart been leading you toward that you need to check with God?|Drop ❤️‍🔥 if you need to align your heart with his."
+            "Forgiveness is free. Trust is earned. You can forgive someone and still set boundaries. That's wisdom, not weakness.|Who do you need to forgive — even if trust isn't restored yet?|Drop 🕊️ if you're choosing forgiveness today."
+            "Faith isn't just believing facts about God. Even demons believe that. Faith is trusting God like a child trusts their parent in the dark.|What's one area where you believe facts but don't trust God?|Drop 🙏 if you want to trust him more."
+            "The fear of God isn't being scared of him. It's reverent awe — like standing at the edge of the Grand Canyon. That kind of fear actually makes you brave.|When did you last feel awe of God?|Drop 🌄 if you've stood in awe of him."
+            "Salvation isn't just going to heaven when you die. Eternal life starts now — it's a new quality of life, not just a future address.|What would change if you lived like eternal life starts today?|Drop ✨ if you believe eternal life starts now."
+            "Works are what you do for God. Fruit is what God produces through you. One is effort. The other is evidence. Both matter — but fruit comes from abiding.|What's one way you can abide in Jesus today?|Drop 🌿 if you want to abide and bear fruit."
+            "Legalism tries to earn approval. Obedience responds to approval you already have. One is performance. The other is relationship.|Are you obeying to be loved or because you're loved?|Drop ❤️ if you know you're fully loved."
+            "Holiness isn't perfection. It's being set apart for God's purposes. You don't have to be flawless — just faithful.|What's one thing that's setting you apart from God?|Drop 🔥 if you want to be set apart for him."
+            "Peace isn't the absence of conflict. It's the presence of God in the midst of it. You can have peace in the storm, not just after it.|Where do you need God's peace in the middle of chaos?|Drop ☮️ if you need his peace today."
+            "Joy isn't happiness. Happiness depends on circumstances. Joy depends on God. One is fleeting. The other is unshakable.|What's stealing your joy that you need to surrender?|Drop 😊 if you're choosing joy today."
+            "Patience isn't just waiting. It's how you wait — with trust and peace. Anyone can wait. Not everyone can wait well.|What are you waiting for that you need to trust God with?|Drop ⏳ if you're waiting on God."
+            "Humility isn't thinking less of yourself. It's thinking of yourself less. Big difference. One is self-hatred. The other is freedom.|What would it look like to think of yourself less today?|Drop 🙇 if you want to walk in humility."
+            "Self-control isn't willpower. It's the Spirit's power working in you. You can't do it alone — and you're not meant to.|What area of your life needs more Spirit-led self-control?|Drop 💪 if you need the Spirit's strength today."
+            "Freedom isn't doing whatever you want. It's being free to do what's right. True freedom has boundaries.|What 'freedom' have you been misusing?|Drop 🕊️ if you want true freedom."
+            "Worship isn't just singing songs on Sunday. It's surrendering your whole life to God every day. Your work, your relationships, your money.|What would it look like to worship with your whole life?|Drop 🙌 if you want to worship him in all you do."
+            "The church isn't a building. It's the body of Christ — you and me. You don't go to church. You are the church.|How can you be the church this week to someone?|Drop 🤝 if you want to serve the body of Christ."
+            "Baptism isn't just a ritual. It's identifying with Jesus' death and resurrection. It's a public declaration of a private decision.|If you're baptized, how does that shape your daily life?|Drop 🌊 if you're grateful for your baptism."
+            "Communion isn't just a symbol. It's connecting with Christ and his church. Every time you take it, you're saying 'I remember.'|What does communion mean to you?|Drop 🍷 if communion is meaningful to you."
+            "Healing isn't always physical. Sometimes it's emotional or spiritual. God heals the whole person, not just the body.|What kind of healing do you need most right now?|Drop ❤️‍🩹 if you're asking for healing."
+            "Blessing isn't always material. Sometimes it's knowing God is with you. That's the greatest blessing of all.|What's the greatest blessing God's given you this year?|Share your blessing in the comments."
+            "Suffering isn't always punishment. Sometimes it's preparation for something greater. What feels like a setback might be a setup.|What's a hard season that ended up preparing you?|Drop 🔥 if you've been refined by suffering."
+            "God's love isn't conditional. It's based on his character, not your performance. He doesn't love you more on good days and less on bad days.|Do you live like God's love is conditional or unconditional?|Drop ❤️ if you know his love is unconditional."
+            "Sabbath is a gift, not a rule. Rest says you don't have to earn your worth. It's resistance against the lie that you are what you produce.|When did you last truly rest?|Drop 😴 if you need to rest more."
+            "Breath prayers: short phrases you repeat all day. 'Lord, have mercy.' 'You are good.' 'Help me see.' It turns the mundane into communion.|What breath prayer can you try today?|Share your breath prayer in the comments."
+            "When anxious, pray with thanksgiving. Then let God's peace guard your heart. It's a process — not instant, but real.|What are you anxious about that you need to pray through?|Drop 🤲 if you're handing anxiety to God."
+            "Spend 5 minutes in scripture before your phone. Small habits create deep change over time. It's not complicated — just consistent.|What's your morning routine with God?|Drop ☀️ if you're starting your day with him."
+            "When you sin, run to God — not from him. Shame makes you hide. Grace invites you back. The fastest way back is confession.|What's keeping you from running to God today?|Drop 🏃 if you're running to him."
+            "When reading the Bible, ask three questions: What does this say about God? What does this say about me? What should I do about it?|What Bible verse has been speaking to you lately?|Share your verse and what God's showing you."
+            "The examen: Reflect on your day. Where did you see God? Where did you resist him? Where do you need forgiveness? It changes everything.|Where did you see God today?|Drop 🌟 with where you saw him."
+            "When you feel distant from God, do what you did at the start. Read scripture. Pray. Worship. Sometimes obedience leads feelings.|What's your 'first love' that you need to return to?|Drop 🔥 if you're returning to your first love."
+            "Scripture memorization renews your mind. Hide God's word in your heart. It's armor for the battles you'll face.|What verse are you memorizing right now?|Share the verse you're working on."
+            "Journaling helps you see God's faithfulness. Write down what he's done. You'll forget if you don't record it.|What has God done for you this week?|Drop 📝 if you're journaling his faithfulness."
+            "Fasting isn't just skipping meals. It's focusing on God without distractions. What you give up, he fills.|What distraction do you need to fast from?|Drop 🍽️ if you're fasting from something."
+            "Giving isn't just money. It's generosity with your time and attention too. You can be generous even on a budget.|How can you be generous with your time this week?|Drop ⏰ if you want to give your time."
+            "Serve others expecting nothing in return. That's what Jesus did. He didn't serve for applause — he served because it was right.|Who can you serve this week without expecting anything back?|Drop 🛠️ if you're serving someone."
+            "Confess your sins to someone you trust. Healing comes through honesty. Darkness loses power when it's brought to light.|Who can you be honest with this week?|Drop 🗣️ if you're practicing confession."
+            "Don't just read the Bible. Meditate on it. Think about what it means. Slow down. Let it sink in.|What passage are you meditating on?|Share the passage you're thinking about."
+            "Create a daily rhythm. Pray, read, rest, repeat. Consistency matters more than intensity. Show up every day.|What's your daily spiritual rhythm?|Drop 🌀 if you're building a rhythm."
+            "When you're tired, rest. Even Jesus took time away from crowds. If he needed rest, so do you.|What's stopping you from resting?|Drop 🛌 if you need rest."
+            "When you're tempted, remember the way out. God always provides one. Look for it. It's there.|What temptation do you need a way out of?|Drop 🚪 if you're looking for the way out."
+            "Use your words to build people up. They're more powerful than you think. You can speak life or death.|Who can you encourage with your words today?|Drop 💬 if you're building someone up."
+            "Forgive quickly. Holding grudges only hurts you, not them. Unforgiveness is poison you drink hoping the other person dies.|Who do you need to forgive quickly?|Drop 🕊️ if you're choosing forgiveness."
+            "Speak truth in love. Honesty without kindness is cruelty. Truth without love is just being mean.|What's something you need to say with love?|Drop 💗 if you're speaking truth in love."
+            "Be present with people. Put your phone down and listen. Presence is a gift you can give anyone.|Who needs your full attention today?|Drop 📱 if you're putting your phone down."
+            "Celebrate others. Rejoice with those who rejoice. That's love. Don't be jealous — be happy for them.|Who can you celebrate today?|Tag someone you're proud of."
+            "When you fail, get back up. Failure isn't final. It's feedback. Keep going. Quitting isn't an option.|What failure have you let stop you?|Drop 🔥 if you're getting back up."
+            "Don't compare yourself to others. Your path is unique. Comparison is the thief of joy. Stay in your lane.|What comparison is stealing your joy?|Drop 🛑 if you're stopping comparison."
+            "Trust God with your future. He already knows what's coming. You don't need to see the whole path — just the next step.|What future worry do you need to hand over?|Drop 🤲 if you're trusting God with your future."
+            "Be grateful daily. Gratitude changes your perspective. It's hard to be anxious and grateful at the same time.|What's one thing you're grateful for today?|Share your gratitude in the comments."
+            "Practice patience. Growth takes time. Be kind to yourself. You're not done yet — and that's okay.|What area of growth do you need patience with?|Drop 🌱 if you're growing."
+            "The shepherds in Luke 2 were low-class outcasts. God announced Jesus' birth to them first. That tells you everything about who Jesus came for.|When did you feel like an outcast that God met you anyway?|Drop 🙌 if you know you belong."
+            "Tax collectors were seen as traitors. Jesus ate with them anyway. He didn't wait for them to clean up first. He met them where they were.|What's a group of people you've written off that God loves anyway?|Drop 🌍 if you believe the gospel is for everyone."
+            "The woman at the well came alone at noon — the hottest part of the day. She was avoiding everyone. Jesus met her anyway.|Who has God placed in your life that you've been avoiding?|Drop 💬 if God is nudging you toward someone."
+            "A father's blessing meant everything in Jewish culture. Jesus said you get the same inheritance — you're not a hired hand, you're a child.|Do you truly believe you're a child of God with full inheritance?|Drop 👑 if you're walking in your identity as God's child."
+            "The word 'gospel' meant Roman victory news. Paul used it to say: Jesus wins. Caesar doesn't. Empire doesn't. Christ does.|What area of your life needs to hear that Jesus has already won?|Type 'VICTORY' if you believe he's already overcome."
+            "A redeemer was a family member who bought you back from slavery. When the Bible calls God your Redeemer, it means he's your family who bought you back.|What has God bought you back from? Share it.|Comment 'redeemed' if you know you've been bought back."
+            "When Jesus said 'the poor are always with you' he wasn't being dismissive. In Deuteronomy, the same phrase is followed by 'therefore I command you to be open-handed.' It was a call to action.|How can you be open-handed with someone this week?|Drop 🤲 if you want to give more generously."
+            "The Jewish temple had a curtain separating God from people. When Jesus died, the curtain tore in two — from top to bottom. God made a way.|What's keeping you from feeling close to God right now?|Type 'CLOSE' if you want to draw near to him today."
+            "Weddings in ancient Israel lasted a week. Jesus used wedding imagery to describe God's kingdom — a feast, a celebration, a joyful union.|What's your favorite picture of God's love in the Bible?|Share your favorite verse about God's love."
+            "Fishing was a common trade in Galilee. Jesus called fishermen to become fishers of men. He used what they already knew to call them.|Who's someone you can share your faith with this week?|Drop 🎣 if you want to share your faith boldly."
+            "In ancient times, a widow's position was vulnerable. Jesus cared for them and honored their faith. He sees the vulnerable.|Who's vulnerable that you can care for this week?|Tag someone you know who cares for the vulnerable."
+            "The Passover meal was a remembrance of Israel's exodus from Egypt. Jesus transformed it into the Last Supper — remembering his own exodus from death.|What's a tradition that helped you remember God's faithfulness?|Drop 🍞 if communion is meaningful to you."
+            "Roman soldiers were occupiers — the enemy. Jesus healed their servant and showed love to enemies. He didn't just talk about love — he demonstrated it.|Who's hard for you to love right now?|Pray for them and comment 'done' when you have."
+            "Children had no status in ancient society. Jesus welcomed them and said the kingdom belongs to them. He turned the world's hierarchy upside down.|What childlike faith do you need to recover?|Drop 🌟 if you want to have childlike faith again."
+            "The Jordan River was where Israel crossed into the promised land. Jesus was baptized there — stepping into his own mission.|What step of faith are you hesitating to take?|Type 'STEP' if you're ready to move forward."
+            "In Jewish law, leprosy made you unclean. Jesus touched lepers and healed them anyway. He wasn't afraid of your uncleanness.|What feels 'unclean' in your life that you need Jesus to touch?|Drop 🩺 if you're asking Jesus to heal you."
+            "The fig tree was a symbol of Israel. Jesus cursed it to show what happens when there's no fruit. He expects fruit from his people.|What fruit is God looking for in your life right now?|Drop 🍇 if you want to bear more fruit."
+            "Carpenters were common tradesmen. Jesus worked as one before his ministry began. He knows what it's like to work with your hands.|What's your 'ordinary' work that God is preparing you through?|Drop 🔨 if you believe your work matters to God."
+            "The Sea of Galilee was a busy fishing hub. Jesus did many miracles there — calming storms, walking on water, feeding thousands.|What miracle do you need God to do in your life right now?|Comment 'MIRACLE' if you're believing for one."
+            "In ancient times, bread was a staple food. Jesus called himself the bread of life — essential, daily, life-giving.|What are you hungry for that only Jesus can satisfy?|Drop 🍞 if you're hungry for him."
+            "The mustard seed was the smallest known seed. Jesus used it to show how faith grows — from tiny to massive. Start small.|What small faith step can you take today?|Drop 🌱 if you're ready to take a step of faith."
+            "Jerusalem was the center of worship. Jesus wept over it because they rejected him. He doesn't just judge — he grieves.|What makes you weep for those who reject God?|Drop 💔 if you have a heart for the lost."
+            "In Jewish weddings, the groom prepared a place. Jesus said he's preparing a place for us. He's coming back for his bride.|Do you live with hope that Jesus is coming back?|Drop 🏠 if you're excited for your eternal home."
+            "The early church met in homes. They broke bread together and shared everything in common. That's community — not just Sunday morning.|What would it look like for you to live more generously with your church community?|Drop 🤝 if you want to live more generously."
+            "Repentance isn't just feeling sorry. In Greek, 'metanoia' means a change of mind. It's turning around and going the other way.|What do you need to turn away from today?|Drop 🔄 if you're turning back to God."
+            "Biblical hope isn't wishful thinking. It's confident expectation based on God's character. It's not 'I hope so' — it's 'I know so.'|What are you confidently expecting God to do?|Drop 🌅 if you're full of hope today."
+            "Love is a choice, not a feeling. Agape love stays when feelings fade. It's not romance — it's commitment.|Who's someone you need to choose love for today?|Tag someone you're choosing to love today."
+            "Truth isn't relative. Jesus said he IS the truth. It's a person, not a concept. Truth has a name.|What truth about God are you wrestling with?|Drop 📖 if you want to know truth more deeply."
+            "Pride comes before a fall — Proverbs says it's destruction. Pride makes you blind. Humility opens your eyes.|What pride do you need to confess?|Drop 🙇 if you're humbling yourself."
+            "You reap what you sow is scripture. It's about generosity, not punishment. You can't expect a harvest if you don't plant seeds.|What are you sowing right now?|Drop 🌱 if you're sowing good seeds."
+            "Money answers all things isn't scripture. It says money can help, but it's not the answer. There are things money can't buy.|What's something money can't buy that you're grateful for?|Drop 💗 if you know money isn't everything."
+            "All things work together for good is scripture. But it's for those who love God. Not everyone — but if you love him, it's for you.|Do you love God? Then trust he's working.|Drop ❤️ if you trust his work."
+            "Where two or three are gathered is about church discipline, not prayer meetings. Context matters. The whole Bible matters.|What does being in community look like for you?|Drop 🤝 if you value community."
+            "The eye is the lamp of the body isn't about vision. It's about focus and desire. What you focus on shapes everything.|What are you focusing your eyes on?|Drop 👀 if you're fixing your eyes on him."
+            "The body is a temple is scripture. But it's about being set apart, not just diet. It's not just what you eat — it's how you live.|How can you honor God with your body today?|Drop 🏛️ if you're honoring him."
+            "Submit to authorities is scripture. But it doesn't mean obey when they're unjust. Wisdom knows the difference.|Where do you need wisdom in submitting to authority?|Drop 👑 if you're trusting God with this."
+            "Spare the rod spoil the child isn't scripture. It's a proverb about discipline. Discipline isn't punishment — it's training.|How do you view discipline — punishment or training?|Drop 🛠️ if you see it as training."
+            "God is love is scripture. But he's also just, holy, and sovereign. Love isn't his only attribute.|Which aspect of God's character do you need to trust more?|Drop 🙌 if you're trusting all of him."
+            "Jesus is the reason for the season is true. But he's the reason for every season — not just Christmas.|What season of life are you in? How is Jesus your reason?|Drop 🌿 if he's with you in every season."
+            "Let go and let God is wisdom. But it's also action, not passive surrender. You let go AND you move.|What do you need to let go of and also take action on?|Drop 👐 if you're letting go and moving."
+            "Forgive and forget isn't scripture. God remembers our sin no more, but we're human. You can forgive and still remember.|What hurt do you need to forgive, even if you can't forget?|Drop 🕊️ if you're forgiving today."
+            "Good vibes only isn't scripture. Lament is welcome and part of faith. You don't have to pretend everything's fine.|Are you letting yourself lament honestly before God?|Drop 😢 if you're honest with him."
+            "Everything happens for a reason isn't scripture. But God works all things for good. There's a difference.|What's something that didn't make sense that God is redeeming?|Drop 🔄 if you've seen him redeem something."
+            "You do you isn't scripture. We're called to die to self and follow Christ. It's not about self-expression — it's about surrender.|What does dying to self look like in your life?|Drop ✝️ if you're denying yourself for him."
+            "Jesus cleansed the temple twice — once early, once at the end. First was a warning. Second was judgment. He gave them a chance.|What needs cleansing in your heart?|Drop 🧹 if you're letting him clean house."
+            "Abraham waited 25 years for Isaac. God's timing often stretches faith — but he always keeps his word.|What promise are you waiting on?|Drop ⏳ if you're waiting on his timing."
+            "Israel was in Egypt for 430 years. God let them suffer for centuries — but he planned their rescue all along.|Have you ever felt like God was late, only to see him on time?|Drop 🕊️ if he's been on time for you."
+            "The Bible was written over 1,000 years. Both Testaments point to one person — Jesus. The whole Bible is about him.|What's your favorite book of the Bible and why?|Share your favorite book of the Bible."
+            "Jesus died during Passover. The Lamb of God was sacrificed at the same time lambs were being offered. God planned it from the beginning.|Do you understand the significance of Jesus as the Passover Lamb?|Drop 🐑 if you see him as your lamb."
+            "Jesus rose on Sunday — the first day of the week. That's why Christians worship on Sunday. The resurrection changed everything.|How does the resurrection shape your Sunday?|Drop 🌅 if you live in resurrection power."
+            "Israel was exiled for exactly 70 years — what Jeremiah predicted. God disciplines but he also restores.|What discipline has God used to bring you back?|Drop 🔥 if you've been refined and restored."
+            "Pentecost birthed the church. Jews from all nations gathered in Jerusalem. The gospel went global from day one.|How has the Holy Spirit empowered you?|Drop 🔥 if you need the Spirit's power."
+            "Paul wrote most of the New Testament from prison. God used his chains to spread the gospel. Your pain has purpose too.|What limitation has God used for his glory?|Drop ⛓️ if he's used your chains."
+            "The Bible ends with a wedding — the marriage of Christ and his church. History isn't random. It's all moving toward that day.|Are you living with hope for his return?|Drop 👰 if you're excited for the wedding feast."
+            "Moses spent 40 years in Egypt, 40 in the desert, and 40 leading Israel. God prepares you in the hidden places.|What season of preparation has God had you in?|Drop 🌄 if you're in a preparation season."
+            "Israel wandered in the desert for 40 years — one year for each day of spying. Disbelief has consequences.|What is your attitude when things take longer than expected?|Drop ⏳ if you're learning patience."
+            "Joshua led Israel into the promised land. He was Moses' successor. The mission continues — it's passed on.|What's a promise land that God is calling you to enter?|Drop 🌿 if you're ready to enter your promise."
+            "David was king for 40 years. He united Israel and established Jerusalem. He wasn't perfect — but he was faithful.|What legacy are you building?|Drop 👑 if you're building God's kingdom."
+            "Solomon built the temple. It took 7 years and was magnificent. But he later turned from God. Success isn't everything.|What are you building for God right now?|Drop 🛠️ if you're building something for him."
+            "The temple was destroyed by Babylon in 586 BC. Judah was exiled. But God promised to rebuild — and he did.|What's been destroyed in your life that God wants to rebuild?|Drop 🏗️ if you're trusting him to rebuild."
+            "Cyrus allowed Jews to return to Jerusalem after 70 years. He was God's instrument — a pagan king who served God's purposes.|What unexpected person has God used in your life?|Drop 🙌 if God's used someone unexpected."
+            "Nehemiah rebuilt the wall in just 52 days. God blessed the work. When God calls you, he equips you.|What work has God blessed you to accomplish?|Drop 🧱 if you're building God's kingdom."
+            "Israel had no prophet for 400 years. Silence. Then John the Baptist came. Sometimes God is silent before he speaks.|What silence in your life is God about to break?|Drop 📣 if you're expecting a breakthrough."
+            "Jesus' ministry lasted 3 years — short but world-changing. You don't need decades to make an impact.|How has Jesus changed everything for you?|Drop ✝️ if he's changed your life."
+            "The early church multiplied rapidly. Thousands were added daily. The gospel spread like wildfire.|What's your role in the multiplication of the church?|Drop 🌍 if you're part of the mission."
+            "Stephen was the first martyr. His death sparked persecution — and the church spread. God used his death for life.|What suffering has God used for good in your life?|Drop 🔥 if you've seen him redeem pain."
+            "Saul persecuted Christians. He became Paul — the greatest missionary in history. Your past doesn't disqualify you.|What's your before-and-after story with God?|Drop 💫 if you're not who you used to be."
+            "The gospel spread to Gentiles through Peter and Paul. It was never meant to stay in one culture.|What culture or people group do you need to love more?|Drop 🌏 if you love all nations."
+            "John wrote Revelation from Patmos. It's the final book — a vision of hope in the middle of persecution.|What hope do you cling to from Revelation?|Drop 🌅 if you're full of hope."
+            "The New Testament was written within 50 years of the resurrection. Eyewitnesses were still alive to verify it.|Why does that matter for your trust in the Bible?|Drop 📖 if you trust the New Testament."
+            "The Gospels were written by eyewitnesses or those close to them. They weren't legends — they were testimonies.|Do you believe the Gospels are reliable accounts?|Drop 🙏 if you trust the eyewitness testimony."
+            "The Roman Empire persecuted the church. But it kept growing anyway. Persecution never stops the gospel.|What opposition have you faced that God used?|Drop 💪 if you've seen opposition turned to growth."
+            "Constantine legalized Christianity in 313 AD. It became the Roman religion. Good and bad came from that.|What's a positive and a negative of Christianity becoming mainstream?|Drop 🤔 if you're thinking about it."
+            "The Bible was translated into Latin by Jerome. It became the common text. The word of God in the language of the people.|What translation do you read and why?|Share your Bible translation."
+            "The Good Samaritan story ends with 'go and do likewise.' Jesus didn't just tell a story — he gave a mission.|What's your 'go and do likewise' moment waiting for?|Drop 🏃 if you're ready to act."
+            "The Prodigal Son's father ran to him. The father didn't wait — he ran. That's how God runs to you.|Have you ever felt God running toward you?|Drop 🏃 if you've felt him chase you."
+            "The lost sheep was one out of ninety-nine. Jesus left the ninety-nine to find the one. You matter that much.|When did you feel like the one sheep he found?|Drop 🐑 if you know you're the one he found."
+            "The workers in the vineyard got the same pay — no matter when they started. Grace isn't fair — it's generous.|Does grace feel unfair to you? Or freeing?|Drop 🙌 if you're grateful for unfair grace."
+            "The Pharisee and the tax collector — one prayed to himself, one begged for mercy. Only one went home justified.|Which prayer sounds more like yours? The proud one or the humble one?|Drop 🙇 if you're the tax collector."
+            "The wise and foolish builders — both built houses. But only one built on rock. The storm reveals the foundation.|What foundation are you building your life on?|Drop 🪨 if you're building on the rock."
+            "The faithful servant and the wicked servant — both were given responsibility. How you handle little things matters.|What 'little thing' has God trusted you with?|Drop 🤲 if you're being faithful with small things."
+            "The ten virgins — five were ready, five weren't. The difference was preparation, not intention.|Are you ready for Jesus' return? Like, really ready?|Drop 🕯️ if you're keeping your lamp full."
+            "The talents — one buried, two multiplied. The ones who multiplied were rewarded. The one who buried was condemned.|What talent are you burying out of fear?|Drop 💰 if you're ready to invest what God gave you."
+            "The sheep and the goats — both called Jesus 'Lord.' But only one group served. Faith without works is dead.|What's one way you've served Jesus by serving others this week?|Drop 🤝 if you're serving."
+            "The rich young ruler walked away sad. He had everything — but he couldn't let go of his money. Jesus asked for his heart.|What are you holding onto that Jesus might ask you to release?|Drop 🤲 if you're letting go."
+            "The persistent widow kept knocking. The judge gave in — not because he cared, but because she wouldn't stop. Keep praying.|What are you praying persistently for?|Drop 🔔 if you're not giving up."
           )
-          IDX=$((RANDOM % ${#CONTENTS[@]}))
-          PICKED="${CONTENTS[$IDX]}"
-          echo "content=$PICKED" >> "$GITHUB_OUTPUT"
-          echo "Selected content: ${PICKED:0:50}..."
+
+          # Split into teach, engage, cta
+          IDX=$((RANDOM % ${#CONTENT_RAW[@]}))
+          ENTRY="${CONTENT_RAW[$IDX]}"
+          TEACH=$(echo "$ENTRY" | cut -d'|' -f1)
+          ENGAGE=$(echo "$ENTRY" | cut -d'|' -f2)
+          CTA=$(echo "$ENTRY" | cut -d'|' -f3)
+
+          echo "teach=$TEACH" >> "$GITHUB_OUTPUT"
+          echo "engage=$ENGAGE" >> "$GITHUB_OUTPUT"
+          echo "cta=$CTA" >> "$GITHUB_OUTPUT"
+          echo "Selected: ${TEACH:0:50}..."
 
       - name: pick-caption
         id: caption
@@ -306,7 +300,9 @@ jobs:
           START="${{ steps.vid.outputs.start }}"
           DUR="${{ steps.vid.outputs.clip }}"
           MUSIC_FILE="${{ steps.music.outputs.music_file }}"
-          CONTENT="${{ steps.content.outputs.content }}"
+          TEACH="${{ steps.content.outputs.teach }}"
+          ENGAGE="${{ steps.content.outputs.engage }}"
+          CTA="${{ steps.content.outputs.cta }}"
 
           FETCH=$(echo "$DUR + 5" | bc)
           FADEOUT=$(echo "$DUR - 1.5" | bc)
@@ -323,9 +319,11 @@ jobs:
           python3 << 'PYEOF'
           import os, math, random
 
-          content = os.environ.get("CONTENT", "God is with you.")
-          dur = float(os.environ.get("DUR", "25"))
-          fadeout = float(os.environ.get("FADEOUT", "23.5"))
+          teach = os.environ.get("TEACH", "God is with you.")
+          engage = os.environ.get("ENGAGE", "What do you think?")
+          cta = os.environ.get("CTA", "Drop a comment.")
+          dur = float(os.environ.get("DUR", "18"))
+          fadeout = float(os.environ.get("FADEOUT", "16.5"))
 
           font = "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
           font_fallback = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
@@ -342,7 +340,7 @@ jobs:
           titles = [
               "This changed me.",
               "Read this slow.",
-              "Don't scroll past this.",
+              "Don't scroll past.",
               "Someone needed this.",
               "This is for you.",
               "Stop. Read. Breathe.",
@@ -363,53 +361,50 @@ jobs:
               f"drawtext=text='{title_escaped}'"
               f":fontfile={font}"
               f":fontcolor={text_color}@0.95"
-              f":fontsize=52"
+              f":fontsize=48"
               f":x=(w-text_w)/2"
-              f":y=140"
+              f":y=120"
               f":alpha='if(lt(t,0.4),0,min(1,(t-0.4)/0.6))'"
               f":shadowcolor=black@0.85"
               f":shadowx=3:shadowy=3"
           )
 
-          cta = "Share this with someone who needs it 🙏"
-          cta_escaped = cta.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
-          cta_filter = (
-              f"drawtext=text='{cta_escaped}'"
-              f":fontfile={font}"
-              f":fontcolor={text_color}@0.85"
-              f":fontsize=46"
-              f":x=(w-text_w)/2"
-              f":y=210"
-              f":alpha='if(lt(t,1.0),0,min(1,(t-1.0)/0.8))'"
-              f":shadowcolor=black@0.8"
-              f":shadowx=2:shadowy=2"
-          )
-
-          # Split content into words, then group into chunks of 5 words
-          words = content.split()
+          # Build teach + engage + cta as one combined text
+          full_text = teach + " " + engage + " " + cta
+          words = full_text.split()
           chunks = [' '.join(words[i:i+5]) for i in range(0, len(words), 5)]
 
           total_lines = len(chunks)
-          line_height = 90
-          center_y = 900
+          line_height = 85
+          center_y = 870
           block_top = center_y - (total_lines * line_height) // 2
 
-          filters = [title_filter, cta_filter]
+          filters = [title_filter]
           text_start = 1.8
-          line_interval = 1.0
+          line_interval = 0.9
+
+          # Count how many lines are teach vs engage+cta
+          teach_words = teach.split()
+          teach_chunk_count = (len(teach_words) + 4) // 5  # ceil division
 
           for i, chunk in enumerate(chunks):
               y_pos = block_top + i * line_height
               t_show = text_start + i * line_interval
               escaped = chunk.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
 
+              # Highlight engage+cta in lightyellow
+              if i >= teach_chunk_count:
+                  font_color = "lightyellow"
+              else:
+                  font_color = text_color
+
               alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
 
               ft = (
                   f"drawtext=text='{escaped}'"
                   f":fontfile={font}"
-                  f":fontcolor={text_color}"
-                  f":fontsize=68"
+                  f":fontcolor={font_color}"
+                  f":fontsize=62"
                   f":x=(w-text_w)/2"
                   f":y={y_pos}"
                   f":alpha='{alpha_expr}'"
@@ -453,9 +448,11 @@ jobs:
 
           ls -lh final.mp4
         env:
-          CONTENT: ${{ steps.content.outputs.content }}
-          DUR: "25"
-          FADEOUT: "23.5"
+          TEACH: ${{ steps.content.outputs.teach }}
+          ENGAGE: ${{ steps.content.outputs.engage }}
+          CTA: ${{ steps.content.outputs.cta }}
+          DUR: "18"
+          FADEOUT: "16.5"
 
       - name: post-to-facebook
         timeout-minutes: 3

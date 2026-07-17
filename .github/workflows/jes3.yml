@@ -1,4 +1,4 @@
-name: gospel-moments-test
+name: gospel-moments-post
 
 "on":
   workflow_dispatch:
@@ -7,6 +7,8 @@ name: gospel-moments-test
         description: "Post caption (leave empty for random)"
         required: false
         default: ""
+  schedule:
+    - cron: "0 14 * * *"  # 10 AM EST / 2 PM UTC daily
 
 jobs:
   post:
@@ -30,7 +32,7 @@ jobs:
           PIXABAY_KEY: "50973339-3e27fd59ddfd9c68378e78753"
         run: |
           set -e
-          CLIP=15
+          CLIP=25
           SKIP_HEAD=5
           SKIP_TAIL=5
           MIN_DUR=$((SKIP_HEAD + CLIP + SKIP_TAIL))
@@ -105,19 +107,67 @@ jobs:
         id: content
         timeout-minutes: 1
         run: |
-          # 10 teaching pieces for testing
+          # 50 short teaching pieces (1-2 sentences each)
           CONTENTS=(
-            "I used to think God was angry with me every time something went wrong. But here's what I learned — God's discipline isn't punishment. It's correction. Like a parent who loves their kid enough to say no. Hebrews 12 says he disciplines those he loves. That changed everything for me."
-            "When I lost my job, I felt like God had abandoned me. But then I remembered how God provided manna in the wilderness for Israel — daily bread, not a lifetime supply. He wasn't late. He was teaching me to trust him one day at a time. That season became my testimony."
-            "For years I prayed the same prayer and nothing changed. I thought God wasn't listening. Then I realized — prayer isn't about changing God's mind. It's about changing mine. He already knows what I need. Prayer aligns my heart with his. That shifted my whole prayer life."
-            "I thought forgiveness meant pretending the hurt didn't happen and letting people walk all over me. But that's not forgiveness — that's denial. Real forgiveness acknowledges the hurt, releases the debt, and still sets boundaries. I can forgive and still protect my heart."
-            "My grandmother's faith looked different than mine. She was quiet and steady. I'm loud and passionate. For years I thought I had to be like her. But God doesn't clone us. He created each of us uniquely. My testimony isn't her testimony. And that's ok."
-            "I used to think church was for perfect people. Then I read about the early church — they had arguments, hypocrisy, and drama. Paul even called them out publicly. The church isn't a museum for saints. It's a hospital for sinners. I finally felt like I belonged."
-            "When my marriage was falling apart, I learned what love really means. It's not a feeling — it's a choice. Agape love is commitment. It stays when feelings fade. That's the love God has for us. And it's the love we're called to show each other."
-            "I thought if I just tried harder, God would finally accept me. But grace doesn't work like that. It's not my effort that saves me — it's his. I can't earn what's already been given. The moment I stopped striving, I started living."
-            "The moment I stopped performing and started resting, everything changed. Sabbath isn't a rule — it's a gift. It's God saying 'you don't have to earn your worth.' Rest is resistance to the lie that I am what I produce."
-            "My darkest season became my greatest testimony. I didn't see it at the time, but God was working in the background. What the enemy meant for evil, God turned for good. Looking back, I wouldn't trade that season for anything."
+            # --- CULTURAL CONTEXT (10) ---
+            "Turning the other cheek wasn't weakness. It forced your enemy to treat you as an equal."
+            "The Good Samaritan was a hated enemy. Jesus said your neighbor is the one you least expect."
+            "Sin means 'missing the mark' in Greek. We all aim for God's best and fall short."
+            "God announced Jesus' birth to shepherds — outcasts. That's who Jesus came for."
+            "When Jesus said 'the poor are always with you' he was calling us to action, not giving an excuse."
+            "The woman at the well came alone at noon. Jesus crossed every social boundary to talk to her."
+            "A father's blessing meant everything in Jewish culture. Jesus said you get the same inheritance."
+            "The word 'gospel' meant Roman victory news. Paul used it to say: Jesus wins."
+            "Crucifixion was for the lowest criminals. Jesus died that way so you wouldn't be seen as one."
+            "A redeemer was a family member who bought you back from slavery. God is your redeemer."
 
+            # --- THEOLOGICAL DISTINCTIONS (10) ---
+            "Faith isn't just believing facts. Even demons believe. Faith is trusting God like a child."
+            "Mercy is not getting what you deserve. Grace is getting what you don't deserve. Both are gifts."
+            "Fear of God isn't terror. It's reverent awe — knowing how big he is and how small you are."
+            "Forgiveness is free. Trust is earned. You can forgive someone and still set boundaries."
+            "Salvation isn't just going to heaven. Eternal life starts now — it's a new quality of life."
+            "Works are what you do for God. Fruit is what God produces through you. Abide and bear fruit."
+            "Legalism tries to earn approval. Obedience responds to approval you already have."
+            "Justice is about fairness. Righteousness is about right relationship with God. Both matter."
+            "Repentance isn't just feeling sorry. It means changing your mind and going the other way."
+            "Biblical hope isn't wishful thinking. It's confident expectation based on God's character."
+
+            # --- PRACTICAL FRAMEWORKS (10) ---
+            "Prayer changes you, not God. It aligns your heart with his will."
+            "ACTS prayer: Adoration, Confession, Thanksgiving, Supplication. Keep it balanced."
+            "Sabbath is a gift, not a rule. Rest says you don't have to earn your worth."
+            "Breath prayers: short phrases you repeat throughout the day. Try 'Lord, have mercy.'"
+            "When anxious, pray with thanksgiving. Then let God's peace guard your heart."
+            "Spend 5 minutes in scripture before your phone. Small habits create deep change."
+            "When you sin, run to God — not from him. He's already waiting."
+            "When reading the Bible, ask: What does this say about God? About me? What should I do?"
+            "The examen: Reflect on your day. Where did you see God? Where did you resist him?"
+            "When you feel distant, do what you did at the start. Obedience leads feelings."
+
+            # --- CORRECTIONS (10) ---
+            "'God helps those who help themselves' isn't in the Bible. God helps the helpless."
+            "'Money is the root of all evil' is a misquote. The love of money is the problem."
+            "'This too shall pass' isn't scripture. God's faithfulness is what gets you through."
+            "'God never gives you more than you can handle' isn't a promise. Paul was burdened beyond his strength."
+            "'Cleanliness is next to godliness' isn't in the Bible. Godliness is about the heart."
+            "'When God closes a door he opens a window' isn't scripture. Sometimes he says wait."
+            "Your purpose isn't self-fulfillment. It's knowing God and making him known."
+            "'Judge not' doesn't mean you can't call out sin. Jesus said to judge with right judgment."
+            "'God won't put more on you than you can bear' is about temptation, not suffering."
+            "'Follow your heart' is dangerous. Jeremiah says the heart is deceitful. Follow God instead."
+
+            # --- TIMELINE (10) ---
+            "Jesus cleansed the temple twice — once early in his ministry, once at the end. He gave them a warning first."
+            "Abraham waited 25 years for Isaac. God's timing stretches faith but he always keeps his word."
+            "Israel was in Egypt for 430 years. God let them suffer but planned their rescue all along."
+            "The Bible was written over 1,000 years. Every book points to Jesus."
+            "Jesus died during Passover. The Lamb of God was sacrificed at the same time as the lambs."
+            "Jesus rose on Sunday — the first day of the week. That's why Christians worship on Sunday."
+            "Israel was exiled for exactly 70 years. God disciplines but he also restores."
+            "Pentecost birthed the church. The gospel went global from day one."
+            "Paul wrote most of the New Testament from prison. God used his chains to spread the gospel."
+            "The Bible ends with a wedding. History is moving toward Christ and his church."
           )
           IDX=$((RANDOM % ${#CONTENTS[@]}))
           PICKED="${CONTENTS[$IDX]}"
@@ -134,16 +184,16 @@ jobs:
             exit 0
           fi
           CAPTIONS=(
-            "This hit different for me. 🤍 Hope it does for you too. #faith #jesus #bible #godslove #grace #hope #christian #trustgod #godisgood #scripture"
-            "I had to share this. Read it slow. 🙏 #faith #jesus #bible #god #hope #grace #love #prayer #worship #christian"
-            "Someone needed to hear this today. You're not alone. 🤍 #faith #jesus #bible #hope #grace #god #christian #trust #peace #love"
-            "This is for you. Don't scroll past. 🙏 #faith #jesus #bible #hope #grace #god #prayer #worship #truth #christian"
-            "Let this sink in. Really. 🤍 #faith #jesus #bible #hope #grace #god #love #peace #christian #trust"
-            "Been there. This changed me. 🙏 #faith #jesus #bible #hope #grace #god #christian #prayer #worship #truth"
-            "Tag someone who needs to read this today. 🤍 #faith #jesus #bible #hope #grace #god #love #christian #trust #peace"
-            "Read it twice. It's that good. 🙏 #faith #jesus #bible #hope #grace #god #prayer #worship #christian #truth"
-            "This is the kind of truth that sets you free. 🤍 #faith #jesus #bible #hope #grace #god #love #christian #trust #peace"
-            "Your reminder for today. Right here. 🙏 #faith #jesus #bible #hope #grace #god #prayer #worship #christian #truth"
+            "This hit different for me. Hope it does for you too. 🙏 Follow for more daily truth. #faith #jesus #bible #god #grace #hope #christian #love #prayer #worship"
+            "Read it slow. Let it sink in. 🤍 Follow if this spoke to you. #faith #jesus #bible #god #hope #grace #christian #trust #peace #truth"
+            "Someone needed this today. You're not alone. 🙏 Share this with someone who needs it. #faith #jesus #bible #god #hope #grace #christian #love #prayer #worship"
+            "Don't scroll past. This is for you. 🤍 Follow for more encouragement. #faith #jesus #bible #god #hope #grace #christian #trust #peace #truth"
+            "Let this really sink in today. 🙏 Save this for later. #faith #jesus #bible #god #hope #grace #christian #love #prayer #worship"
+            "Been there. This changed me. 🤍 Follow if this resonated. #faith #jesus #bible #god #hope #grace #christian #trust #peace #truth"
+            "Tag someone who needs to read this today. 🙏 You never know who needs it. #faith #jesus #bible #god #hope #grace #christian #love #prayer #worship"
+            "Read it twice. It's that good. 🤍 Follow for daily wisdom. #faith #jesus #bible #god #hope #grace #christian #trust #peace #truth"
+            "This is the kind of truth that sets you free. 🙏 Share it with your people. #faith #jesus #bible #god #hope #grace #christian #love #prayer #worship"
+            "Your reminder for today. Right here. 🤍 Follow for more. #faith #jesus #bible #god #hope #grace #christian #trust #peace #truth"
           )
           IDX=$((RANDOM % ${#CAPTIONS[@]}))
           PICKED="${CAPTIONS[$IDX]}"
@@ -174,8 +224,8 @@ jobs:
           import os, math, random
 
           content = os.environ.get("CONTENT", "God is with you.")
-          dur = float(os.environ.get("DUR", "15"))
-          fadeout = float(os.environ.get("FADEOUT", "13.5"))
+          dur = float(os.environ.get("DUR", "25"))
+          fadeout = float(os.environ.get("FADEOUT", "23.5"))
 
           font = "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
           font_fallback = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
@@ -200,6 +250,11 @@ jobs:
               "You're not alone.",
               "God sees you.",
               "This is your sign.",
+              "Truth for today.",
+              "He's still working.",
+              "Wait for it.",
+              "This one hits.",
+              "Keep reading.",
           ]
           title_text = random.choice(titles)
           title_escaped = title_text.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
@@ -210,74 +265,58 @@ jobs:
               f":fontcolor={text_color}@0.95"
               f":fontsize=52"
               f":x=(w-text_w)/2"
-              f":y=160"
+              f":y=140"
               f":alpha='if(lt(t,0.4),0,min(1,(t-0.4)/0.6))'"
               f":shadowcolor=black@0.85"
               f":shadowx=3:shadowy=3"
           )
 
-          cta = "Share this with someone who needs it"
+          cta = "Share this with someone who needs it 🙏"
           cta_escaped = cta.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
           cta_filter = (
               f"drawtext=text='{cta_escaped}'"
               f":fontfile={font}"
               f":fontcolor={text_color}@0.85"
-              f":fontsize=44"
+              f":fontsize=46"
               f":x=(w-text_w)/2"
-              f":y=230"
+              f":y=210"
               f":alpha='if(lt(t,1.0),0,min(1,(t-1.0)/0.8))'"
               f":shadowcolor=black@0.8"
               f":shadowx=2:shadowy=2"
           )
 
-          # Split content into words for typing effect
-          words = content.split()
-          words_per_line = 5
-          lines = []
-          for i in range(0, len(words), words_per_line):
-              lines.append(words[i:i+words_per_line])
-
-          text_start = 1.8
-          text_end = dur * 0.82
-          total_text_time = text_end - text_start
-          total_words = len(words)
-          interval = total_text_time / max(total_words - 1, 1)
-
-          line_height = 90
-          total_lines = len(lines)
-          center_y = 980
+          # Split content into sentences for line-by-line reveal
+          sentences = content.split('. ')
+          total_lines = len(sentences)
+          line_height = 95
+          center_y = 920
           block_top = center_y - (total_lines * line_height) // 2
 
           filters = [title_filter, cta_filter]
-          word_idx = 0
+          text_start = 1.8
+          line_interval = 1.3
 
-          for line_num, line_words in enumerate(lines):
-              y_pos = block_top + line_num * line_height
+          for i, sentence in enumerate(sentences):
+              if i < len(sentences) - 1:
+                  sentence = sentence + '.'
+              y_pos = block_top + i * line_height
+              t_show = text_start + i * line_interval
+              escaped = sentence.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
 
-              for w_in_line, word in enumerate(line_words):
-                  t_show = text_start + word_idx * interval
-                  visible_text = " ".join(line_words[:w_in_line + 1])
-                  visible_escaped = visible_text.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
+              alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
 
-                  if w_in_line < len(line_words) - 1:
-                      t_next = text_start + (word_idx + 1) * interval
-                      alpha_expr = f"if(lt(t,{t_show:.2f}),0,if(lt(t,{t_next:.2f}),min(1,(t-{t_show:.2f})/0.2),0))"
-                  else:
-                      alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.2))"
-
-                  ft = (
-                      f"drawtext=text='{visible_escaped}'"
-                      f":fontfile={font}"
-                      f":fontcolor={text_color}"
-                      f":fontsize=68"
-                      f":x=(w-text_w)/2"
-                      f":y={y_pos}"
-                      f":alpha='{alpha_expr}'"
-                      f":shadowcolor=black@0.8"
-                      f":shadowx=3:shadowy=3"
-                  )
-                  filters.append(ft)
-                  word_idx += 1
+              ft = (
+                  f"drawtext=text='{escaped}'"
+                  f":fontfile={font}"
+                  f":fontcolor={text_color}"
+                  f":fontsize=62"
+                  f":x=(w-text_w)/2"
+                  f":y={y_pos}"
+                  f":alpha='{alpha_expr}'"
+                  f":shadowcolor=black@0.8"
+                  f":shadowx=3:shadowy=3"
+              )
+              filters.append(ft)
 
           all_dt = ",".join(filters)
 
@@ -294,7 +333,7 @@ jobs:
           with open("/tmp/vfilter.txt", "w") as f:
               f.write(vfilter)
 
-          print(f"Built filter for {len(words)} words | color: {text_color} | title: {title_text}")
+          print(f"Built filter for {len(sentences)} sentences | color: {text_color} | title: {title_text}")
           PYEOF
 
           VFILTER=$(cat /tmp/vfilter.txt)
@@ -315,8 +354,8 @@ jobs:
           ls -lh final.mp4
         env:
           CONTENT: ${{ steps.content.outputs.content }}
-          DUR: "15"
-          FADEOUT: "13.5"
+          DUR: "25"
+          FADEOUT: "23.5"
 
       - name: post-to-facebook
         timeout-minutes: 3

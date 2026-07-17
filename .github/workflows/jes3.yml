@@ -107,9 +107,9 @@ jobs:
         id: content
         timeout-minutes: 1
         run: |
-          # 50 short teaching pieces (1-2 sentences each)
+          # 150 short teaching pieces (30 of each type)
           CONTENTS=(
-            # --- CULTURAL CONTEXT (10) ---
+            # --- CULTURAL CONTEXT (30) ---
             "Turning the other cheek wasn't weakness. It forced your enemy to treat you as an equal."
             "The Good Samaritan was a hated enemy. Jesus said your neighbor is the one you least expect."
             "Sin means 'missing the mark' in Greek. We all aim for God's best and fall short."
@@ -120,8 +120,28 @@ jobs:
             "The word 'gospel' meant Roman victory news. Paul used it to say: Jesus wins."
             "Crucifixion was for the lowest criminals. Jesus died that way so you wouldn't be seen as one."
             "A redeemer was a family member who bought you back from slavery. God is your redeemer."
+            "In Jesus' time, shepherds were considered untrustworthy. God chose them to hear the good news first."
+            "The Jewish temple had a curtain separating God from people. Jesus tore it when he died."
+            "Weddings in ancient Israel lasted a week. Jesus used wedding imagery to describe God's kingdom."
+            "Fishing was a common trade in Galilee. Jesus called fishermen to become fishers of men."
+            "Tax collectors were seen as traitors. Jesus ate with them anyway and changed their lives."
+            "The Samaritan woman was surprised Jesus talked to her. Jews didn't talk to Samaritans publicly."
+            "In ancient times, a widow's position was vulnerable. Jesus cared for them and honored their faith."
+            "The Passover meal was a remembrance of Israel's exodus. Jesus transformed it into the Last Supper."
+            "Roman soldiers were occupiers. Jesus healed their servant and showed love to enemies."
+            "Children had no status in ancient society. Jesus welcomed them and said the kingdom belongs to them."
+            "The Jordan River was where Israel crossed into the promised land. Jesus was baptized there."
+            "In Jewish law, leprosy made you unclean. Jesus touched lepers and healed them anyway."
+            "The fig tree was a symbol of Israel. Jesus cursed it to show what happens when there's no fruit."
+            "Carpenters were common tradesmen. Jesus worked as one before his ministry began."
+            "The Sea of Galilee was a busy fishing hub. Jesus did many miracles there."
+            "In ancient times, bread was a staple food. Jesus called himself the bread of life."
+            "The mustard seed was the smallest known seed. Jesus used it to show how faith grows."
+            "Jerusalem was the center of worship. Jesus wept over it because they rejected him."
+            "In Jewish weddings, the groom prepared a place. Jesus said he's preparing a place for us."
+            "The early church met in homes. They broke bread together and shared everything in common."
 
-            # --- THEOLOGICAL DISTINCTIONS (10) ---
+            # --- THEOLOGICAL DISTINCTIONS (30) ---
             "Faith isn't just believing facts. Even demons believe. Faith is trusting God like a child."
             "Mercy is not getting what you deserve. Grace is getting what you don't deserve. Both are gifts."
             "Fear of God isn't terror. It's reverent awe — knowing how big he is and how small you are."
@@ -132,8 +152,28 @@ jobs:
             "Justice is about fairness. Righteousness is about right relationship with God. Both matter."
             "Repentance isn't just feeling sorry. It means changing your mind and going the other way."
             "Biblical hope isn't wishful thinking. It's confident expectation based on God's character."
+            "Love is a choice, not a feeling. Agape love stays when feelings fade."
+            "Truth isn't relative. Jesus said he IS the truth. It's a person, not a concept."
+            "Holiness isn't perfection. It's being set apart for God's purposes."
+            "Peace isn't the absence of conflict. It's the presence of God in the midst of it."
+            "Joy isn't happiness. Happiness depends on circumstances. Joy depends on God."
+            "Patience isn't just waiting. It's how you wait — with trust and peace."
+            "Humility isn't thinking less of yourself. It's thinking of yourself less."
+            "Self-control isn't willpower. It's the Spirit's power working in you."
+            "Freedom isn't doing whatever you want. It's being free to do what's right."
+            "Worship isn't just singing. It's surrendering your whole life to God."
+            "Prayer isn't just talking. It's listening too. Silence is part of prayer."
+            "The church isn't a building. It's the body of Christ — you and me."
+            "Baptism isn't just a ritual. It's identifying with Jesus' death and resurrection."
+            "Communion isn't just a symbol. It's connecting with Christ and his church."
+            "Healing isn't always physical. Sometimes it's emotional or spiritual."
+            "Blessing isn't always material. Sometimes it's knowing God is with you."
+            "Suffering isn't always punishment. Sometimes it's preparation for something greater."
+            "God's love isn't conditional. It's based on his character, not your performance."
+            "The cross isn't just an event. It's the demonstration of God's love for all time."
+            "The resurrection isn't just a miracle. It's the guarantee of your resurrection too."
 
-            # --- PRACTICAL FRAMEWORKS (10) ---
+            # --- PRACTICAL FRAMEWORKS (30) ---
             "Prayer changes you, not God. It aligns your heart with his will."
             "ACTS prayer: Adoration, Confession, Thanksgiving, Supplication. Keep it balanced."
             "Sabbath is a gift, not a rule. Rest says you don't have to earn your worth."
@@ -144,8 +184,28 @@ jobs:
             "When reading the Bible, ask: What does this say about God? About me? What should I do?"
             "The examen: Reflect on your day. Where did you see God? Where did you resist him?"
             "When you feel distant, do what you did at the start. Obedience leads feelings."
+            "Scripture memorization renews your mind. Hide God's word in your heart."
+            "Journaling helps you see God's faithfulness. Write down what he's done."
+            "Fasting isn't just skipping meals. It's focusing on God without distractions."
+            "Giving isn't just money. It's generosity with your time and attention too."
+            "Serve others expecting nothing in return. That's what Jesus did."
+            "Confess your sins to someone you trust. Healing comes through honesty."
+            "Don't just read the Bible. Meditate on it. Think about what it means."
+            "Create a daily rhythm. Pray, read, rest, repeat. Consistency matters."
+            "When you're tired, rest. Even Jesus took time away from crowds."
+            "When you're tempted, remember the way out. God always provides one."
+            "Use your words to build people up. They're more powerful than you think."
+            "Forgive quickly. Holding grudges only hurts you, not them."
+            "Speak truth in love. Honesty without kindness is cruelty."
+            "Be present with people. Put your phone down and listen."
+            "Celebrate others. Rejoice with those who rejoice. That's love."
+            "When you fail, get back up. Failure isn't final. Keep going."
+            "Don't compare yourself to others. Your path is unique."
+            "Trust God with your future. He already knows what's coming."
+            "Be grateful daily. Gratitude changes your perspective."
+            "Practice patience. Growth takes time. Be kind to yourself."
 
-            # --- CORRECTIONS (10) ---
+            # --- CORRECTIONS (30) ---
             "'God helps those who help themselves' isn't in the Bible. God helps the helpless."
             "'Money is the root of all evil' is a misquote. The love of money is the problem."
             "'This too shall pass' isn't scripture. God's faithfulness is what gets you through."
@@ -156,18 +216,58 @@ jobs:
             "'Judge not' doesn't mean you can't call out sin. Jesus said to judge with right judgment."
             "'God won't put more on you than you can bear' is about temptation, not suffering."
             "'Follow your heart' is dangerous. Jeremiah says the heart is deceitful. Follow God instead."
+            "'God has a wonderful plan for your life' isn't a promise. It's true but not always comfortable."
+            "'The Lord helps those who help themselves' was said by Ben Franklin, not God."
+            "'To thine own self be true' isn't scripture. It's Shakespeare."
+            "'Pride comes before a fall' is close. Proverbs says 'Pride goes before destruction.'"
+            "'You reap what you sow' is scripture. But it's about generosity, not punishment."
+            "'Money answers all things' isn't scripture. It says money can help, but it's not the answer."
+            "'All things work together for good' is scripture. But it's for those who love God, not everyone."
+            "'Where two or three are gathered' is about church discipline, not prayer meetings."
+            "'The eye is the lamp of the body' isn't about vision. It's about focus and desire."
+            "'The body is a temple' is scripture. But it's about being set apart, not just diet."
+            "'Submit to authorities' is scripture. But it doesn't mean obey when they're unjust."
+            "'Spare the rod spoil the child' isn't scripture. It's a proverb about discipline."
+            "'You have to love yourself before you love others' isn't scripture. It's psychology."
+            "'God is love' is scripture. But he's also just, holy, and sovereign."
+            "'Jesus is the reason for the season' is true. But he's the reason for every season."
+            "'Let go and let God' is wisdom. But it's also action, not passive surrender."
+            "'Forgive and forget' isn't scripture. God remembers our sin no more, but we're human."
+            "'Good vibes only' isn't scripture. Lament is welcome and part of faith."
+            "'Everything happens for a reason' isn't scripture. But God works all things for good."
+            "'You do you' isn't scripture. We're called to die to self and follow Christ."
 
-            # --- TIMELINE (10) ---
-            "Jesus cleansed the temple twice — once early in his ministry, once at the end. He gave them a warning first."
-            "Abraham waited 25 years for Isaac. God's timing stretches faith but he always keeps his word."
-            "Israel was in Egypt for 430 years. God let them suffer but planned their rescue all along."
+            # --- TIMELINE (30) ---
+            "Jesus cleansed the temple twice — once early, once at the end."
+            "Abraham waited 25 years for Isaac. God's timing stretches faith."
+            "Israel was in Egypt for 430 years. God planned their rescue all along."
             "The Bible was written over 1,000 years. Every book points to Jesus."
-            "Jesus died during Passover. The Lamb of God was sacrificed at the same time as the lambs."
-            "Jesus rose on Sunday — the first day of the week. That's why Christians worship on Sunday."
-            "Israel was exiled for exactly 70 years. God disciplines but he also restores."
-            "Pentecost birthed the church. The gospel went global from day one."
-            "Paul wrote most of the New Testament from prison. God used his chains to spread the gospel."
-            "The Bible ends with a wedding. History is moving toward Christ and his church."
+            "Jesus died during Passover. The Lamb of God was sacrificed then."
+            "Jesus rose on Sunday. That's why Christians worship on the first day."
+            "Israel was exiled for exactly 70 years. God disciplines and restores."
+            "Pentecost birthed the church. The gospel went global immediately."
+            "Paul wrote most of the New Testament from prison. God used his chains."
+            "The Bible ends with a wedding. History moves toward Christ and his church."
+            "Moses spent 40 years in Egypt, 40 in the desert, and 40 leading Israel."
+            "Israel wandered in the desert for 40 years. One year for each day of spying."
+            "Joshua led Israel into the promised land. He was Moses' successor."
+            "David was king for 40 years. He united Israel and established Jerusalem."
+            "Solomon built the temple. It took 7 years and was magnificent."
+            "The temple was destroyed by Babylon in 586 BC. Judah was exiled."
+            "Cyrus allowed Jews to return to Jerusalem after 70 years. He was God's instrument."
+            "Nehemiah rebuilt the wall in just 52 days. God blessed the work."
+            "Israel had no prophet for 400 years. Then John the Baptist came."
+            "Jesus' ministry lasted 3 years. It was short but changed everything."
+            "The early church multiplied rapidly. Thousands were added daily."
+            "Stephen was the first martyr. His death sparked persecution and spread."
+            "Saul persecuted Christians. He became Paul and wrote most of the New Testament."
+            "The gospel spread to Gentiles through Peter and Paul. It was for all people."
+            "John wrote Revelation from Patmos. It's the final book and vision of hope."
+            "The New Testament was written within 50 years of Jesus' resurrection."
+            "The Gospels were written by eyewitnesses or those close to them."
+            "The Roman Empire persecuted the church. But it kept growing anyway."
+            "Constantine legalized Christianity in 313 AD. It became the Roman religion."
+            "The Bible was translated into Latin by Jerome. It became the common text."
           )
           IDX=$((RANDOM % ${#CONTENTS[@]}))
           PICKED="${CONTENTS[$IDX]}"
@@ -285,23 +385,23 @@ jobs:
               f":shadowx=2:shadowy=2"
           )
 
-          # Split content into sentences for line-by-line reveal
-          sentences = content.split('. ')
-          total_lines = len(sentences)
-          line_height = 95
-          center_y = 920
+          # Split content into words, then group into chunks of 5 words
+          words = content.split()
+          chunks = [' '.join(words[i:i+5]) for i in range(0, len(words), 5)]
+
+          total_lines = len(chunks)
+          line_height = 90
+          center_y = 900
           block_top = center_y - (total_lines * line_height) // 2
 
           filters = [title_filter, cta_filter]
           text_start = 1.8
-          line_interval = 1.3
+          line_interval = 1.0
 
-          for i, sentence in enumerate(sentences):
-              if i < len(sentences) - 1:
-                  sentence = sentence + '.'
+          for i, chunk in enumerate(chunks):
               y_pos = block_top + i * line_height
               t_show = text_start + i * line_interval
-              escaped = sentence.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
+              escaped = chunk.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
 
               alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.3))"
 
@@ -309,7 +409,7 @@ jobs:
                   f"drawtext=text='{escaped}'"
                   f":fontfile={font}"
                   f":fontcolor={text_color}"
-                  f":fontsize=62"
+                  f":fontsize=68"
                   f":x=(w-text_w)/2"
                   f":y={y_pos}"
                   f":alpha='{alpha_expr}'"
@@ -333,7 +433,7 @@ jobs:
           with open("/tmp/vfilter.txt", "w") as f:
               f.write(vfilter)
 
-          print(f"Built filter for {len(sentences)} sentences | color: {text_color} | title: {title_text}")
+          print(f"Built filter for {len(chunks)} lines | color: {text_color} | title: {title_text}")
           PYEOF
 
           VFILTER=$(cat /tmp/vfilter.txt)

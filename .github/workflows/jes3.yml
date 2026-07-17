@@ -1,0 +1,370 @@
+name: gospel-moments-test
+
+"on":
+  workflow_dispatch:
+    inputs:
+      caption:
+        description: "Post caption (leave empty for random)"
+        required: false
+        default: ""
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install-deps
+        timeout-minutes: 3
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg bc jq python3
+
+      - name: find-video
+        id: vid
+        timeout-minutes: 3
+        env:
+          PIXABAY_KEY: "50973339-3e27fd59ddfd9c68378e78753"
+        run: |
+          set -e
+          CLIP=15
+          SKIP_HEAD=5
+          SKIP_TAIL=5
+          MIN_DUR=$((SKIP_HEAD + CLIP + SKIP_TAIL))
+          VIDEO_URL=""
+          VALID_VIDEO=0
+
+          TERMS="sky| clouds| sunrise| sunset| nature| mountains| forest| ocean| river| stars| light rays| fog| meadow| waterfall| peaceful nature"
+          IFS='|' read -ra TERM_ARR <<< "$TERMS"
+
+          for TERM in $(printf "%s\n" "${TERM_ARR[@]}" | shuf); do
+            [ "$VALID_VIDEO" -eq 1 ] && break
+            PAGE=$((RANDOM % 10 + 1))
+            OFFSET=$((RANDOM % 20))
+            ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$TERM")
+            URL="https://pixabay.com/api/videos/?key=${PIXABAY_KEY}&q=${ENCODED}&video_type=film&per_page=20&page=${PAGE}"
+            RESP=$(timeout 10 curl -sf --max-time 10 "$URL" 2>/dev/null) || continue
+            COUNT=$(echo "$RESP" | jq -r '.hits | length' 2>/dev/null) || continue
+            [ "$COUNT" -eq 0 ] && continue
+            for i in $(seq 0 $((COUNT - 1)) | shuf); do
+              [ "$VALID_VIDEO" -eq 1 ] && break
+              IDX=$(( (i + OFFSET) % COUNT ))
+              DUR=$(echo "$RESP" | jq -r ".hits[$IDX].duration" 2>/dev/null)
+              [[ "$DUR" =~ ^[0-9]+$ ]] || continue
+              [ "$DUR" -lt "$MIN_DUR" ] && continue
+              VURL=$(echo "$RESP" | jq -r ".hits[$IDX].videos.large.url // .hits[$IDX].videos.medium.url // .hits[$IDX].videos.small.url" 2>/dev/null)
+              [ -z "$VURL" ] || [ "$VURL" = "null" ] && continue
+              ZONE_END=$((DUR - SKIP_TAIL - CLIP))
+              RANGE=$((ZONE_END - SKIP_HEAD))
+              [ "$RANGE" -le 0 ] && continue
+              START=$((SKIP_HEAD + RANDOM % RANGE))
+              echo "Testing video: $VURL"
+              timeout 30 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$VURL" -t 5 -c copy test_probe.mp4 2>/dev/null || true
+              TEST_STREAM=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 test_probe.mp4 2>/dev/null || echo "")
+              rm -f test_probe.mp4
+              if [ -z "$TEST_STREAM" ]; then
+                echo "Video failed probe, skipping..."
+                continue
+              fi
+              VIDEO_URL="$VURL"
+              VALID_VIDEO=1
+              echo "video_url=$VIDEO_URL" >> "$GITHUB_OUTPUT"
+              echo "start=$START" >> "$GITHUB_OUTPUT"
+              echo "clip=$CLIP" >> "$GITHUB_OUTPUT"
+              echo "Found valid video: start=${START}s dur=${DUR}s"
+            done
+          done
+
+          if [ -z "$VIDEO_URL" ]; then
+            echo "No valid video found"
+            exit 1
+          fi
+
+      - name: pick-music
+        id: music
+        timeout-minutes: 1
+        run: |
+          TRACKS=(bgmusic/*.mp3 bgmusic/*.wav bgmusic/*.m4a bgmusic/*.mp4 bgmusic/*.aac bgmusic/*.ogg bgmusic/*.flac)
+          VALID=()
+          for t in "${TRACKS[@]}"; do
+            [ -f "$t" ] && VALID+=("$t")
+          done
+          if [ ${#VALID[@]} -eq 0 ]; then
+            echo "No music files found"
+            exit 1
+          fi
+          IDX=$((RANDOM % ${#VALID[@]}))
+          PICKED="${VALID[$IDX]}"
+          echo "music_file=$PICKED" >> "$GITHUB_OUTPUT"
+          echo "Selected: $PICKED"
+
+      - name: pick-content
+        id: content
+        timeout-minutes: 1
+        run: |
+          # 10 teaching pieces for testing
+          CONTENTS=(
+            "I used to think God was angry with me every time something went wrong. But here's what I learned — God's discipline isn't punishment. It's correction. Like a parent who loves their kid enough to say no. Hebrews 12 says he disciplines those he loves. That changed everything for me."
+            "When I lost my job, I felt like God had abandoned me. But then I remembered how God provided manna in the wilderness for Israel — daily bread, not a lifetime supply. He wasn't late. He was teaching me to trust him one day at a time. That season became my testimony."
+            "For years I prayed the same prayer and nothing changed. I thought God wasn't listening. Then I realized — prayer isn't about changing God's mind. It's about changing mine. He already knows what I need. Prayer aligns my heart with his. That shifted my whole prayer life."
+            "I thought forgiveness meant pretending the hurt didn't happen and letting people walk all over me. But that's not forgiveness — that's denial. Real forgiveness acknowledges the hurt, releases the debt, and still sets boundaries. I can forgive and still protect my heart."
+            "My grandmother's faith looked different than mine. She was quiet and steady. I'm loud and passionate. For years I thought I had to be like her. But God doesn't clone us. He created each of us uniquely. My testimony isn't her testimony. And that's ok."
+            "I used to think church was for perfect people. Then I read about the early church — they had arguments, hypocrisy, and drama. Paul even called them out publicly. The church isn't a museum for saints. It's a hospital for sinners. I finally felt like I belonged."
+            "When my marriage was falling apart, I learned what love really means. It's not a feeling — it's a choice. Agape love is commitment. It stays when feelings fade. That's the love God has for us. And it's the love we're called to show each other."
+            "I thought if I just tried harder, God would finally accept me. But grace doesn't work like that. It's not my effort that saves me — it's his. I can't earn what's already been given. The moment I stopped striving, I started living."
+            "The moment I stopped performing and started resting, everything changed. Sabbath isn't a rule — it's a gift. It's God saying 'you don't have to earn your worth.' Rest is resistance to the lie that I am what I produce."
+            "My darkest season became my greatest testimony. I didn't see it at the time, but God was working in the background. What the enemy meant for evil, God turned for good. Looking back, I wouldn't trade that season for anything."
+
+          )
+          IDX=$((RANDOM % ${#CONTENTS[@]}))
+          PICKED="${CONTENTS[$IDX]}"
+          echo "content=$PICKED" >> "$GITHUB_OUTPUT"
+          echo "Selected content: ${PICKED:0:50}..."
+
+      - name: pick-caption
+        id: caption
+        timeout-minutes: 1
+        run: |
+          INPUT_CAPTION="${{ github.event.inputs.caption }}"
+          if [ -n "$INPUT_CAPTION" ]; then
+            echo "caption=$INPUT_CAPTION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CAPTIONS=(
+            "This hit different for me. 🤍 Hope it does for you too. #faith #jesus #bible #godslove #grace #hope #christian #trustgod #godisgood #scripture"
+            "I had to share this. Read it slow. 🙏 #faith #jesus #bible #god #hope #grace #love #prayer #worship #christian"
+            "Someone needed to hear this today. You're not alone. 🤍 #faith #jesus #bible #hope #grace #god #christian #trust #peace #love"
+            "This is for you. Don't scroll past. 🙏 #faith #jesus #bible #hope #grace #god #prayer #worship #truth #christian"
+            "Let this sink in. Really. 🤍 #faith #jesus #bible #hope #grace #god #love #peace #christian #trust"
+            "Been there. This changed me. 🙏 #faith #jesus #bible #hope #grace #god #christian #prayer #worship #truth"
+            "Tag someone who needs to read this today. 🤍 #faith #jesus #bible #hope #grace #god #love #christian #trust #peace"
+            "Read it twice. It's that good. 🙏 #faith #jesus #bible #hope #grace #god #prayer #worship #christian #truth"
+            "This is the kind of truth that sets you free. 🤍 #faith #jesus #bible #hope #grace #god #love #christian #trust #peace"
+            "Your reminder for today. Right here. 🙏 #faith #jesus #bible #hope #grace #god #prayer #worship #christian #truth"
+          )
+          IDX=$((RANDOM % ${#CAPTIONS[@]}))
+          PICKED="${CAPTIONS[$IDX]}"
+          echo "caption=$PICKED" >> "$GITHUB_OUTPUT"
+
+      - name: process-video
+        timeout-minutes: 8
+        run: |
+          URL="${{ steps.vid.outputs.video_url }}"
+          START="${{ steps.vid.outputs.start }}"
+          DUR="${{ steps.vid.outputs.clip }}"
+          MUSIC_FILE="${{ steps.music.outputs.music_file }}"
+          CONTENT="${{ steps.content.outputs.content }}"
+
+          FETCH=$(echo "$DUR + 5" | bc)
+          FADEOUT=$(echo "$DUR - 1.5" | bc)
+
+          echo "Downloading video..."
+          timeout 90 ffmpeg -hide_banner -loglevel error -y -ss "$START" -i "$URL" -t "$FETCH" -c copy source.mp4
+
+          MDUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$MUSIC_FILE" 2>/dev/null | cut -d. -f1)
+          MMAX=$((MDUR - 5))
+          [ "$MMAX" -le 5 ] && MMAX=5
+          MSTART=$((RANDOM % MMAX))
+          timeout 60 ffmpeg -hide_banner -loglevel error -y -stream_loop -1 -i "$MUSIC_FILE" -ss "$MSTART" -t "$FETCH" -ac 2 -ar 44100 music_clip.mp3
+
+          python3 << 'PYEOF'
+          import os, math, random
+
+          content = os.environ.get("CONTENT", "God is with you.")
+          dur = float(os.environ.get("DUR", "15"))
+          fadeout = float(os.environ.get("FADEOUT", "13.5"))
+
+          font = "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
+          font_fallback = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
+          if not os.path.exists(font):
+              font = font_fallback
+
+          colors = [
+              "white", "gold", "lightyellow", "lightcyan",
+              "lightpink", "peachpuff", "lavender", "palegreen",
+              "lightskyblue", "wheat"
+          ]
+          text_color = random.choice(colors)
+
+          titles = [
+              "This changed me.",
+              "Read this slow.",
+              "Don't scroll past this.",
+              "Someone needed this.",
+              "This is for you.",
+              "Stop. Read. Breathe.",
+              "Let this sink in.",
+              "You're not alone.",
+              "God sees you.",
+              "This is your sign.",
+          ]
+          title_text = random.choice(titles)
+          title_escaped = title_text.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
+
+          title_filter = (
+              f"drawtext=text='{title_escaped}'"
+              f":fontfile={font}"
+              f":fontcolor={text_color}@0.95"
+              f":fontsize=52"
+              f":x=(w-text_w)/2"
+              f":y=160"
+              f":alpha='if(lt(t,0.4),0,min(1,(t-0.4)/0.6))'"
+              f":shadowcolor=black@0.85"
+              f":shadowx=3:shadowy=3"
+          )
+
+          cta = "Share this with someone who needs it"
+          cta_escaped = cta.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
+          cta_filter = (
+              f"drawtext=text='{cta_escaped}'"
+              f":fontfile={font}"
+              f":fontcolor={text_color}@0.85"
+              f":fontsize=44"
+              f":x=(w-text_w)/2"
+              f":y=230"
+              f":alpha='if(lt(t,1.0),0,min(1,(t-1.0)/0.8))'"
+              f":shadowcolor=black@0.8"
+              f":shadowx=2:shadowy=2"
+          )
+
+          # Split content into words for typing effect
+          words = content.split()
+          words_per_line = 5
+          lines = []
+          for i in range(0, len(words), words_per_line):
+              lines.append(words[i:i+words_per_line])
+
+          text_start = 1.8
+          text_end = dur * 0.82
+          total_text_time = text_end - text_start
+          total_words = len(words)
+          interval = total_text_time / max(total_words - 1, 1)
+
+          line_height = 90
+          total_lines = len(lines)
+          center_y = 980
+          block_top = center_y - (total_lines * line_height) // 2
+
+          filters = [title_filter, cta_filter]
+          word_idx = 0
+
+          for line_num, line_words in enumerate(lines):
+              y_pos = block_top + line_num * line_height
+
+              for w_in_line, word in enumerate(line_words):
+                  t_show = text_start + word_idx * interval
+                  visible_text = " ".join(line_words[:w_in_line + 1])
+                  visible_escaped = visible_text.replace("'", "\u2019").replace(":", "\\:").replace(",", "\\,")
+
+                  if w_in_line < len(line_words) - 1:
+                      t_next = text_start + (word_idx + 1) * interval
+                      alpha_expr = f"if(lt(t,{t_show:.2f}),0,if(lt(t,{t_next:.2f}),min(1,(t-{t_show:.2f})/0.2),0))"
+                  else:
+                      alpha_expr = f"if(lt(t,{t_show:.2f}),0,min(1,(t-{t_show:.2f})/0.2))"
+
+                  ft = (
+                      f"drawtext=text='{visible_escaped}'"
+                      f":fontfile={font}"
+                      f":fontcolor={text_color}"
+                      f":fontsize=68"
+                      f":x=(w-text_w)/2"
+                      f":y={y_pos}"
+                      f":alpha='{alpha_expr}'"
+                      f":shadowcolor=black@0.8"
+                      f":shadowx=3:shadowy=3"
+                  )
+                  filters.append(ft)
+                  word_idx += 1
+
+          all_dt = ",".join(filters)
+
+          vfilter = (
+              f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
+              f"crop=1080:1920,"
+              f"setsar=1,"
+              f"gblur=sigma=25,"
+              f"fade=t=in:st=0:d=1,"
+              f"fade=t=out:st={fadeout:.2f}:d=1.5,"
+              f"{all_dt}[vout]"
+          )
+
+          with open("/tmp/vfilter.txt", "w") as f:
+              f.write(vfilter)
+
+          print(f"Built filter for {len(words)} words | color: {text_color} | title: {title_text}")
+          PYEOF
+
+          VFILTER=$(cat /tmp/vfilter.txt)
+
+          timeout 240 ffmpeg -hide_banner -loglevel error -y \
+            -i source.mp4 \
+            -i music_clip.mp3 \
+            -filter_complex "${VFILTER};[1:a]volume=1.0,afade=t=in:st=0:d=1,afade=t=out:st=${FADEOUT}:d=1.5[aout]" \
+            -map "[vout]" \
+            -map "[aout]" \
+            -t "$DUR" \
+            -c:v libx264 -preset medium -crf 16 \
+            -c:a aac -b:a 192k \
+            -movflags +faststart \
+            -pix_fmt yuv420p \
+            final.mp4
+
+          ls -lh final.mp4
+        env:
+          CONTENT: ${{ steps.content.outputs.content }}
+          DUR: "15"
+          FADEOUT: "13.5"
+
+      - name: post-to-facebook
+        timeout-minutes: 3
+        env:
+          PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          CAPTION: ${{ steps.caption.outputs.caption }}
+        run: |
+          set -e
+          FILE="final.mp4"
+          SIZE=$(stat -c%s "$FILE")
+          API="https://graph.facebook.com/v19.0"
+
+          for attempt in 1 2 3; do
+            echo "Facebook post attempt $attempt..."
+            INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
+            VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
+
+            if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
+              INIT=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"start\",\"file_size\":${SIZE},\"access_token\":\"${PAGE_TOKEN}\"}") || true
+              SESSION=$(echo "$INIT" | jq -r '.upload_session_id' 2>/dev/null)
+              VID_ID=$(echo "$INIT" | jq -r '.video_id' 2>/dev/null)
+              S_OFF=$(echo "$INIT" | jq -r '.start_offset' 2>/dev/null)
+
+              if [ "$SESSION" = "null" ] || [ -z "$SESSION" ]; then
+                echo "Session failed attempt $attempt: $INIT"
+                sleep 10
+                continue
+              fi
+
+              timeout 90 curl -sf -X POST "${API}/${PAGE_ID}/videos" -F "upload_phase=transfer" -F "upload_session_id=${SESSION}" -F "start_offset=${S_OFF}" -F "video_file_chunk=@${FILE};type=video/mp4" -F "access_token=${PAGE_TOKEN}" > /dev/null || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/videos" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"upload_session_id\":\"${SESSION}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            else
+              UPLOAD_URL=$(echo "$INIT" | jq -r '.upload_url' 2>/dev/null)
+              timeout 90 curl -sf -X POST "$UPLOAD_URL" -H "Authorization: OAuth ${PAGE_TOKEN}" -H "offset: 0" -H "file_size: ${SIZE}" --data-binary "@${FILE}" > /dev/null || true
+              FINISH=$(timeout 20 curl -sf -X POST "${API}/${PAGE_ID}/video_reels" -H "Content-Type: application/json" -d "{\"upload_phase\":\"finish\",\"video_id\":\"${VID_ID}\",\"description\":\"${CAPTION}\",\"published\":true,\"access_token\":\"${PAGE_TOKEN}\"}") || true
+            fi
+
+            OK=$(echo "$FINISH" | jq -r '.success // .id // empty' 2>/dev/null)
+            if [ -n "$OK" ]; then
+              echo "Posted! Video ID: $VID_ID"
+              exit 0
+            fi
+
+            echo "Post failed attempt $attempt: $FINISH"
+            sleep 10
+          done
+
+          echo "All post attempts failed"
+          exit 1

@@ -522,7 +522,11 @@ function showScene(){
   _si=pickIdx();const style=STYLES[_si];
   document.body.className=style.bodyClass;window._lastCategory=style.category;
   _ss=_t;style.onScene(W,H);applyTheme(style);
-  const C=nextC(style.category);const qw=document.getElementById('quote-wrap');qw.innerHTML='';const els=[];
+  const C=nextC(style.category);
+  // expose text for Python TTS
+  window._lastHeadline=C.lines.join(' ');
+  window._lastSubtitle=C.sub||'';
+  window._lastRef=C.ref||'';const qw=document.getElementById('quote-wrap');qw.innerHTML='';const els=[];
   C.lines.forEach(l=>{
     const d=document.createElement('div');
     // pinkcloud gets script font for the big line

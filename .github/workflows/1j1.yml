@@ -17,7 +17,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
-          key: apt-ubuntu22-faith-v6
+          key: apt-ubuntu22-faith-v7
 
       - name: Install dependencies
         run: |
@@ -31,13 +31,13 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.wdm
-          key: pip-wdm-faith-v6
+          key: pip-wdm-faith-v7
 
-      - name: Cache Piper binary and voice model
+      - name: Cache Piper binary and voice
         uses: actions/cache@v4
         with:
           path: ~/.cache/piper
-          key: piper-binary-jenny-dioco-v2
+          key: piper-binary-jenny-dioco-v3
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -45,37 +45,45 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python deps
-        run: pip install selenium webdriver-manager requests
+        run: pip install selenium webdriver-manager requests edge-tts
 
-      - name: Download Piper binary and voice model
+      - name: Download Piper binary and voice (backup)
         run: |
           mkdir -p ~/.cache/piper
-
-          # Piper binary
           PIPER_BIN=~/.cache/piper/piper
+
           if [ ! -f "$PIPER_BIN" ]; then
             echo "Downloading Piper binary..."
             curl -L -o /tmp/piper.tar.gz \
-              "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz" \
-              && tar -xzf /tmp/piper.tar.gz -C ~/.cache/piper --strip-components=1 \
-              && chmod +x "$PIPER_BIN" \
-              && echo "Piper binary ready." \
-              || echo "Piper binary download failed."
+              "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz" || {
+              echo "Piper download failed — will rely on Edge TTS"
+              exit 0
+            }
+            mkdir -p /tmp/piper_extract
+            tar -xzf /tmp/piper.tar.gz -C /tmp/piper_extract
+            # find the binary wherever it landed
+            FOUND=$(find /tmp/piper_extract -name "piper" -type f | head -1)
+            if [ -n "$FOUND" ]; then
+              cp "$FOUND" "$PIPER_BIN"
+              chmod +x "$PIPER_BIN"
+              # copy any .so libs alongside
+              find /tmp/piper_extract -name "*.so*" -exec cp {} ~/.cache/piper/ \;
+              echo "Piper binary installed at $PIPER_BIN"
+            else
+              echo "Piper binary not found in tarball — will rely on Edge TTS"
+            fi
           else
             echo "Piper binary already cached."
           fi
 
-          # Voice model — jenny_dioco medium
           VOICE_FILE=~/.cache/piper/en_US-jenny_dioco-medium.onnx
           CONFIG_FILE=~/.cache/piper/en_US-jenny_dioco-medium.onnx.json
           if [ ! -f "$VOICE_FILE" ]; then
             echo "Downloading jenny_dioco voice..."
             curl -L -o "$VOICE_FILE" \
-              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx" \
-              || echo "Voice download failed."
+              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx" || true
             curl -L -o "$CONFIG_FILE" \
-              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx.json" \
-              || echo "Config download failed."
+              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx.json" || true
           else
             echo "Voice model already cached."
           fi
@@ -93,17 +101,18 @@ jobs:
       - name: Record and Post to Facebook
         run: |
           python3 << 'PYEOF'
-          import os, time, subprocess, random, requests, base64, glob, re, tempfile
+          import os, time, subprocess, random, requests, base64, glob, re, tempfile, asyncio
           from pathlib import Path
           from selenium import webdriver
           from selenium.webdriver.chrome.options import Options
           from selenium.webdriver.chrome.service import Service
           from webdriver_manager.chrome import ChromeDriverManager
 
-          MUSIC_FOLDERS  = ["bgmusic3", "Bgmusic3"]
+          MUSIC_FOLDERS    = ["bgmusic3", "Bgmusic3"]
           MUSIC_EXTENSIONS = ["mp3", "wav", "m4a", "mp4", "aac", "ogg", "flac"]
-          PIPER_BIN   = str(Path.home() / ".cache/piper/piper")
-          PIPER_VOICE = str(Path.home() / ".cache/piper/en_US-jenny_dioco-medium.onnx")
+          PIPER_BIN        = str(Path.home() / ".cache/piper/piper")
+          PIPER_VOICE      = str(Path.home() / ".cache/piper/en_US-jenny_dioco-medium.onnx")
+          EDGE_VOICE       = "en-US-JennyNeural"
 
           CTA_POOL = [
             "Follow for more",
@@ -137,27 +146,51 @@ jobs:
             text = re.sub(r'\s+', ' ', text).strip()
             return text
 
-          def make_silence(duration_s, out_path, sample_rate=22050):
+          def make_silence(duration_s, out_path, sample_rate=24000):
             subprocess.run([
               "ffmpeg", "-y", "-f", "lavfi",
               "-i", f"anullsrc=r={sample_rate}:cl=mono",
               "-t", str(duration_s), "-acodec", "pcm_s16le", out_path
             ], capture_output=True)
 
+          async def edge_speak_async(text, out_mp3):
+            try:
+              import edge_tts
+              communicate = edge_tts.Communicate(text, EDGE_VOICE, rate="-5%", pitch="+0Hz")
+              await communicate.save(out_mp3)
+              return Path(out_mp3).exists() and Path(out_mp3).stat().st_size > 100
+            except Exception as e:
+              print(f"  Edge TTS error: {e}")
+              return False
+
+          def edge_speak(text, out_wav):
+            out_mp3 = out_wav.replace(".wav", "_edge.mp3")
+            ok = asyncio.run(edge_speak_async(text, out_mp3))
+            if not ok:
+              return False
+            # convert mp3 to wav for concat consistency
+            r = subprocess.run([
+              "ffmpeg", "-y", "-i", out_mp3,
+              "-acodec", "pcm_s16le", "-ar", "24000", "-ac", "1", out_wav
+            ], capture_output=True)
+            try: os.remove(out_mp3)
+            except: pass
+            return r.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
+
           def piper_speak(text, out_wav):
             if not Path(PIPER_BIN).exists() or not Path(PIPER_VOICE).exists():
               return False
             try:
+              env = os.environ.copy()
+              env["LD_LIBRARY_PATH"] = str(Path.home() / ".cache/piper") + ":" + env.get("LD_LIBRARY_PATH", "")
               result = subprocess.run(
                 [PIPER_BIN, "--model", PIPER_VOICE, "--output_file", out_wav],
                 input=text.encode("utf-8"),
                 capture_output=True,
-                timeout=40
+                timeout=40,
+                env=env
               )
-              ok = result.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
-              if not ok:
-                print(f"  Piper stderr: {result.stderr.decode()[-300:]}")
-              return ok
+              return result.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
             except Exception as e:
               print(f"  Piper exception: {e}")
               return False
@@ -166,11 +199,22 @@ jobs:
             text = clean_for_tts(text)
             if not text:
               return False
-            print(f"  TTS: '{text[:80]}...'" if len(text) > 80 else f"  TTS: '{text}'")
+            short = text[:75] + "..." if len(text) > 75 else text
+            print(f"  Speaking: '{short}'")
+
+            # 1. Edge TTS (main)
+            if edge_speak(text, out_wav):
+              print("  -> Edge TTS OK")
+              return True
+
+            # 2. Piper (backup)
+            print("  -> Edge failed, trying Piper...")
             if piper_speak(text, out_wav):
               print("  -> Piper OK")
               return True
-            print("  -> Piper failed — skipping this segment (no espeak fallback)")
+
+            # 3. No voice
+            print("  -> Both failed, skipping segment")
             return False
 
           def concat_wavs(wav_list, out_path):
@@ -197,24 +241,21 @@ jobs:
 
             h_wav = os.path.join(tmp_dir, "h.wav")
             if synthesise(headline, h_wav):
-              segments.append(h_wav)
-              any_ok = True
+              segments.append(h_wav); any_ok = True
               sil = os.path.join(tmp_dir, "s1.wav")
               make_silence(0.65, sil); segments.append(sil)
 
             if subtitle:
               s_wav = os.path.join(tmp_dir, "s.wav")
               if synthesise(subtitle, s_wav):
-                segments.append(s_wav)
-                any_ok = True
+                segments.append(s_wav); any_ok = True
                 sil = os.path.join(tmp_dir, "s2.wav")
                 make_silence(0.8, sil); segments.append(sil)
 
             if ref:
               r_wav = os.path.join(tmp_dir, "r.wav")
               if synthesise(ref, r_wav):
-                segments.append(r_wav)
-                any_ok = True
+                segments.append(r_wav); any_ok = True
                 sil = os.path.join(tmp_dir, "s3.wav")
                 make_silence(1.2, sil); segments.append(sil)
 
@@ -222,8 +263,7 @@ jobs:
               cta = random.choice(CTA_POOL)
               c_wav = os.path.join(tmp_dir, "c.wav")
               if synthesise(cta, c_wav):
-                segments.append(c_wav)
-                any_ok = True
+                segments.append(c_wav); any_ok = True
                 print(f"  CTA: '{cta}'")
             else:
               print("  No CTA this post.")
@@ -336,7 +376,7 @@ jobs:
             "-movflags", "+faststart", mp4_file
           ], capture_output=True, text=True)
           if not os.path.exists(mp4_file) or os.path.getsize(mp4_file) < 10000:
-            raise RuntimeError(f"MP4 conversion failed: {r.stderr[-1000:]}")
+            raise RuntimeError(f"MP4 failed: {r.stderr[-500:]}")
           os.remove(webm_file)
           print(f"MP4: {os.path.getsize(mp4_file)/1024/1024:.1f} MB")
 
@@ -356,9 +396,9 @@ jobs:
                   tts_wav = tts_mp3
                   print(f"TTS ready: {Path(tts_mp3).stat().st_size//1024} KB")
                 else:
-                  print("TTS mp3 conversion failed — posting without voice")
+                  print("TTS conversion failed — no voice this post")
               else:
-                print("Piper produced no audio — posting without voice")
+                print("No TTS audio produced — posting without voice")
             else:
               print("No headline captured — skipping TTS")
 
@@ -373,10 +413,6 @@ jobs:
                 return random.choice(candidates)
             return None
 
-          music_file = pick_music(MUSIC_FOLDERS)
-          mixed_file = f"/tmp/faith_{ts}_final.mp4"
-          mix_ok = False
-
           def music_start(path):
             probe = subprocess.run(
               ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", path],
@@ -384,6 +420,10 @@ jobs:
             try: d = float(probe.stdout.strip())
             except: d = 0
             return random.uniform(0, max(0, d-12)) if d > 15 else 0
+
+          music_file = pick_music(MUSIC_FOLDERS)
+          mixed_file = f"/tmp/faith_{ts}_final.mp4"
+          mix_ok = False
 
           if tts_wav and music_file:
             print("Mixing voice + music...")
@@ -395,35 +435,37 @@ jobs:
               "-i", tts_wav,
               "-filter_complex",
               "[1:a]volume=0.18,afade=t=in:st=0:d=1.5,afade=t=out:st=9:d=1.5[music];"
-              "[2:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
-              "[0:a]volume=0.08[orig];"
+              "[2:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3,"
+              "aecho=0.8:0.6:40:0.25[voice];"
+              "[0:a]volume=0.06[orig];"
               "[orig][music][voice]amix=inputs=3:duration=longest:dropout_transition=2[aout]",
               "-map", "0:v", "-map", "[aout]",
               "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
             mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
-            print("Voice + music mix done." if mix_ok else f"Mix failed: {mix.stderr[-500:]}")
+            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
 
           elif tts_wav:
-            print("Mixing voice only...")
+            print("Voice only...")
             mix = subprocess.run([
               "ffmpeg", "-y",
               "-i", mp4_file,
               "-i", tts_wav,
               "-filter_complex",
-              "[1:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
-              "[0:a]volume=0.08[orig];"
+              "[1:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3,"
+              "aecho=0.8:0.6:40:0.25[voice];"
+              "[0:a]volume=0.06[orig];"
               "[orig][voice]amix=inputs=2:duration=longest:dropout_transition=2[aout]",
               "-map", "0:v", "-map", "[aout]",
               "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
             mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
-            print("Voice-only mix done." if mix_ok else f"Mix failed: {mix.stderr[-500:]}")
+            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
 
           elif music_file:
-            print("No voice — mixing music only...")
+            print("Music only...")
             ms = music_start(music_file)
             mix = subprocess.run([
               "ffmpeg", "-y",
@@ -437,7 +479,7 @@ jobs:
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
             mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
-            print("Music-only mix done." if mix_ok else f"Mix failed: {mix.stderr[-500:]}")
+            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
           else:
             print("No voice, no music — posting as-is.")
 
@@ -488,7 +530,7 @@ jobs:
               data={"description": description, "access_token": fb_token},
               files={"source": (os.path.basename(final_mp4), f, "video/mp4")}
             )
-          print(f"Response: {response.status_code} — {response.text}")
+          print(f"Response: {response.status_code}")
           if response.status_code == 200:
             print(f"Posted! ID: {response.json().get('id')}")
           else:

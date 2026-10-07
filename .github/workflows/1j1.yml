@@ -3,7 +3,7 @@ name: ✝️ Post Christian Faith Reel to Facebook
 on:
   workflow_dispatch:
   schedule:
-  #  - cron: "0 16 * * *"
+    - cron: "0 16 * * *"
 
 jobs:
   post:
@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/piper
-          key: piper-voice-lessac-medium-v1
+          key: piper-voice-jenny-dioco-v1
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -54,16 +54,16 @@ jobs:
       - name: Download Piper voice model
         run: |
           mkdir -p ~/.cache/piper
-          VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
-          CONFIG_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
-          VOICE_FILE=~/.cache/piper/en_US-lessac-medium.onnx
-          CONFIG_FILE=~/.cache/piper/en_US-lessac-medium.onnx.json
+          VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx"
+          CONFIG_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx.json"
+          VOICE_FILE=~/.cache/piper/en_US-jenny_dioco-medium.onnx
+          CONFIG_FILE=~/.cache/piper/en_US-jenny_dioco-medium.onnx.json
           if [ ! -f "$VOICE_FILE" ]; then
-            echo "Downloading Piper voice model..."
+            echo "Downloading Piper jenny_dioco voice..."
             curl -L -o "$VOICE_FILE" "$VOICE_URL" || echo "Voice download failed"
             curl -L -o "$CONFIG_FILE" "$CONFIG_URL" || echo "Config download failed"
           else
-            echo "Piper voice model already cached."
+            echo "Piper voice already cached."
           fi
 
       - name: Set timestamp
@@ -79,7 +79,7 @@ jobs:
       - name: Record and Post to Facebook
         run: |
           python3 << 'PYEOF'
-          import os, time, subprocess, random, requests, base64, glob, re, json, tempfile
+          import os, time, subprocess, random, requests, base64, glob, re, tempfile
           from pathlib import Path
           from selenium import webdriver
           from selenium.webdriver.chrome.options import Options
@@ -88,7 +88,7 @@ jobs:
 
           MUSIC_FOLDERS = ["bgmusic3", "Bgmusic3"]
           MUSIC_EXTENSIONS = ["mp3", "wav", "m4a", "mp4", "aac", "ogg", "flac"]
-          PIPER_VOICE = str(Path.home() / ".cache/piper/en_US-lessac-medium.onnx")
+          PIPER_VOICE = str(Path.home() / ".cache/piper/en_US-jenny_dioco-medium.onnx")
 
           CTA_POOL = [
             "Follow for more",
@@ -121,8 +121,8 @@ jobs:
             )
             text = re.sub(r'\b(\d+):(\d+)\b', r'chapter \1 verse \2', text)
             text = re.sub(r'(\d),(\d)', r'\1\2', text)
-            text = text.replace('—', ', ')
-            text = text.replace('–', ', ')
+            text = text.replace('\u2014', ', ')
+            text = text.replace('\u2013', ', ')
             text = text.replace('*', '').replace('#', '').replace('_', '')
             text = re.sub(r'\s+', ' ', text).strip()
             return text
@@ -168,13 +168,13 @@ jobs:
               return False
             print(f"  TTS: '{text[:80]}...'" if len(text) > 80 else f"  TTS: '{text}'")
             if piper_speak(text, out_wav):
-              print("  → Piper OK")
+              print("  -> Piper OK")
               return True
-            print("  → Piper failed, trying espeak...")
+            print("  -> Piper failed, trying espeak...")
             if espeak_speak(text, out_wav):
-              print("  → espeak OK")
+              print("  -> espeak OK")
               return True
-            print("  → Both TTS engines failed for this segment")
+            print("  -> Both TTS engines failed for this segment")
             return False
 
           def concat_wavs(wav_list, out_path):
@@ -199,6 +199,7 @@ jobs:
             segments = []
             any_success = False
 
+            # 1. Headline
             h_wav = os.path.join(tmp_dir, "seg_headline.wav")
             if synthesise(headline_text, h_wav):
               segments.append(h_wav)
@@ -207,6 +208,7 @@ jobs:
               make_silence(0.6, sil1)
               segments.append(sil1)
 
+            # 2. Subtitle
             if subtitle_text:
               s_wav = os.path.join(tmp_dir, "seg_sub.wav")
               if synthesise(subtitle_text, s_wav):
@@ -216,6 +218,7 @@ jobs:
                 make_silence(0.8, sil2)
                 segments.append(sil2)
 
+            # 3. Bible reference
             if ref_text:
               r_wav = os.path.join(tmp_dir, "seg_ref.wav")
               if synthesise(ref_text, r_wav):
@@ -225,6 +228,7 @@ jobs:
                 make_silence(1.2, sil3)
                 segments.append(sil3)
 
+            # 4. CTA — 40% chance
             if random.random() < 0.40:
               cta_text = random.choice(CTA_POOL)
               c_wav = os.path.join(tmp_dir, "seg_cta.wav")
@@ -370,7 +374,7 @@ jobs:
                   tts_wav = tts_mp3
                   print(f"TTS audio ready: {Path(tts_mp3).stat().st_size//1024} KB")
                 else:
-                  print("TTS wav->mp3 conversion failed, posting without TTS")
+                  print("TTS conversion failed, posting without TTS")
             else:
               print("No headline text captured, skipping TTS")
 

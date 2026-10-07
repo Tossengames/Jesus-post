@@ -3,7 +3,7 @@ name: ✝️ Post Christian Faith Reel to Facebook
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 16 * * *"
+  #  - cron: "0 16 * * *"
 
 jobs:
   post:

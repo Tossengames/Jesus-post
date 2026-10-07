@@ -1,0 +1,535 @@
+name: ✝️ Post Christian Faith Reel to Facebook
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 16 * * *"
+
+jobs:
+  post:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache apt
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-ubuntu22-faith-v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            xvfb chromium-browser libnss3 libgbm1 libasound2 ffmpeg pulseaudio espeak-ng
+
+      - name: Cache pip and ChromeDriver
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.wdm
+          key: pip-wdm-faith-v5
+
+      - name: Cache Piper voice model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/piper
+          key: piper-voice-lessac-medium-v1
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install selenium webdriver-manager requests
+
+      - name: Install Piper TTS
+        run: |
+          pip install piper-tts || echo "piper-tts install failed, will use espeak fallback"
+
+      - name: Download Piper voice model
+        run: |
+          mkdir -p ~/.cache/piper
+          VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
+          CONFIG_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+          VOICE_FILE=~/.cache/piper/en_US-lessac-medium.onnx
+          CONFIG_FILE=~/.cache/piper/en_US-lessac-medium.onnx.json
+          if [ ! -f "$VOICE_FILE" ]; then
+            echo "Downloading Piper voice model..."
+            curl -L -o "$VOICE_FILE" "$VOICE_URL" || echo "Voice download failed"
+            curl -L -o "$CONFIG_FILE" "$CONFIG_URL" || echo "Config download failed"
+          else
+            echo "Piper voice model already cached."
+          fi
+
+      - name: Set timestamp
+        run: echo "TS=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
+
+      - name: Start virtual display and audio
+        run: |
+          Xvfb :99 -screen 0 540x960x24 -ac &
+          pulseaudio --start --exit-idle-time=-1 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          sleep 3
+
+      - name: Record and Post to Facebook
+        run: |
+          python3 << 'PYEOF'
+          import os, time, subprocess, random, requests, base64, glob, re, json, tempfile
+          from pathlib import Path
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.chrome.service import Service
+          from webdriver_manager.chrome import ChromeDriverManager
+
+          MUSIC_FOLDERS = ["bgmusic3", "Bgmusic3"]
+          MUSIC_EXTENSIONS = ["mp3", "wav", "m4a", "mp4", "aac", "ogg", "flac"]
+          PIPER_VOICE = str(Path.home() / ".cache/piper/en_US-lessac-medium.onnx")
+
+          CTA_POOL = [
+            "Follow for more",
+            "Share this",
+            "Like if you agree",
+            "Tag someone",
+            "Save this",
+            "Amen",
+            "Share the love",
+            "Follow along",
+            "Like and share",
+            "Pass it on",
+          ]
+
+          ORDINAL_BOOKS = {
+            "1 ": "First ",
+            "2 ": "Second ",
+            "3 ": "Third ",
+          }
+
+          def clean_for_tts(text):
+            if not text:
+              return text
+            for prefix, replacement in ORDINAL_BOOKS.items():
+              text = re.sub(r'\b' + re.escape(prefix), replacement, text)
+            text = re.sub(
+              r'(\b[A-Za-z]+\s+)(\d+):(\d+)',
+              lambda m: f"{m.group(1)}chapter {m.group(2)} verse {m.group(3)}",
+              text
+            )
+            text = re.sub(r'\b(\d+):(\d+)\b', r'chapter \1 verse \2', text)
+            text = re.sub(r'(\d),(\d)', r'\1\2', text)
+            text = text.replace('—', ', ')
+            text = text.replace('–', ', ')
+            text = text.replace('*', '').replace('#', '').replace('_', '')
+            text = re.sub(r'\s+', ' ', text).strip()
+            return text
+
+          def make_silence(duration_s, out_path, sample_rate=22050):
+            subprocess.run([
+              "ffmpeg", "-y",
+              "-f", "lavfi", "-i", f"anullsrc=r={sample_rate}:cl=mono",
+              "-t", str(duration_s),
+              "-acodec", "pcm_s16le",
+              out_path
+            ], capture_output=True)
+
+          def piper_speak(text, out_wav):
+            if not Path(PIPER_VOICE).exists():
+              return False
+            try:
+              result = subprocess.run(
+                ["python3", "-m", "piper", "--model", PIPER_VOICE, "--output_file", out_wav],
+                input=text.encode("utf-8"),
+                capture_output=True,
+                timeout=30
+              )
+              return result.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
+            except Exception as e:
+              print(f"Piper error: {e}")
+              return False
+
+          def espeak_speak(text, out_wav):
+            try:
+              result = subprocess.run(
+                ["espeak-ng", "-v", "en-us", "-s", "145", "-p", "52", "-w", out_wav, text],
+                capture_output=True, timeout=20
+              )
+              return result.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
+            except Exception as e:
+              print(f"espeak error: {e}")
+              return False
+
+          def synthesise(text, out_wav):
+            text = clean_for_tts(text)
+            if not text:
+              return False
+            print(f"  TTS: '{text[:80]}...'" if len(text) > 80 else f"  TTS: '{text}'")
+            if piper_speak(text, out_wav):
+              print("  → Piper OK")
+              return True
+            print("  → Piper failed, trying espeak...")
+            if espeak_speak(text, out_wav):
+              print("  → espeak OK")
+              return True
+            print("  → Both TTS engines failed for this segment")
+            return False
+
+          def concat_wavs(wav_list, out_path):
+            if not wav_list:
+              return False
+            if len(wav_list) == 1:
+              subprocess.run(["cp", wav_list[0], out_path])
+              return True
+            list_file = out_path + ".list.txt"
+            with open(list_file, "w") as f:
+              for w in wav_list:
+                f.write(f"file '{w}'\n")
+            result = subprocess.run([
+              "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file,
+              "-acodec", "pcm_s16le", out_path
+            ], capture_output=True)
+            try: os.remove(list_file)
+            except: pass
+            return result.returncode == 0 and Path(out_path).exists()
+
+          def build_tts_audio(headline_text, subtitle_text, ref_text, tmp_dir):
+            segments = []
+            any_success = False
+
+            h_wav = os.path.join(tmp_dir, "seg_headline.wav")
+            if synthesise(headline_text, h_wav):
+              segments.append(h_wav)
+              any_success = True
+              sil1 = os.path.join(tmp_dir, "sil_600.wav")
+              make_silence(0.6, sil1)
+              segments.append(sil1)
+
+            if subtitle_text:
+              s_wav = os.path.join(tmp_dir, "seg_sub.wav")
+              if synthesise(subtitle_text, s_wav):
+                segments.append(s_wav)
+                any_success = True
+                sil2 = os.path.join(tmp_dir, "sil_800.wav")
+                make_silence(0.8, sil2)
+                segments.append(sil2)
+
+            if ref_text:
+              r_wav = os.path.join(tmp_dir, "seg_ref.wav")
+              if synthesise(ref_text, r_wav):
+                segments.append(r_wav)
+                any_success = True
+                sil3 = os.path.join(tmp_dir, "sil_1200.wav")
+                make_silence(1.2, sil3)
+                segments.append(sil3)
+
+            if random.random() < 0.40:
+              cta_text = random.choice(CTA_POOL)
+              c_wav = os.path.join(tmp_dir, "seg_cta.wav")
+              if synthesise(cta_text, c_wav):
+                segments.append(c_wav)
+                any_success = True
+                print(f"  CTA added: '{cta_text}'")
+            else:
+              print("  No CTA this post.")
+
+            if not any_success or not segments:
+              return None
+
+            out_wav = os.path.join(tmp_dir, "tts_final.wav")
+            if concat_wavs(segments, out_wav):
+              return out_wav
+            return None
+
+          ts         = os.environ.get("TS", "test")
+          webm_file  = f"/tmp/faith_{ts}.webm"
+          mp4_file   = f"/tmp/faith_{ts}.mp4"
+          html_path  = os.path.abspath("faith_facts.html")
+          fb_token   = os.environ.get("FB_PAGE_TOKEN")
+          fb_page_id = os.environ.get("FB_PAGE_ID")
+
+          if not fb_token or not fb_page_id:
+            raise RuntimeError("FB_PAGE_TOKEN or FB_PAGE_ID secret is missing")
+
+          opts = Options()
+          opts.add_argument("--no-sandbox")
+          opts.add_argument("--disable-dev-shm-usage")
+          opts.add_argument("--disable-gpu")
+          opts.add_argument("--window-size=540,960")
+          opts.add_argument("--window-position=0,0")
+          opts.add_argument("--force-device-scale-factor=1")
+          opts.add_argument("--autoplay-policy=no-user-gesture-required")
+          opts.add_argument("--disable-background-timer-throttling")
+          opts.add_argument("--disable-renderer-backgrounding")
+          opts.add_argument("--disable-backgrounding-occluded-windows")
+          opts.add_argument("--no-first-run")
+          opts.add_argument("--disable-infobars")
+          opts.add_argument("--disable-notifications")
+          opts.add_argument("--use-fake-ui-for-media-stream")
+          opts.add_argument("--use-fake-device-for-media-stream")
+          opts.add_argument("--allow-file-access-from-files")
+          opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+          opts.add_experimental_option("useAutomationExtension", False)
+          opts.add_experimental_option("mobileEmulation", {
+            "deviceMetrics": {"width": 540, "height": 960, "pixelRatio": 1.0},
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+          })
+
+          print("Starting Chrome...")
+          driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+          driver.set_window_size(540, 960)
+          driver.set_script_timeout(120)
+
+          print(f"Loading file://{html_path}")
+          driver.get(f"file://{html_path}")
+          time.sleep(3)
+
+          driver.execute_script("""
+            document.body.click();
+            if(typeof AC !== 'undefined') AC.resume();
+            window.startRecordingFreshScene(30);
+          """)
+
+          print("Recording 10 seconds...")
+          time.sleep(10)
+
+          driver.execute_script("window.stopRecording();")
+          time.sleep(1)
+          driver.execute_script("window.forceFinalize();")
+          time.sleep(1)
+
+          for _ in range(30):
+            done = driver.execute_script("return window._recordingDone;")
+            if done:
+              print("Recording finalised.")
+              break
+            time.sleep(0.4)
+          else:
+            driver.quit()
+            raise RuntimeError("Recording failed to finalise")
+
+          b64 = driver.execute_async_script("""
+            var done = arguments[0];
+            window.getRecordingBase64().then(done).catch(function(e){ done(null); });
+          """)
+
+          scene_data = driver.execute_script("""
+            return {
+              category: window._lastCategory || 'faith',
+              headline: window._lastHeadline || '',
+              subtitle: window._lastSubtitle || '',
+              ref:      window._lastRef || ''
+            };
+          """)
+          category     = scene_data.get('category', 'faith')
+          tts_headline = scene_data.get('headline', '')
+          tts_subtitle = scene_data.get('subtitle', '')
+          tts_ref      = scene_data.get('ref', '')
+          print(f"Scene category: {category}")
+          print(f"Headline for TTS: {tts_headline}")
+          driver.quit()
+
+          if not b64:
+            raise RuntimeError("Failed to get base64 data")
+
+          with open(webm_file, 'wb') as f:
+            f.write(base64.b64decode(b64))
+          print(f"WebM: {os.path.getsize(webm_file)/1024/1024:.1f} MB")
+
+          print("Converting to MP4...")
+          result = subprocess.run([
+            "ffmpeg", "-y", "-i", webm_file,
+            "-c:v", "libx264", "-preset", "veryslow", "-crf", "10",
+            "-b:v", "20M", "-maxrate", "25M", "-bufsize", "40M",
+            "-pix_fmt", "yuv420p", "-vf", "scale=1080:1920:flags=lanczos",
+            "-c:a", "aac", "-b:a", "320k", "-ar", "48000",
+            "-movflags", "+faststart", mp4_file
+          ], capture_output=True, text=True)
+
+          if not os.path.exists(mp4_file) or os.path.getsize(mp4_file) < 10000:
+            print("ffmpeg stderr:", result.stderr[-2000:])
+            raise RuntimeError("mp4 conversion failed")
+
+          os.remove(webm_file)
+          print(f"MP4: {os.path.getsize(mp4_file)/1024/1024:.1f} MB")
+
+          tts_wav = None
+          with tempfile.TemporaryDirectory() as tmp_dir:
+            print("Building TTS audio...")
+            if tts_headline:
+              result_wav = build_tts_audio(tts_headline, tts_subtitle, tts_ref, tmp_dir)
+              if result_wav:
+                tts_mp3 = f"/tmp/faith_{ts}_tts.mp3"
+                conv = subprocess.run([
+                  "ffmpeg", "-y", "-i", result_wav,
+                  "-ar", "44100", "-ac", "1", "-b:a", "128k", tts_mp3
+                ], capture_output=True)
+                if conv.returncode == 0 and Path(tts_mp3).exists():
+                  tts_wav = tts_mp3
+                  print(f"TTS audio ready: {Path(tts_mp3).stat().st_size//1024} KB")
+                else:
+                  print("TTS wav->mp3 conversion failed, posting without TTS")
+            else:
+              print("No headline text captured, skipping TTS")
+
+          def pick_music_file(folders):
+            for folder in folders:
+              if not os.path.isdir(folder): continue
+              candidates = []
+              for ext in MUSIC_EXTENSIONS:
+                candidates.extend(glob.glob(os.path.join(folder, f"*.{ext}")))
+              if candidates:
+                print(f"Using music folder '{folder}'.")
+                return random.choice(candidates)
+            print("No music folder found.")
+            return None
+
+          music_file = pick_music_file(MUSIC_FOLDERS)
+
+          mixed_file = f"/tmp/faith_{ts}_final.mp4"
+          mix_ok = False
+
+          if tts_wav and music_file:
+            print("Mixing TTS voice + background music...")
+            probe = subprocess.run(
+              ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", music_file],
+              capture_output=True, text=True
+            )
+            try: mdur = float(probe.stdout.strip())
+            except: mdur = 0
+            mstart = random.uniform(0, max(0, mdur-12)) if mdur > 15 else 0
+            mix = subprocess.run([
+              "ffmpeg", "-y",
+              "-i", mp4_file,
+              "-ss", str(mstart), "-t", "12", "-i", music_file,
+              "-ss", "0", "-i", tts_wav,
+              "-filter_complex",
+              "[1:a]volume=0.18,afade=t=in:st=0:d=1.5,afade=t=out:st=9:d=1.5[music];"
+              "[2:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
+              "[0:a]volume=0.08[orig];"
+              "[orig][music][voice]amix=inputs=3:duration=longest:dropout_transition=2[aout]",
+              "-map", "0:v", "-map", "[aout]",
+              "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
+              "-movflags", "+faststart", mixed_file
+            ], capture_output=True, text=True)
+            if os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000:
+              mix_ok = True
+              print("TTS + music mix done.")
+            else:
+              print("TTS+music mix failed:", mix.stderr[-1000:])
+
+          elif tts_wav and not music_file:
+            print("Mixing TTS voice only...")
+            mix = subprocess.run([
+              "ffmpeg", "-y",
+              "-i", mp4_file,
+              "-ss", "0", "-i", tts_wav,
+              "-filter_complex",
+              "[1:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
+              "[0:a]volume=0.08[orig];"
+              "[orig][voice]amix=inputs=2:duration=longest:dropout_transition=2[aout]",
+              "-map", "0:v", "-map", "[aout]",
+              "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
+              "-movflags", "+faststart", mixed_file
+            ], capture_output=True, text=True)
+            if os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000:
+              mix_ok = True
+              print("TTS-only mix done.")
+            else:
+              print("TTS-only mix failed:", mix.stderr[-1000:])
+
+          elif music_file and not tts_wav:
+            print("No TTS — mixing background music only...")
+            probe = subprocess.run(
+              ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", music_file],
+              capture_output=True, text=True
+            )
+            try: mdur = float(probe.stdout.strip())
+            except: mdur = 0
+            mstart = random.uniform(0, max(0, mdur-12)) if mdur > 15 else 0
+            mix = subprocess.run([
+              "ffmpeg", "-y",
+              "-i", mp4_file,
+              "-ss", str(mstart), "-t", "10", "-i", music_file,
+              "-filter_complex",
+              "[1:a]volume=0.45,afade=t=in:st=0:d=1,afade=t=out:st=8.5:d=1.5[music];"
+              "[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+              "-map", "0:v", "-map", "[aout]",
+              "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
+              "-movflags", "+faststart", mixed_file
+            ], capture_output=True, text=True)
+            if os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000:
+              mix_ok = True
+              print("Music-only mix done.")
+            else:
+              print("Music-only mix failed:", mix.stderr[-1000:])
+          else:
+            print("No TTS and no music — posting as-is.")
+
+          final_mp4 = mixed_file if mix_ok else mp4_file
+          if tts_wav and os.path.exists(tts_wav):
+            try: os.remove(tts_wav)
+            except: pass
+
+          CAPTIONS = {
+            "jesus": [
+              "The greatest life ever lived. #Jesus #Christ #Faith #Christian",
+              "His words still change lives today. #Jesus #Gospel #Faith #Bible",
+              "Love incarnate. #Jesus #Christ #Christian #Faith",
+              "He came not to be served, but to serve. #Jesus #Christian #Faith",
+            ],
+            "bible": [
+              "God's word, alive and active. #Bible #Scripture #Christian #Faith",
+              "The world's most read book — for good reason. #Bible #Scripture #Faith",
+              "Every promise is yes and amen. #Bible #Faith #Christian",
+              "The greatest story ever told. #Bible #Faith #Christian #Scripture",
+            ],
+            "faith": [
+              "Walk by faith, not by sight. #Faith #Christian #God #Prayer",
+              "His grace is enough. #Faith #Grace #Christian #Jesus",
+              "Called, chosen, loved. #Faith #Christian #God #Hope",
+              "Faith that moves mountains. #Faith #Christian #God #Prayer",
+            ],
+            "history": [
+              "Two thousand years and still counting. #ChurchHistory #Christian #Faith",
+              "The cross changed everything. #Christian #Faith #History #Jesus",
+              "Saints who shaped the world. #ChurchHistory #Christian #Faith",
+              "The gospel has outlasted every empire. #Christian #Faith #History",
+            ],
+            "inspiration": [
+              "You are loved more than you know. #Hope #Faith #Christian #Jesus",
+              "There is always hope in Him. #Hope #Christian #Faith #Jesus",
+              "His mercies are new every morning. #Hope #Faith #Christian #God",
+              "You were made for a purpose. #Faith #Hope #Christian #God",
+            ],
+          }
+          description = random.choice(CAPTIONS.get(category, CAPTIONS["inspiration"]))
+
+          print("Posting to Facebook...")
+          with open(final_mp4, 'rb') as f:
+            response = requests.post(
+              f"https://graph-video.facebook.com/v18.0/{fb_page_id}/videos",
+              data={"description": description, "access_token": fb_token},
+              files={"source": (os.path.basename(final_mp4), f, "video/mp4")}
+            )
+
+          print(f"Facebook response: {response.status_code}")
+          print(response.text)
+          if response.status_code == 200:
+            print(f"Posted! Video ID: {response.json().get('id')}")
+          else:
+            raise RuntimeError(f"Post failed: {response.text}")
+
+          for f in [mp4_file, mixed_file]:
+            try:
+              if os.path.exists(f): os.remove(f)
+            except: pass
+          print("Done!")
+          PYEOF
+        env:
+          TS:            ${{ env.TS }}
+          DISPLAY:       ":99"
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID:    ${{ secrets.FB_PAGE_ID }}

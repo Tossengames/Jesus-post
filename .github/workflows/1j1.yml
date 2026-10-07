@@ -17,13 +17,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
-          key: apt-ubuntu22-faith-v5
+          key: apt-ubuntu22-faith-v6
 
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            xvfb chromium-browser libnss3 libgbm1 libasound2 ffmpeg pulseaudio espeak-ng
+            xvfb chromium-browser libnss3 libgbm1 libasound2 ffmpeg pulseaudio
 
       - name: Cache pip and ChromeDriver
         uses: actions/cache@v4
@@ -31,13 +31,13 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.wdm
-          key: pip-wdm-faith-v5
+          key: pip-wdm-faith-v6
 
-      - name: Cache Piper voice model
+      - name: Cache Piper binary and voice model
         uses: actions/cache@v4
         with:
           path: ~/.cache/piper
-          key: piper-voice-jenny-dioco-v1
+          key: piper-binary-jenny-dioco-v2
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -47,23 +47,37 @@ jobs:
       - name: Install Python deps
         run: pip install selenium webdriver-manager requests
 
-      - name: Install Piper TTS
-        run: |
-          pip install piper-tts || echo "piper-tts install failed, will use espeak fallback"
-
-      - name: Download Piper voice model
+      - name: Download Piper binary and voice model
         run: |
           mkdir -p ~/.cache/piper
-          VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx"
-          CONFIG_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx.json"
+
+          # Piper binary
+          PIPER_BIN=~/.cache/piper/piper
+          if [ ! -f "$PIPER_BIN" ]; then
+            echo "Downloading Piper binary..."
+            curl -L -o /tmp/piper.tar.gz \
+              "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz" \
+              && tar -xzf /tmp/piper.tar.gz -C ~/.cache/piper --strip-components=1 \
+              && chmod +x "$PIPER_BIN" \
+              && echo "Piper binary ready." \
+              || echo "Piper binary download failed."
+          else
+            echo "Piper binary already cached."
+          fi
+
+          # Voice model — jenny_dioco medium
           VOICE_FILE=~/.cache/piper/en_US-jenny_dioco-medium.onnx
           CONFIG_FILE=~/.cache/piper/en_US-jenny_dioco-medium.onnx.json
           if [ ! -f "$VOICE_FILE" ]; then
-            echo "Downloading Piper jenny_dioco voice..."
-            curl -L -o "$VOICE_FILE" "$VOICE_URL" || echo "Voice download failed"
-            curl -L -o "$CONFIG_FILE" "$CONFIG_URL" || echo "Config download failed"
+            echo "Downloading jenny_dioco voice..."
+            curl -L -o "$VOICE_FILE" \
+              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx" \
+              || echo "Voice download failed."
+            curl -L -o "$CONFIG_FILE" \
+              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx.json" \
+              || echo "Config download failed."
           else
-            echo "Piper voice already cached."
+            echo "Voice model already cached."
           fi
 
       - name: Set timestamp
@@ -86,8 +100,9 @@ jobs:
           from selenium.webdriver.chrome.service import Service
           from webdriver_manager.chrome import ChromeDriverManager
 
-          MUSIC_FOLDERS = ["bgmusic3", "Bgmusic3"]
+          MUSIC_FOLDERS  = ["bgmusic3", "Bgmusic3"]
           MUSIC_EXTENSIONS = ["mp3", "wav", "m4a", "mp4", "aac", "ogg", "flac"]
+          PIPER_BIN   = str(Path.home() / ".cache/piper/piper")
           PIPER_VOICE = str(Path.home() / ".cache/piper/en_US-jenny_dioco-medium.onnx")
 
           CTA_POOL = [
@@ -103,11 +118,7 @@ jobs:
             "Pass it on",
           ]
 
-          ORDINAL_BOOKS = {
-            "1 ": "First ",
-            "2 ": "Second ",
-            "3 ": "Third ",
-          }
+          ORDINAL_BOOKS = {"1 ": "First ", "2 ": "Second ", "3 ": "Third "}
 
           def clean_for_tts(text):
             if not text:
@@ -121,45 +132,34 @@ jobs:
             )
             text = re.sub(r'\b(\d+):(\d+)\b', r'chapter \1 verse \2', text)
             text = re.sub(r'(\d),(\d)', r'\1\2', text)
-            text = text.replace('\u2014', ', ')
-            text = text.replace('\u2013', ', ')
+            text = text.replace('\u2014', ', ').replace('\u2013', ', ')
             text = text.replace('*', '').replace('#', '').replace('_', '')
             text = re.sub(r'\s+', ' ', text).strip()
             return text
 
           def make_silence(duration_s, out_path, sample_rate=22050):
             subprocess.run([
-              "ffmpeg", "-y",
-              "-f", "lavfi", "-i", f"anullsrc=r={sample_rate}:cl=mono",
-              "-t", str(duration_s),
-              "-acodec", "pcm_s16le",
-              out_path
+              "ffmpeg", "-y", "-f", "lavfi",
+              "-i", f"anullsrc=r={sample_rate}:cl=mono",
+              "-t", str(duration_s), "-acodec", "pcm_s16le", out_path
             ], capture_output=True)
 
           def piper_speak(text, out_wav):
-            if not Path(PIPER_VOICE).exists():
+            if not Path(PIPER_BIN).exists() or not Path(PIPER_VOICE).exists():
               return False
             try:
               result = subprocess.run(
-                ["python3", "-m", "piper", "--model", PIPER_VOICE, "--output_file", out_wav],
+                [PIPER_BIN, "--model", PIPER_VOICE, "--output_file", out_wav],
                 input=text.encode("utf-8"),
                 capture_output=True,
-                timeout=30
+                timeout=40
               )
-              return result.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
+              ok = result.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
+              if not ok:
+                print(f"  Piper stderr: {result.stderr.decode()[-300:]}")
+              return ok
             except Exception as e:
-              print(f"Piper error: {e}")
-              return False
-
-          def espeak_speak(text, out_wav):
-            try:
-              result = subprocess.run(
-                ["espeak-ng", "-v", "en-us", "-s", "145", "-p", "52", "-w", out_wav, text],
-                capture_output=True, timeout=20
-              )
-              return result.returncode == 0 and Path(out_wav).exists() and Path(out_wav).stat().st_size > 100
-            except Exception as e:
-              print(f"espeak error: {e}")
+              print(f"  Piper exception: {e}")
               return False
 
           def synthesise(text, out_wav):
@@ -170,11 +170,7 @@ jobs:
             if piper_speak(text, out_wav):
               print("  -> Piper OK")
               return True
-            print("  -> Piper failed, trying espeak...")
-            if espeak_speak(text, out_wav):
-              print("  -> espeak OK")
-              return True
-            print("  -> Both TTS engines failed for this segment")
+            print("  -> Piper failed — skipping this segment (no espeak fallback)")
             return False
 
           def concat_wavs(wav_list, out_path):
@@ -183,70 +179,61 @@ jobs:
             if len(wav_list) == 1:
               subprocess.run(["cp", wav_list[0], out_path])
               return True
-            list_file = out_path + ".list.txt"
+            list_file = out_path + ".txt"
             with open(list_file, "w") as f:
               for w in wav_list:
                 f.write(f"file '{w}'\n")
             result = subprocess.run([
-              "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file,
-              "-acodec", "pcm_s16le", out_path
+              "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+              "-i", list_file, "-acodec", "pcm_s16le", out_path
             ], capture_output=True)
             try: os.remove(list_file)
             except: pass
             return result.returncode == 0 and Path(out_path).exists()
 
-          def build_tts_audio(headline_text, subtitle_text, ref_text, tmp_dir):
+          def build_tts_audio(headline, subtitle, ref, tmp_dir):
             segments = []
-            any_success = False
+            any_ok = False
 
-            # 1. Headline
-            h_wav = os.path.join(tmp_dir, "seg_headline.wav")
-            if synthesise(headline_text, h_wav):
+            h_wav = os.path.join(tmp_dir, "h.wav")
+            if synthesise(headline, h_wav):
               segments.append(h_wav)
-              any_success = True
-              sil1 = os.path.join(tmp_dir, "sil_600.wav")
-              make_silence(0.6, sil1)
-              segments.append(sil1)
+              any_ok = True
+              sil = os.path.join(tmp_dir, "s1.wav")
+              make_silence(0.65, sil); segments.append(sil)
 
-            # 2. Subtitle
-            if subtitle_text:
-              s_wav = os.path.join(tmp_dir, "seg_sub.wav")
-              if synthesise(subtitle_text, s_wav):
+            if subtitle:
+              s_wav = os.path.join(tmp_dir, "s.wav")
+              if synthesise(subtitle, s_wav):
                 segments.append(s_wav)
-                any_success = True
-                sil2 = os.path.join(tmp_dir, "sil_800.wav")
-                make_silence(0.8, sil2)
-                segments.append(sil2)
+                any_ok = True
+                sil = os.path.join(tmp_dir, "s2.wav")
+                make_silence(0.8, sil); segments.append(sil)
 
-            # 3. Bible reference
-            if ref_text:
-              r_wav = os.path.join(tmp_dir, "seg_ref.wav")
-              if synthesise(ref_text, r_wav):
+            if ref:
+              r_wav = os.path.join(tmp_dir, "r.wav")
+              if synthesise(ref, r_wav):
                 segments.append(r_wav)
-                any_success = True
-                sil3 = os.path.join(tmp_dir, "sil_1200.wav")
-                make_silence(1.2, sil3)
-                segments.append(sil3)
+                any_ok = True
+                sil = os.path.join(tmp_dir, "s3.wav")
+                make_silence(1.2, sil); segments.append(sil)
 
-            # 4. CTA — 40% chance
             if random.random() < 0.40:
-              cta_text = random.choice(CTA_POOL)
-              c_wav = os.path.join(tmp_dir, "seg_cta.wav")
-              if synthesise(cta_text, c_wav):
+              cta = random.choice(CTA_POOL)
+              c_wav = os.path.join(tmp_dir, "c.wav")
+              if synthesise(cta, c_wav):
                 segments.append(c_wav)
-                any_success = True
-                print(f"  CTA added: '{cta_text}'")
+                any_ok = True
+                print(f"  CTA: '{cta}'")
             else:
               print("  No CTA this post.")
 
-            if not any_success or not segments:
+            if not any_ok or not segments:
               return None
+            out = os.path.join(tmp_dir, "final.wav")
+            return out if concat_wavs(segments, out) else None
 
-            out_wav = os.path.join(tmp_dir, "tts_final.wav")
-            if concat_wavs(segments, out_wav):
-              return out_wav
-            return None
-
+          # ── SELENIUM ──────────────────────────────────────────
           ts         = os.environ.get("TS", "test")
           webm_file  = f"/tmp/faith_{ts}.webm"
           mp4_file   = f"/tmp/faith_{ts}.mp4"
@@ -286,7 +273,6 @@ jobs:
           driver.set_window_size(540, 960)
           driver.set_script_timeout(120)
 
-          print(f"Loading file://{html_path}")
           driver.get(f"file://{html_path}")
           time.sleep(3)
 
@@ -305,8 +291,7 @@ jobs:
           time.sleep(1)
 
           for _ in range(30):
-            done = driver.execute_script("return window._recordingDone;")
-            if done:
+            if driver.execute_script("return window._recordingDone;"):
               print("Recording finalised.")
               break
             time.sleep(0.4)
@@ -331,8 +316,7 @@ jobs:
           tts_headline = scene_data.get('headline', '')
           tts_subtitle = scene_data.get('subtitle', '')
           tts_ref      = scene_data.get('ref', '')
-          print(f"Scene category: {category}")
-          print(f"Headline for TTS: {tts_headline}")
+          print(f"Category: {category} | Headline: {tts_headline}")
           driver.quit()
 
           if not b64:
@@ -343,7 +327,7 @@ jobs:
           print(f"WebM: {os.path.getsize(webm_file)/1024/1024:.1f} MB")
 
           print("Converting to MP4...")
-          result = subprocess.run([
+          r = subprocess.run([
             "ffmpeg", "-y", "-i", webm_file,
             "-c:v", "libx264", "-preset", "veryslow", "-crf", "10",
             "-b:v", "20M", "-maxrate", "25M", "-bufsize", "40M",
@@ -351,14 +335,12 @@ jobs:
             "-c:a", "aac", "-b:a", "320k", "-ar", "48000",
             "-movflags", "+faststart", mp4_file
           ], capture_output=True, text=True)
-
           if not os.path.exists(mp4_file) or os.path.getsize(mp4_file) < 10000:
-            print("ffmpeg stderr:", result.stderr[-2000:])
-            raise RuntimeError("mp4 conversion failed")
-
+            raise RuntimeError(f"MP4 conversion failed: {r.stderr[-1000:]}")
           os.remove(webm_file)
           print(f"MP4: {os.path.getsize(mp4_file)/1024/1024:.1f} MB")
 
+          # ── TTS ───────────────────────────────────────────────
           tts_wav = None
           with tempfile.TemporaryDirectory() as tmp_dir:
             print("Building TTS audio...")
@@ -372,43 +354,45 @@ jobs:
                 ], capture_output=True)
                 if conv.returncode == 0 and Path(tts_mp3).exists():
                   tts_wav = tts_mp3
-                  print(f"TTS audio ready: {Path(tts_mp3).stat().st_size//1024} KB")
+                  print(f"TTS ready: {Path(tts_mp3).stat().st_size//1024} KB")
                 else:
-                  print("TTS conversion failed, posting without TTS")
+                  print("TTS mp3 conversion failed — posting without voice")
+              else:
+                print("Piper produced no audio — posting without voice")
             else:
-              print("No headline text captured, skipping TTS")
+              print("No headline captured — skipping TTS")
 
-          def pick_music_file(folders):
+          # ── MUSIC ─────────────────────────────────────────────
+          def pick_music(folders):
             for folder in folders:
               if not os.path.isdir(folder): continue
               candidates = []
               for ext in MUSIC_EXTENSIONS:
                 candidates.extend(glob.glob(os.path.join(folder, f"*.{ext}")))
               if candidates:
-                print(f"Using music folder '{folder}'.")
                 return random.choice(candidates)
-            print("No music folder found.")
             return None
 
-          music_file = pick_music_file(MUSIC_FOLDERS)
-
+          music_file = pick_music(MUSIC_FOLDERS)
           mixed_file = f"/tmp/faith_{ts}_final.mp4"
           mix_ok = False
 
-          if tts_wav and music_file:
-            print("Mixing TTS voice + background music...")
+          def music_start(path):
             probe = subprocess.run(
-              ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", music_file],
-              capture_output=True, text=True
-            )
-            try: mdur = float(probe.stdout.strip())
-            except: mdur = 0
-            mstart = random.uniform(0, max(0, mdur-12)) if mdur > 15 else 0
+              ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", path],
+              capture_output=True, text=True)
+            try: d = float(probe.stdout.strip())
+            except: d = 0
+            return random.uniform(0, max(0, d-12)) if d > 15 else 0
+
+          if tts_wav and music_file:
+            print("Mixing voice + music...")
+            ms = music_start(music_file)
             mix = subprocess.run([
               "ffmpeg", "-y",
               "-i", mp4_file,
-              "-ss", str(mstart), "-t", "12", "-i", music_file,
-              "-ss", "0", "-i", tts_wav,
+              "-ss", str(ms), "-t", "12", "-i", music_file,
+              "-i", tts_wav,
               "-filter_complex",
               "[1:a]volume=0.18,afade=t=in:st=0:d=1.5,afade=t=out:st=9:d=1.5[music];"
               "[2:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
@@ -418,18 +402,15 @@ jobs:
               "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
-            if os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000:
-              mix_ok = True
-              print("TTS + music mix done.")
-            else:
-              print("TTS+music mix failed:", mix.stderr[-1000:])
+            mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
+            print("Voice + music mix done." if mix_ok else f"Mix failed: {mix.stderr[-500:]}")
 
-          elif tts_wav and not music_file:
-            print("Mixing TTS voice only...")
+          elif tts_wav:
+            print("Mixing voice only...")
             mix = subprocess.run([
               "ffmpeg", "-y",
               "-i", mp4_file,
-              "-ss", "0", "-i", tts_wav,
+              "-i", tts_wav,
               "-filter_complex",
               "[1:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
               "[0:a]volume=0.08[orig];"
@@ -438,25 +419,16 @@ jobs:
               "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
-            if os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000:
-              mix_ok = True
-              print("TTS-only mix done.")
-            else:
-              print("TTS-only mix failed:", mix.stderr[-1000:])
+            mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
+            print("Voice-only mix done." if mix_ok else f"Mix failed: {mix.stderr[-500:]}")
 
-          elif music_file and not tts_wav:
-            print("No TTS — mixing background music only...")
-            probe = subprocess.run(
-              ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", music_file],
-              capture_output=True, text=True
-            )
-            try: mdur = float(probe.stdout.strip())
-            except: mdur = 0
-            mstart = random.uniform(0, max(0, mdur-12)) if mdur > 15 else 0
+          elif music_file:
+            print("No voice — mixing music only...")
+            ms = music_start(music_file)
             mix = subprocess.run([
               "ffmpeg", "-y",
               "-i", mp4_file,
-              "-ss", str(mstart), "-t", "10", "-i", music_file,
+              "-ss", str(ms), "-t", "10", "-i", music_file,
               "-filter_complex",
               "[1:a]volume=0.45,afade=t=in:st=0:d=1,afade=t=out:st=8.5:d=1.5[music];"
               "[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[aout]",
@@ -464,19 +436,17 @@ jobs:
               "-c:v", "copy", "-c:a", "aac", "-b:a", "256k",
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
-            if os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000:
-              mix_ok = True
-              print("Music-only mix done.")
-            else:
-              print("Music-only mix failed:", mix.stderr[-1000:])
+            mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
+            print("Music-only mix done." if mix_ok else f"Mix failed: {mix.stderr[-500:]}")
           else:
-            print("No TTS and no music — posting as-is.")
+            print("No voice, no music — posting as-is.")
 
           final_mp4 = mixed_file if mix_ok else mp4_file
-          if tts_wav and os.path.exists(tts_wav):
+          if tts_wav:
             try: os.remove(tts_wav)
             except: pass
 
+          # ── POST ──────────────────────────────────────────────
           CAPTIONS = {
             "jesus": [
               "The greatest life ever lived. #Jesus #Christ #Faith #Christian",
@@ -518,11 +488,9 @@ jobs:
               data={"description": description, "access_token": fb_token},
               files={"source": (os.path.basename(final_mp4), f, "video/mp4")}
             )
-
-          print(f"Facebook response: {response.status_code}")
-          print(response.text)
+          print(f"Response: {response.status_code} — {response.text}")
           if response.status_code == 200:
-            print(f"Posted! Video ID: {response.json().get('id')}")
+            print(f"Posted! ID: {response.json().get('id')}")
           else:
             raise RuntimeError(f"Post failed: {response.text}")
 

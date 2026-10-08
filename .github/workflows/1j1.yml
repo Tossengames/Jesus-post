@@ -61,14 +61,12 @@ jobs:
             }
             mkdir -p /tmp/piper_extract
             tar -xzf /tmp/piper.tar.gz -C /tmp/piper_extract
-            # find the binary wherever it landed
             FOUND=$(find /tmp/piper_extract -name "piper" -type f | head -1)
             if [ -n "$FOUND" ]; then
               cp "$FOUND" "$PIPER_BIN"
               chmod +x "$PIPER_BIN"
-              # copy any .so libs alongside
               find /tmp/piper_extract -name "*.so*" -exec cp {} ~/.cache/piper/ \;
-              echo "Piper binary installed at $PIPER_BIN"
+              echo "Piper binary ready."
             else
               echo "Piper binary not found in tarball — will rely on Edge TTS"
             fi
@@ -108,8 +106,7 @@ jobs:
           from selenium.webdriver.chrome.service import Service
           from webdriver_manager.chrome import ChromeDriverManager
 
-          MUSIC_FOLDERS    = ["bgmusic3", "Bgmusic3"]
-          MUSIC_EXTENSIONS = ["mp3", "wav", "m4a", "mp4", "aac", "ogg", "flac"]
+          MUSIC_EXTENSIONS = ["mp3", "wav", "m4a", "mp4", "aac", "ogg", "flac", "wma", "opus"]
           PIPER_BIN        = str(Path.home() / ".cache/piper/piper")
           PIPER_VOICE      = str(Path.home() / ".cache/piper/en_US-jenny_dioco-medium.onnx")
           EDGE_VOICE       = "en-US-JennyNeural"
@@ -168,7 +165,6 @@ jobs:
             ok = asyncio.run(edge_speak_async(text, out_mp3))
             if not ok:
               return False
-            # convert mp3 to wav for concat consistency
             r = subprocess.run([
               "ffmpeg", "-y", "-i", out_mp3,
               "-acodec", "pcm_s16le", "-ar", "24000", "-ac", "1", out_wav
@@ -201,19 +197,13 @@ jobs:
               return False
             short = text[:75] + "..." if len(text) > 75 else text
             print(f"  Speaking: '{short}'")
-
-            # 1. Edge TTS (main)
             if edge_speak(text, out_wav):
               print("  -> Edge TTS OK")
               return True
-
-            # 2. Piper (backup)
             print("  -> Edge failed, trying Piper...")
             if piper_speak(text, out_wav):
               print("  -> Piper OK")
               return True
-
-            # 3. No voice
             print("  -> Both failed, skipping segment")
             return False
 
@@ -272,6 +262,28 @@ jobs:
               return None
             out = os.path.join(tmp_dir, "final.wav")
             return out if concat_wavs(segments, out) else None
+
+          def pick_music(base="."):
+            candidates = []
+            for entry in os.scandir(base):
+              if entry.is_dir() and entry.name.lower().startswith("bgmusic"):
+                for ext in MUSIC_EXTENSIONS:
+                  candidates.extend(glob.glob(os.path.join(entry.path, f"*.{ext}")))
+                  candidates.extend(glob.glob(os.path.join(entry.path, f"*.{ext.upper()}")))
+            if candidates:
+              chosen = random.choice(candidates)
+              print(f"Music: {chosen}")
+              return chosen
+            print("No bgmusic folder found.")
+            return None
+
+          def music_start(path):
+            probe = subprocess.run(
+              ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", path],
+              capture_output=True, text=True)
+            try: d = float(probe.stdout.strip())
+            except: d = 0
+            return random.uniform(0, max(0, d-12)) if d > 15 else 0
 
           # ── SELENIUM ──────────────────────────────────────────
           ts         = os.environ.get("TS", "test")
@@ -402,26 +414,8 @@ jobs:
             else:
               print("No headline captured — skipping TTS")
 
-          # ── MUSIC ─────────────────────────────────────────────
-          def pick_music(folders):
-            for folder in folders:
-              if not os.path.isdir(folder): continue
-              candidates = []
-              for ext in MUSIC_EXTENSIONS:
-                candidates.extend(glob.glob(os.path.join(folder, f"*.{ext}")))
-              if candidates:
-                return random.choice(candidates)
-            return None
-
-          def music_start(path):
-            probe = subprocess.run(
-              ["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0", path],
-              capture_output=True, text=True)
-            try: d = float(probe.stdout.strip())
-            except: d = 0
-            return random.uniform(0, max(0, d-12)) if d > 15 else 0
-
-          music_file = pick_music(MUSIC_FOLDERS)
+          # ── MUSIC + MIX ───────────────────────────────────────
+          music_file = pick_music()
           mixed_file = f"/tmp/faith_{ts}_final.mp4"
           mix_ok = False
 
@@ -434,9 +428,8 @@ jobs:
               "-ss", str(ms), "-t", "12", "-i", music_file,
               "-i", tts_wav,
               "-filter_complex",
-              "[1:a]volume=0.18,afade=t=in:st=0:d=1.5,afade=t=out:st=9:d=1.5[music];"
-              "[2:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3,"
-              "aecho=0.8:0.6:40:0.25[voice];"
+              "[1:a]volume=0.35,afade=t=in:st=0:d=1.5,afade=t=out:st=9:d=1.5[music];"
+              "[2:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
               "[0:a]volume=0.06[orig];"
               "[orig][music][voice]amix=inputs=3:duration=longest:dropout_transition=2[aout]",
               "-map", "0:v", "-map", "[aout]",
@@ -444,7 +437,7 @@ jobs:
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
             mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
-            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
+            print("Voice + music done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
 
           elif tts_wav:
             print("Voice only...")
@@ -453,8 +446,7 @@ jobs:
               "-i", mp4_file,
               "-i", tts_wav,
               "-filter_complex",
-              "[1:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3,"
-              "aecho=0.8:0.6:40:0.25[voice];"
+              "[1:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
               "[0:a]volume=0.06[orig];"
               "[orig][voice]amix=inputs=2:duration=longest:dropout_transition=2[aout]",
               "-map", "0:v", "-map", "[aout]",
@@ -462,7 +454,7 @@ jobs:
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
             mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
-            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
+            print("Voice-only done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
 
           elif music_file:
             print("Music only...")
@@ -479,7 +471,7 @@ jobs:
               "-movflags", "+faststart", mixed_file
             ], capture_output=True, text=True)
             mix_ok = os.path.exists(mixed_file) and os.path.getsize(mixed_file) > 10000
-            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
+            print("Music-only done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
           else:
             print("No voice, no music — posting as-is.")
 

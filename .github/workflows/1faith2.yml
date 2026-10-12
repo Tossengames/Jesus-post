@@ -3,7 +3,7 @@ name: ✝️ Post Faith Engage Reel to Facebook
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9,15,20 * * *"
+  #  - cron: "0 9,15,20 * * *"
 
 jobs:
   post:

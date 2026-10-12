@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Faith Shorts</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Nunito:wght@700;800;900&family=Noto+Sans:wght@400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a0a2a;}
+#bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
+
+/* ── TEXT LAYER ── */
+#ui{
+  position:fixed;inset:0;z-index:10;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:0 6vw;
+  gap:0;
+}
+
+/* tag line — small label above */
+#tag-line{
+  font-family:'Noto Sans',sans-serif;font-weight:700;
+  font-size:clamp(0.6rem,2.8vw,0.85rem);
+  letter-spacing:0.22em;text-transform:uppercase;
+  color:rgba(255,255,255,0.7);
+  opacity:0;
+  transform:translateY(-10px);
+  transition:opacity .4s ease,transform .4s ease;
+  margin-bottom:3vw;
+  text-align:center;
+}
+#tag-line.in{opacity:1;transform:translateY(0);}
+
+/* word container — words pop in one by one */
+#word-wrap{
+  display:flex;flex-direction:column;
+  align-items:center;
+  gap:1vw;
+  width:100%;
+}
+
+.word-row{
+  display:flex;flex-wrap:wrap;
+  justify-content:center;
+  gap:2.2vw;
+  line-height:1;
+}
+
+.word{
+  font-family:'Montserrat',sans-serif;font-weight:900;
+  font-size:clamp(2.2rem,9.5vw,3.4rem);
+  color:#ffffff;
+  display:inline-block;
+  opacity:0;
+  transform:scale(0.4) translateY(30px);
+  transition:opacity 0.25s ease,transform 0.35s cubic-bezier(.34,1.56,.64,1);
+  -webkit-text-stroke:0.04em rgba(0,0,0,0.5);
+  paint-order:stroke fill;
+  text-shadow:0 4px 20px rgba(0,0,0,0.35);
+  will-change:transform,opacity;
+}
+.word.in{
+  opacity:1;
+  transform:scale(1) translateY(0);
+  animation:wordPunch .35s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes wordPunch{
+  0%{transform:scale(0.4) translateY(30px);}
+  60%{transform:scale(1.12) translateY(-4px);}
+  80%{transform:scale(0.96) translateY(1px);}
+  100%{transform:scale(1) translateY(0);}
+}
+/* floating breathing on words after they land */
+@keyframes wordFloat{
+  0%,100%{transform:scale(1) translateY(0);}
+  50%{transform:scale(1.02) translateY(-3px);}
+}
+.word.float{animation:wordFloat 3s ease-in-out infinite;}
+
+/* subtitle — italic softer line */
+#sub-line{
+  font-family:'Nunito',sans-serif;font-weight:700;
+  font-size:clamp(0.95rem,4.2vw,1.35rem);
+  color:rgba(255,255,255,0.92);
+  text-align:center;
+  line-height:1.45;
+  opacity:0;
+  transform:translateY(12px);
+  transition:opacity .5s ease,transform .5s ease;
+  margin-top:4vw;
+  padding:0 2vw;
+  -webkit-text-stroke:0.02em rgba(0,0,0,0.4);
+  text-shadow:0 2px 10px rgba(0,0,0,0.3);
+  max-width:88%;
+}
+#sub-line.in{opacity:1;transform:translateY(0);}
+
+/* reference */
+#ref-line{
+  font-family:'Noto Sans',sans-serif;font-weight:700;
+  font-size:clamp(0.55rem,2.5vw,0.78rem);
+  letter-spacing:0.28em;text-transform:uppercase;
+  color:rgba(255,255,255,0.65);
+  opacity:0;
+  transform:translateY(8px);
+  transition:opacity .4s ease,transform .4s ease;
+  margin-top:2.5vw;
+}
+#ref-line.in{opacity:1;transform:translateY(0);}
+
+/* engagement CTA card — slides up from bottom */
+#cta-card{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  padding:4vw 6vw 10vw;
+  z-index:11;
+  opacity:0;
+  transform:translateY(30px);
+  transition:opacity .5s ease,transform .5s cubic-bezier(.22,1,.36,1);
+  display:flex;flex-direction:column;
+  align-items:center;gap:2vw;
+}
+#cta-card.in{opacity:1;transform:translateY(0);}
+
+#engage-text{
+  font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:clamp(0.85rem,3.8vw,1.15rem);
+  color:#ffffff;
+  text-align:center;
+  -webkit-text-stroke:0.02em rgba(0,0,0,0.4);
+  text-shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+
+#follow-row{
+  font-family:'Noto Sans',sans-serif;font-weight:600;
+  font-size:clamp(0.48rem,2.1vw,0.64rem);
+  letter-spacing:0.38em;text-transform:uppercase;
+  color:rgba(255,255,255,0.5);
+}
+
+/* page label top */
+#page-label{
+  position:fixed;top:0;left:0;right:0;
+  padding:6vw 6vw 0;z-index:11;
+  display:flex;align-items:center;justify-content:center;
+  gap:2vw;
+  opacity:0;transform:translateY(-12px);
+  transition:opacity .4s ease,transform .4s ease;
+}
+#page-label.in{opacity:1;transform:translateY(0);}
+#page-label-text{
+  font-family:'Noto Sans',sans-serif;font-weight:700;
+  font-size:clamp(0.5rem,2.3vw,0.7rem);
+  letter-spacing:0.4em;text-transform:uppercase;
+  color:rgba(255,255,255,0.65);
+}
+#page-label-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.5);}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<div id="page-label">
+  <div id="page-label-dot"></div>
+  <div id="page-label-text">Faith &amp; Hope</div>
+  <div id="page-label-dot"></div>
+</div>
+
+<div id="ui">
+  <div id="tag-line"></div>
+  <div id="word-wrap"></div>
+  <div id="sub-line"></div>
+  <div id="ref-line"></div>
+</div>
+
+<div id="cta-card">
+  <div id="engage-text"></div>
+  <div id="follow-row">Follow for more</div>
+</div>
+
+<script>
+(()=>{
+'use strict';
+function safeR(v){return Math.max(0.01,isFinite(v)?v:0.01);}
+function easeOut(x){return 1-Math.pow(1-x,3);}
+function lerp(a,b,t){return a+(b-a)*t;}
+
+/* ═══════════════════════════════════════════════
+   CONTENT — written to feel real, not generic
+   type: verse | declaration | wwjd | blank | didyouknow | encourage
+   tag:  small label (optional)
+   headline: the big punchy words (kept SHORT for big text display)
+   sub: the real human line underneath
+   engage: the prompt that makes people comment/share
+   ref: Bible ref if applicable
+═══════════════════════════════════════════════ */
+const CONTENT=[
+
+  /* ── COMFORT VERSES — less famous ones that hit harder ── */
+  {type:'verse',tag:'',
+   headline:'HE NEVER SLEEPS',
+   sub:'He who watches over you will not slumber or sleep. Right now, at 3am, he is watching.',
+   engage:'Save this for the nights you need it 🙏',ref:'Psalm 121:4'},
+
+  {type:'verse',tag:'',
+   headline:'YOUR FOOT\nWON\'T SLIP',
+   sub:'"He will not let your foot slip." Even when the ground feels like it is giving way.',
+   engage:'Drop an amen if you needed this today ❤️',ref:'Psalm 121:3'},
+
+  {type:'verse',tag:'',
+   headline:'HE GOES\nBEFORE YOU',
+   sub:'The Lord himself goes before you. Whatever is ahead of you right now — he is already there.',
+   engage:'Share this with someone walking into something hard 🙏',ref:'Deuteronomy 31:8'},
+
+  {type:'verse',tag:'',
+   headline:'RIVERS IN\nDRY PLACES',
+   sub:'"I will make rivers in the dry wasteland." He specialises in the impossible seasons.',
+   engage:'Tag someone in a dry season right now 💛',ref:'Isaiah 43:19'},
+
+  {type:'verse',tag:'',
+   headline:'HE RESTORES\nWHAT WAS LOST',
+   sub:'"I will repay you for the years the locusts have eaten." Years. Not days. Years.',
+   engage:'Comment YES if you believe he can restore it 🙌',ref:'Joel 2:25'},
+
+  {type:'verse',tag:'',
+   headline:'EVEN THIS\nWILL PASS',
+   sub:'"Weeping may stay for the night, but rejoicing comes in the morning." It is not permanent.',
+   engage:'Save this. Read it when morning feels far away 🌅',ref:'Psalm 30:5'},
+
+  {type:'verse',tag:'',
+   headline:'HE NUMBERS\nYOUR TEARS',
+   sub:'"You have collected all my tears in your bottle." He counts every single one.',
+   engage:'Drop a 💙 if you needed to know he sees your pain',ref:'Psalm 56:8'},
+
+  {type:'verse',tag:'',
+   headline:'STRENGTH\nIN THE WAITING',
+   sub:'"Those who wait on the Lord will renew their strength." The wait is doing something in you.',
+   engage:'Comment how long you have been trusting him 🙏',ref:'Isaiah 40:31'},
+
+  {type:'verse',tag:'',
+   headline:'HE FIGHTS\nYOUR BATTLES',
+   sub:'"The Lord will fight for you. You need only to be still." You do not have to figure this out.',
+   engage:'Share this with someone who is exhausted from fighting alone ❤️',ref:'Exodus 14:14'},
+
+  {type:'verse',tag:'',
+   headline:'NOTHING\nIS WASTED',
+   sub:'"All things work together for good." Even the things that broke you are being used.',
+   engage:'Comment AMEN if you trust him with the broken pieces 🙌',ref:'Romans 8:28'},
+
+  /* ── DECLARATIONS — raw and personal, not church poster ── */
+  {type:'declaration',tag:'Say this out loud 👇',
+   headline:'I AM NOT\nWHO I WAS',
+   sub:'Whatever happened back there does not get to define what is happening right now.',
+   engage:'Type I AM NEW if you receive this 🔥',ref:null},
+
+  {type:'declaration',tag:'Speak this today 👇',
+   headline:'GOD IS NOT\nDONE WITH ME',
+   sub:'Unfinished does not mean abandoned. He started something in you and he finishes what he starts.',
+   engage:'Tag someone who needs to hear this right now 💛',ref:null},
+
+  {type:'declaration',tag:'Say this and mean it 👇',
+   headline:'I CHOOSE\nFAITH TODAY',
+   sub:'Not because everything makes sense. Not because it is easy. Just because he is worth it.',
+   engage:'Comment FAITH if you are choosing it today 🙏',ref:null},
+
+  {type:'declaration',tag:'Declare this 👇',
+   headline:'FEAR DOES\nNOT WIN HERE',
+   sub:'It showed up. I felt it. But it does not get the final say. My God is bigger than this fear.',
+   engage:'Type BOLD if you are done letting fear run the show 💪',ref:null},
+
+  {type:'declaration',tag:'Say this before you sleep 👇',
+   headline:'TOMORROW\nIS HIS TOO',
+   sub:'Whatever you are anxious about tonight — he will be there before you wake up.',
+   engage:'Share this with someone who cannot sleep right now 🌙',ref:null},
+
+  {type:'declaration',tag:'This one is for you 👇',
+   headline:'I WAS MADE\nFOR THIS',
+   sub:'Not for the easy version of your life. For this exact, difficult, specific season you are in.',
+   engage:'Comment YES if you believe it 🔥',ref:null},
+
+  /* ── WWJD — real moral tension, not sanitized ── */
+  {type:'wwjd',tag:'Real talk 👇',
+   headline:'YOUR FRIEND\nIS BEING CHEATED ON',
+   sub:'You know. They do not. Telling them will blow up their world. Staying quiet feels wrong. What does Jesus say?',
+   engage:'Comment honestly — what would you do? 👇',ref:null},
+
+  {type:'wwjd',tag:'Tough one 👇',
+   headline:'YOU GET\nSOMEONE\'S JOB',
+   sub:'You were more qualified. They needed it more. You took it. Was that the right thing to do?',
+   engage:'What would Jesus say here? Comment below 👇',ref:null},
+
+  {type:'wwjd',tag:'Be honest 👇',
+   headline:'CHURCH HURT\nYOU BADLY',
+   sub:'Real people in a real church did real damage. Jesus still says go back. Does he actually mean that?',
+   engage:'This is a safe space. Comment your honest thoughts 👇',ref:null},
+
+  {type:'wwjd',tag:'No easy answer 👇',
+   headline:'YOUR PARENT\nREJECTS YOUR FAITH',
+   sub:'The person who raised you thinks your belief is embarrassing. Do you push back or let it go?',
+   engage:'What do you think Jesus would do? Comment below 💬',ref:null},
+
+  {type:'wwjd',tag:'Real situation 👇',
+   headline:'YOU PRAYED\nHE SAID NO',
+   sub:'You asked for something good. Something important. And the answer was no. What do you do with that?',
+   engage:'Drop your honest thoughts below. This is real 👇',ref:null},
+
+  {type:'wwjd',tag:'Hard truth 👇',
+   headline:'LOVING SOMEONE\nIS DESTROYING YOU',
+   sub:'You have given everything and they keep taking. Jesus said love people — but did he mean like this?',
+   engage:'Comment what you think the boundary looks like 👇',ref:null},
+
+  /* ── FILL IN THE BLANK — real questions ── */
+  {type:'blank',tag:'Fill in the blank 👇',
+   headline:'FAITH GOT HARD\nWHEN ______',
+   sub:'Be real. Everyone has a moment where belief stopped being easy. When was yours?',
+   engage:'Drop your answer below — you might help someone 💬',ref:null},
+
+  {type:'blank',tag:'Complete this 👇',
+   headline:'GOD SURPRISED\nME WHEN ______',
+   sub:'The moment you did not expect him to show up — but he did anyway.',
+   engage:'Share yours in the comments. We want to hear it 🙏',ref:null},
+
+  {type:'blank',tag:'Be honest 👇',
+   headline:'PRAYER BECAME\nREAL WHEN ______',
+   sub:'There is usually a moment. A turning point. When it stopped being words and became something else.',
+   engage:'Tell us in the comments 👇',ref:null},
+
+  {type:'blank',tag:'Fill in the blank 👇',
+   headline:'THE VERSE THAT\nSTOPPED ME WAS ______',
+   sub:'Not your favourite Sunday verse. The one that hit you when you were not expecting it.',
+   engage:'Drop it below — someone else needs it right now 💛',ref:null},
+
+  {type:'blank',tag:'Real question 👇',
+   headline:'I DOUBTED GOD\nWHEN ______',
+   sub:'Honest faith has honest doubt in it. Your story matters and it might help someone else.',
+   engage:'Be real in the comments. This is a safe space 🙏',ref:null},
+
+  /* ── DID YOU KNOW — stuff that genuinely surprises ── */
+  {type:'didyouknow',tag:'Did you know this? 👇',
+   headline:'JESUS WEPT\nAT A FUNERAL',
+   sub:'He knew he was about to raise Lazarus from the dead. He still stopped and cried with them first.',
+   engage:'That tells you everything about who he is. Share this 💙',ref:'John 11:35'},
+
+  {type:'didyouknow',tag:'Most people miss this 👇',
+   headline:'PETER SANK\nTHEN PREACHED',
+   sub:'The man who denied Jesus three times and sank in the water gave the first sermon of the church.',
+   engage:'God uses the people who failed. Share this with someone who needs it 🙌',ref:null},
+
+  {type:'didyouknow',tag:'This will surprise you 👇',
+   headline:'PAUL WROTE\nABOUT JOY IN PRISON',
+   sub:'Philippians — the most joyful letter in the Bible — was written in chains in a Roman cell.',
+   engage:'Share this with someone going through something dark 💛',ref:null},
+
+  {type:'didyouknow',tag:'Few people know this 👇',
+   headline:'ISAIAH DESCRIBED\nJESUS IN DETAIL',
+   sub:'He was pierced for our transgressions. Written 700 years before the crucifixion happened.',
+   engage:'Share this with someone who doubts the Bible 📖',ref:'Isaiah 53:5'},
+
+  {type:'didyouknow',tag:'Read this slowly 👇',
+   headline:'GOD SAID DO\nNOT FEAR 365 TIMES',
+   sub:'Once for every single day of the year. That is not a coincidence. That is a message.',
+   engage:'Share this. Someone needs it today 🙏',ref:null},
+
+  {type:'didyouknow',tag:'This one hits different 👇',
+   headline:'THE DISCIPLES\nWERE NOBODIES',
+   sub:'Fishermen. Tax collectors. A zealot. A doubter. Jesus walked past the qualified and chose them anyway.',
+   engage:'He still picks people the world overlooks. Tag someone who needs this 💛',ref:null},
+
+  {type:'didyouknow',tag:'Mind = blown 👇',
+   headline:'LAZARUS WAS\nDEAD 4 DAYS',
+   sub:'Not hours. Four days. Martha said he already smells. Jesus walked in and called him out anyway.',
+   engage:'Nothing is too far gone for him. Comment AMEN if you believe it 🔥',ref:'John 11:39'},
+
+  /* ── ENCOURAGEMENT — personal, warm, specific ── */
+  {type:'encourage',tag:'This is for you 👇',
+   headline:'IT\'S OK TO\nNOT BE OK',
+   sub:'You do not have to perform strength right now. He is not waiting for you to hold it together. Come as you are.',
+   engage:'Share this with someone who needs permission to fall apart 💙',ref:null},
+
+  {type:'encourage',tag:'Hear this 👇',
+   headline:'YOU ARE NOT\nTOO MUCH',
+   sub:'Your pain is not dramatic. Your prayers are not too small. Your mess is not too big. You are not too much for him.',
+   engage:'Save this for when you feel like a burden 💛',ref:null},
+
+  {type:'encourage',tag:'If you\'re exhausted 👇',
+   headline:'REST IS NOT\nGIVING UP',
+   sub:'Jesus rested. Elijah slept under a tree and an angel brought him food. God is not angry at you for being tired.',
+   engage:'Share this with someone running on empty 🙏',ref:null},
+
+  {type:'encourage',tag:'For the waiting ones 👇',
+   headline:'THE DELAY\nIS NOT DENIAL',
+   sub:'Between the promise and the fulfilment there is always a gap. That gap has a name — trust.',
+   engage:'Comment WAITING if you are in the gap right now 💙',ref:null},
+
+  {type:'encourage',tag:'If you feel invisible 👇',
+   headline:'HE SEES\nWHAT NO ONE ELSE DOES',
+   sub:'The thing you carry in private. The sacrifice no one claps for. The prayer no one knows about. He sees it.',
+   engage:'Drop a 💛 if this hit home',ref:null},
+
+  {type:'encourage',tag:'For anyone who failed 👇',
+   headline:'YOUR WORST DAY\nDID NOT SURPRISE HIM',
+   sub:'He knew. He chose you anyway. He knows now. He still has not left. That is not religion — that is love.',
+   engage:'Share this with someone who thinks they have gone too far 🙏',ref:null},
+
+  {type:'encourage',tag:'For the dark nights 👇',
+   headline:'3AM AND\nHE IS STILL THERE',
+   sub:'When the house is quiet and your thoughts are loud and everything feels heavier than it should — he is in that room.',
+   engage:'Save this for the hard nights 🌙',ref:null},
+
+  {type:'encourage',tag:'Whatever you\'re facing 👇',
+   headline:'IT WILL NOT\nALWAYS FEEL THIS WAY',
+   sub:'This heaviness is not your permanent address. Seasons change. What feels stuck right now is not stuck forever.',
+   engage:'Share this with someone who needs to hear it today 💛',ref:null},
+
+  {type:'encourage',tag:'You are not behind 👇',
+   headline:'GOD\'S TIMING\nIS NOT YOUR TIMELINE',
+   sub:'You are not late. You are not forgotten. You are not being passed over. His timing is just different from yours.',
+   engage:'Comment ON TIME if you trust his timing 🙏',ref:null},
+
+  {type:'encourage',tag:'For anyone broken 👇',
+   headline:'BROKEN THINGS\nLET LIGHT IN',
+   sub:'The cracks are not the failure. They are where the light gets through. Your story is not ruined — it is real.',
+   engage:'Tag someone who needs to see their cracks differently 💙',ref:null},
+];
+
+/* ═══════════════════════════════════════════════
+   CANVAS BACKGROUNDS — vibrant, alive
+═══════════════════════════════════════════════ */
+const bgC=document.getElementById('bgCanvas');
+const bgCtx=bgC.getContext('2d');
+let W=window.innerWidth,H=window.innerHeight;
+bgC.width=W;bgC.height=H;
+let _t=0,_ss=0,_si=0;
+
+/* helper — animated gradient shift */
+function animGrad(ctx,t,w,h,stops,speed){
+  const shift=Math.sin(t*speed)*0.15;
+  const g=ctx.createLinearGradient(w*(0.1+shift),0,w*(0.9+shift),h);
+  stops.forEach(([pos,col])=>g.addColorStop(Math.max(0,Math.min(1,pos+shift*0.5)),col));
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+}
+
+/* floating orbs helper */
+function orbs(ctx,t,w,h,orbList){
+  orbList.forEach(o=>{
+    const ox=w*o.x+Math.sin(t*o.sx+o.px)*w*0.06;
+    const oy=h*o.y+Math.cos(t*o.sy+o.py)*h*0.05;
+    const r=Math.min(w,h)*(o.r+Math.sin(t*0.4+o.px)*0.02);
+    const g=ctx.createRadialGradient(ox,oy,0,ox,oy,safeR(r));
+    g.addColorStop(0,o.c0);g.addColorStop(1,o.c1);
+    ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.restore();
+  });
+}
+
+/* 1. SUNRISE GRADIENT — orange→pink→purple */
+function drawSunrise(ctx,t,w,h){
+  animGrad(ctx,t,w,h,[
+    [0,'#ff6b35'],[0.35,'#f72585'],[0.65,'#7209b7'],[1,'#3a0ca3']
+  ],0.18);
+  orbs(ctx,t,w,h,[
+    {x:0.25,y:0.3,r:0.35,sx:0.3,sy:0.2,px:0,py:1,c0:'rgba(255,200,50,0.18)',c1:'rgba(255,200,50,0)'},
+    {x:0.75,y:0.65,r:0.3,sx:0.25,sy:0.35,px:2,py:0.5,c0:'rgba(180,50,220,0.2)',c1:'rgba(180,50,220,0)'},
+  ]);
+}
+
+/* 2. ELECTRIC BLUE — deep blue, cyan energy */
+function drawElectric(ctx,t,w,h){
+  animGrad(ctx,t,w,h,[
+    [0,'#03045e'],[0.4,'#0077b6'],[0.7,'#00b4d8'],[1,'#023e8a']
+  ],0.22);
+  orbs(ctx,t,w,h,[
+    {x:0.5,y:0.35,r:0.4,sx:0.2,sy:0.15,px:0.5,py:0,c0:'rgba(0,200,255,0.22)',c1:'rgba(0,200,255,0)'},
+    {x:0.2,y:0.7,r:0.28,sx:0.35,sy:0.28,px:1,py:2,c0:'rgba(50,100,255,0.18)',c1:'rgba(50,100,255,0)'},
+  ]);
+  /* electric sparks */
+  for(let i=0;i<8;i++){
+    const sx=(i*137.5+t*30)%w,sy=(i*97+t*20)%(h*0.8);
+    ctx.save();ctx.globalAlpha=0.4+0.3*Math.sin(t*4+i);ctx.fillStyle='#90e0ef';
+    ctx.beginPath();ctx.arc(sx,sy,1.2,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+/* 3. ROSE GOLD — warm pink to gold */
+function drawRoseGold(ctx,t,w,h){
+  animGrad(ctx,t,w,h,[
+    [0,'#c9184a'],[0.3,'#e05b7f'],[0.6,'#f4a261'],[1,'#e76f51']
+  ],0.15);
+  orbs(ctx,t,w,h,[
+    {x:0.3,y:0.28,r:0.38,sx:0.2,sy:0.18,px:0,py:0.5,c0:'rgba(255,200,100,0.2)',c1:'rgba(255,200,100,0)'},
+    {x:0.72,y:0.6,r:0.3,sx:0.28,sy:0.22,px:3,py:1,c0:'rgba(255,100,150,0.18)',c1:'rgba(255,100,150,0)'},
+  ]);
+}
+
+/* 4. EMERALD LIFE — rich green, growth */
+function drawEmerald(ctx,t,w,h){
+  animGrad(ctx,t,w,h,[
+    [0,'#1b4332'],[0.35,'#2d6a4f'],[0.65,'#52b788'],[1,'#1a7431']
+  ],0.2);
+  orbs(ctx,t,w,h,[
+    {x:0.5,y:0.4,r:0.42,sx:0.18,sy:0.14,px:1,py:0,c0:'rgba(100,255,180,0.18)',c1:'rgba(100,255,180,0)'},
+    {x:0.15,y:0.65,r:0.25,sx:0.3,sy:0.25,px:0.5,py:2,c0:'rgba(50,200,100,0.14)',c1:'rgba(50,200,100,0)'},
+  ]);
+  /* light flecks */
+  for(let i=0;i<12;i++){
+    const lx=(i*71+t*14)%w,ly=(i*113+t*18)%h;
+    ctx.save();ctx.globalAlpha=0.2+0.15*Math.sin(t*1.5+i);ctx.fillStyle='#b7e4c7';
+    ctx.beginPath();ctx.arc(lx,ly,1,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+/* 5. PURPLE GLORY — deep purple to violet */
+function drawPurple(ctx,t,w,h){
+  animGrad(ctx,t,w,h,[
+    [0,'#10002b'],[0.35,'#3c096c'],[0.65,'#7b2d8b'],[1,'#240046']
+  ],0.19);
+  orbs(ctx,t,w,h,[
+    {x:0.5,y:0.38,r:0.45,sx:0.15,sy:0.12,px:0,py:0,c0:'rgba(180,80,255,0.22)',c1:'rgba(180,80,255,0)'},
+    {x:0.8,y:0.2,r:0.28,sx:0.32,sy:0.24,px:2,py:1,c0:'rgba(255,150,255,0.14)',c1:'rgba(255,150,255,0)'},
+    {x:0.1,y:0.75,r:0.22,sx:0.28,sy:0.2,px:4,py:3,c0:'rgba(100,0,255,0.14)',c1:'rgba(100,0,255,0)'},
+  ]);
+  /* stars */
+  for(let i=0;i<20;i++){
+    const sx=(i*137)%w,sy=(i*97)%(h*0.7);
+    ctx.save();ctx.globalAlpha=0.3+0.25*Math.sin(t*1.2+i);ctx.fillStyle='#e0aaff';
+    ctx.beginPath();ctx.arc(sx,sy,0.9,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+/* 6. GOLDEN FIRE — amber to red, powerful */
+function drawGoldenFire(ctx,t,w,h){
+  animGrad(ctx,t,w,h,[
+    [0,'#6a040f'],[0.3,'#d62828'],[0.6,'#f77f00'],[1,'#fcbf49']
+  ],0.24);
+  orbs(ctx,t,w,h,[
+    {x:0.5,y:0.5,r:0.45,sx:0.22,sy:0.18,px:0,py:0,c0:'rgba(255,180,0,0.22)',c1:'rgba(255,180,0,0)'},
+    {x:0.2,y:0.3,r:0.3,sx:0.3,sy:0.24,px:1.5,py:1,c0:'rgba(255,80,0,0.18)',c1:'rgba(255,80,0,0)'},
+  ]);
+  /* fire particles */
+  for(let i=0;i<14;i++){
+    const fx=(i*61+t*22)%w;
+    const fy=h-((i*89+t*55)%(h*0.5));
+    ctx.save();ctx.globalAlpha=0.25+0.2*Math.sin(t*2.5+i);ctx.fillStyle='#fcbf49';
+    ctx.beginPath();ctx.arc(fx,fy,1.4,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+/* ── STYLES ── */
+const STYLES=[
+  {id:'sunrise',   draw:drawSunrise,   weight:2, accent:'#ffdd80', textShadow:'0 3px 20px rgba(120,0,80,0.6)'},
+  {id:'electric',  draw:drawElectric,  weight:2, accent:'#90e0ef', textShadow:'0 3px 20px rgba(0,30,100,0.7)'},
+  {id:'rosegold',  draw:drawRoseGold,  weight:2, accent:'#ffe0cc', textShadow:'0 3px 20px rgba(120,30,0,0.6)'},
+  {id:'emerald',   draw:drawEmerald,   weight:2, accent:'#b7e4c7', textShadow:'0 3px 20px rgba(0,50,20,0.6)'},
+  {id:'purple',    draw:drawPurple,    weight:2, accent:'#e0aaff', textShadow:'0 3px 20px rgba(30,0,80,0.7)'},
+  {id:'goldenfire',draw:drawGoldenFire,weight:2, accent:'#fcbf49', textShadow:'0 3px 20px rgba(80,20,0,0.7)'},
+];
+
+/* type → preferred style pool */
+const TYPE_STYLES={
+  verse:      ['sunrise','purple','goldenfire'],
+  declaration:['goldenfire','purple','electric'],
+  wwjd:       ['electric','purple','goldenfire'],
+  blank:      ['rosegold','emerald','sunrise'],
+  didyouknow: ['electric','purple','emerald'],
+  encourage:  ['rosegold','sunrise','emerald'],
+};
+
+function pickStyle(type){
+  const allowed=TYPE_STYLES[type]||STYLES.map(s=>s.id);
+  const pool=STYLES.filter(s=>allowed.includes(s.id));
+  return STYLES.indexOf(pool[Math.floor(Math.random()*pool.length)]);
+}
+
+/* type weights */
+const TYPE_W={verse:3,declaration:2,wwjd:2,blank:2,didyouknow:2,encourage:3};
+function pickType(){
+  const total=Object.values(TYPE_W).reduce((a,b)=>a+b,0);
+  let r=Math.random()*total;
+  for(const [t,w] of Object.entries(TYPE_W)){r-=w;if(r<=0)return t;}
+  return 'verse';
+}
+
+/* ── AUDIO ── */
+const AC=new (window.AudioContext||window.webkitAudioContext)();
+const master=AC.createGain();master.gain.value=0.7;master.connect(AC.destination);
+let _recDest=null,_audioOn=false;
+function unlockAC(){if(_audioOn)return;AC.resume().then(()=>{_audioOn=true;startPad();});}
+let _pads=[];
+function startPad(){stopPad();try{[261.63,329.63,392,493.88].forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain(),lfo=AC.createOscillator(),lg=AC.createGain();o.type='sine';o.frequency.value=f;lfo.type='sine';lfo.frequency.value=0.08+i*0.02;lg.gain.value=1.2;lfo.connect(lg);lg.connect(o.frequency);const n=AC.currentTime;g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(0.016-i*0.002,n+2);o.connect(g);g.connect(master);o.start(n);lfo.start(n);_pads.push({o,g,lfo});});}catch(e){}}
+function stopPad(){_pads.forEach(p=>{try{p.g.gain.setTargetAtTime(0,AC.currentTime,0.3);setTimeout(()=>{try{p.o.stop();p.lfo.stop();}catch(e){}},800);}catch(e){}});_pads=[];}
+function sfxPop(){if(!_audioOn)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(800,AC.currentTime);o.frequency.exponentialRampToValueAtTime(400,AC.currentTime+0.08);g.gain.setValueAtTime(0.06,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.12);o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+0.13);}catch(e){}}
+function sfxWhoosh(){if(!_audioOn)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(600,AC.currentTime);o.frequency.exponentialRampToValueAtTime(200,AC.currentTime+0.3);g.gain.setValueAtTime(0.03,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.4);o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+0.45);}catch(e){}}
+
+/* ── CONTENT POOLS ── */
+let _pools={},_pidxs={};
+function nextC(type){
+  if(!_pools[type]||_pidxs[type]>=_pools[type].length){
+    _pools[type]=CONTENT.filter(c=>c.type===type).sort(()=>Math.random()-0.5);
+    _pidxs[type]=0;
+  }
+  return _pools[type][_pidxs[type]++];
+}
+
+/* ── SCENE ── */
+let _timers=[];
+function clearT(){_timers.forEach(clearTimeout);_timers=[];}
+
+function showScene(){
+  clearT();unlockAC();
+  const type=pickType();
+  _si=pickStyle(type);
+  const style=STYLES[_si];
+  _ss=_t;
+  window._lastCategory=type;
+
+  const C=nextC(type);
+  window._lastHeadline=C.headline.replace(/\n/g,' ');
+  window._lastSubtitle=C.sub||'';
+  window._lastRef=C.ref||'';
+  window._lastEngage=C.engage||'';
+
+  // apply accent colour
+  document.getElementById('page-label-dot').style.background=style.accent;
+  document.querySelectorAll('#page-label-dot').forEach(d=>d.style.background=style.accent);
+  document.getElementById('ref-line').style.color=style.accent.replace(')',',0.8)').replace('rgb','rgba').replace('#','')+'; color:'+style.accent;
+
+  // tag line
+  const tagEl=document.getElementById('tag-line');
+  tagEl.classList.remove('in');
+  if(C.tag){tagEl.textContent=C.tag;tagEl.style.display='';}
+  else{tagEl.style.display='none';}
+
+  // build word-by-word headline
+  const wrap=document.getElementById('word-wrap');
+  wrap.innerHTML='';
+  const lines=C.headline.split('\n');
+  const allWords=[];
+  lines.forEach(line=>{
+    const row=document.createElement('div');row.className='word-row';
+    line.split(' ').forEach(w=>{
+      const span=document.createElement('span');span.className='word';
+      span.textContent=w;
+      span.style.textShadow=style.textShadow;
+      row.appendChild(span);allWords.push(span);
+    });
+    wrap.appendChild(row);
+  });
+
+  // sub line
+  const subEl=document.getElementById('sub-line');
+  subEl.classList.remove('in');
+  if(C.sub){subEl.textContent=C.sub;subEl.style.display='';}
+  else{subEl.style.display='none';}
+
+  // ref line
+  const refEl=document.getElementById('ref-line');
+  refEl.classList.remove('in');
+  if(C.ref){refEl.textContent='— '+C.ref;refEl.style.color=style.accent;refEl.style.display='';}
+  else{refEl.style.display='none';}
+
+  // engage
+  const engageEl=document.getElementById('engage-text');
+  engageEl.textContent=C.engage||'';
+  const ctaCard=document.getElementById('cta-card');
+  ctaCard.classList.remove('in');
+
+  // page label
+  const pl=document.getElementById('page-label');
+  pl.classList.remove('in');
+
+  // reset
+  const subT=C.type==='wwjd'?'rgba(255,255,255,0.88)':'rgba(255,255,255,0.92)';
+  subEl.style.color=subT;
+
+  // animate in sequence
+  _timers.push(setTimeout(()=>{pl.classList.add('in');},150));
+  if(C.tag) _timers.push(setTimeout(()=>{tagEl.classList.add('in');},220));
+
+  // words pop in one by one
+  let wordDelay=C.tag?380:280;
+  allWords.forEach((w,i)=>{
+    _timers.push(setTimeout(()=>{
+      w.classList.add('in');
+      sfxPop();
+    },wordDelay+i*120));
+  });
+
+  const afterWords=wordDelay+allWords.length*120+80;
+
+  if(C.sub){
+    _timers.push(setTimeout(()=>{subEl.classList.add('in');},afterWords));
+  }
+  if(C.ref){
+    _timers.push(setTimeout(()=>{refEl.classList.add('in');},afterWords+300));
+  }
+  _timers.push(setTimeout(()=>{
+    ctaCard.classList.add('in');
+    sfxWhoosh();
+    // add floating to words
+    allWords.forEach(w=>w.classList.add('float'));
+  },afterWords+550));
+}
+
+/* ── RECORDING ── */
+let _compC=null,_compCtx=null;
+window._recActive=false;window._recordingDone=false;window._recordingBlob=null;
+let _recChunks=[],_recorder=null;
+
+function drawOT(ctx,text,x,y,fc,sc,sw){
+  ctx.lineJoin='round';ctx.miterLimit=2;ctx.lineWidth=sw;
+  ctx.strokeStyle=sc;ctx.strokeText(text,x,y);
+  ctx.fillStyle=fc;ctx.fillText(text,x,y);
+}
+
+function _drawComposite(){
+  if(!_compCtx)return;
+  const ctx=_compCtx,cW=_compC.width,cH=_compC.height;
+  ctx.clearRect(0,0,cW,cH);
+  try{ctx.drawImage(bgC,0,0,cW,cH);}catch(e){}
+
+  const style=STYLES[_si];
+
+  // render each DOM element faithfully
+  function renderEl(el,font,fc,sc,sw,align){
+    const op=parseFloat(window.getComputedStyle(el).opacity)||0;
+    if(op<0.01)return;
+    const r=el.getBoundingClientRect();if(r.width<1||r.height<1)return;
+    const fs=parseFloat(window.getComputedStyle(el).fontSize)||28;
+    ctx.save();ctx.globalAlpha=op;ctx.textAlign=align||'center';ctx.textBaseline='middle';
+    ctx.font=font.replace('FS',fs);
+    drawOT(ctx,el.textContent,r.left+r.width/2,r.top+r.height/2,fc,sc,sw);
+    ctx.restore();
+  }
+
+  // page label dots + text
+  const plEl=document.getElementById('page-label');
+  const plOp=parseFloat(window.getComputedStyle(plEl).opacity)||0;
+  if(plOp>0.01){
+    const plt=document.getElementById('page-label-text');
+    const pr=plt.getBoundingClientRect();
+    const pfs=parseFloat(window.getComputedStyle(plt).fontSize)||11;
+    ctx.save();ctx.globalAlpha=plOp*0.65;ctx.font=`700 ${pfs}px 'Noto Sans',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    drawOT(ctx,plt.textContent,pr.left+pr.width/2,pr.top+pr.height/2,'rgba(255,255,255,0.65)','rgba(0,0,0,0.3)',Math.max(1,pfs*0.06));
+    ctx.restore();
+  }
+
+  // tag line
+  renderEl(document.getElementById('tag-line'),`700 FSpx 'Noto Sans',sans-serif`,'rgba(255,255,255,0.7)','rgba(0,0,0,0.4)',1.2);
+
+  // words
+  document.querySelectorAll('.word').forEach(el=>{
+    const op=parseFloat(window.getComputedStyle(el).opacity)||0;if(op<0.01)return;
+    const r=el.getBoundingClientRect();if(r.width<1||r.height<1)return;
+    const fs=parseFloat(window.getComputedStyle(el).fontSize)||48;
+    const transform=window.getComputedStyle(el).transform;
+    ctx.save();
+    ctx.globalAlpha=op;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    // approximate scale from transform
+    let scale=1;
+    if(transform&&transform!=='none'){const m=transform.match(/matrix\(([^,]+)/);if(m)scale=parseFloat(m[1]);}
+    const cx=r.left+r.width/2,cy=r.top+r.height/2;
+    ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.translate(-cx,-cy);
+    ctx.font=`900 ${fs}px 'Montserrat',sans-serif`;
+    ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=20;
+    drawOT(ctx,el.textContent,cx,cy,'#ffffff','rgba(0,0,0,0.55)',Math.max(2,fs*0.055));
+    ctx.restore();
+  });
+
+  // sub line
+  const subEl=document.getElementById('sub-line');
+  const subOp=parseFloat(window.getComputedStyle(subEl).opacity)||0;
+  if(subOp>0.01){
+    const r=subEl.getBoundingClientRect();
+    const fs=parseFloat(window.getComputedStyle(subEl).fontSize)||18;
+    ctx.save();ctx.globalAlpha=subOp;ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.font=`700 ${fs}px 'Nunito',sans-serif`;
+    // wrap text to fit
+    const maxW=r.width||cW*0.86;const words=subEl.textContent.split(' ');
+    let line='';const lineH=fs*1.5;let ly=r.top;
+    words.forEach((w,i)=>{
+      const test=line+w+' ';
+      ctx.save();const mw=ctx.measureText(test).width;ctx.restore();
+      if(mw>maxW&&line!==''){
+        ctx.save();ctx.globalAlpha=subOp;ctx.font=`700 ${fs}px 'Nunito',sans-serif`;
+        drawOT(ctx,line.trim(),cW/2,ly+lineH/2,'rgba(255,255,255,0.92)','rgba(0,0,0,0.4)',Math.max(1.2,fs*0.045));
+        ctx.restore();
+        line=w+' ';ly+=lineH;
+      }else{line=test;}
+    });
+    if(line.trim()){
+      ctx.save();ctx.font=`700 ${fs}px 'Nunito',sans-serif`;
+      drawOT(ctx,line.trim(),cW/2,ly+lineH/2,'rgba(255,255,255,0.92)','rgba(0,0,0,0.4)',Math.max(1.2,fs*0.045));
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // ref line
+  renderEl(document.getElementById('ref-line'),`700 FSpx 'Noto Sans',sans-serif`,style.accent,'rgba(0,0,0,0.4)',1.2);
+
+  // cta card
+  const ctaOp=parseFloat(window.getComputedStyle(document.getElementById('cta-card')).opacity)||0;
+  if(ctaOp>0.01){
+    const engEl=document.getElementById('engage-text');
+    const er=engEl.getBoundingClientRect();
+    const efs=parseFloat(window.getComputedStyle(engEl).fontSize)||18;
+    ctx.save();ctx.globalAlpha=ctaOp;ctx.font=`800 ${efs}px 'Nunito',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    drawOT(ctx,engEl.textContent,er.left+er.width/2,er.top+er.height/2,'#ffffff','rgba(0,0,0,0.45)',Math.max(1.5,efs*0.05));
+    // follow row
+    const fr=document.getElementById('follow-row');
+    const frr=fr.getBoundingClientRect();
+    const ffs=parseFloat(window.getComputedStyle(fr).fontSize)||10;
+    ctx.font=`600 ${ffs}px 'Noto Sans',sans-serif`;
+    drawOT(ctx,fr.textContent,frr.left+frr.width/2,frr.top+frr.height/2,'rgba(255,255,255,0.5)','rgba(0,0,0,0.3)',Math.max(1,ffs*0.05));
+    ctx.restore();
+  }
+}
+
+window.startRecordingFreshScene=function(fps){requestAnimationFrame(()=>requestAnimationFrame(()=>window.startRecording(fps)));};
+window.startRecording=function(fps){fps=fps||30;try{AC.resume().catch(()=>{});_compC=document.createElement('canvas');_compC.width=W;_compC.height=H;_compCtx=_compC.getContext('2d');window._recActive=true;window._recordingDone=false;_recChunks=[];_drawComposite();_recDest=AC.createMediaStreamDestination();master.connect(_recDest);const vs=_compC.captureStream(fps);const combined=new MediaStream([...vs.getVideoTracks(),..._recDest.stream.getAudioTracks()]);const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';_recorder=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:8000000,audioBitsPerSecond:192000});_recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)_recChunks.push(e.data);};_recorder.onstop=()=>{window._recActive=false;try{master.disconnect(_recDest);}catch(e){}window._recordingBlob=new Blob(_recChunks,{type:'video/webm'});window._recordingDone=true;};_recorder.start(200);}catch(e){console.error('startRecording error:',e);}};
+window.stopRecording=function(){try{if(_recorder&&_recorder.state!=='inactive')_recorder.stop();}catch(e){}};
+window.forceFinalize=function(){window._recActive=false;if(_recChunks.length>0&&!window._recordingDone){window._recordingBlob=new Blob(_recChunks,{type:'video/webm'});window._recordingDone=true;}};
+window.getRecordingBase64=function(){return new Promise((resolve,reject)=>{const chk=()=>{if(!window._recordingBlob){setTimeout(chk,100);return;}const r=new FileReader();r.onloadend=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(window._recordingBlob);};chk();});};
+
+(function loop(){requestAnimationFrame(loop);_t+=0.016;STYLES[_si].draw(bgCtx,_t,W,H);if(window._recActive)_drawComposite();})();
+window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;bgC.width=W;bgC.height=H;});
+document.body.addEventListener('click',showScene);
+document.body.addEventListener('touchend',e=>{e.preventDefault();showScene();},{passive:false});
+showScene();
+})();
+</script>
+</body>
+</html>

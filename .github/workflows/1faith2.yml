@@ -3,7 +3,9 @@ name: ✝️ Post Faith Engage Reel to Facebook
 on:
   workflow_dispatch:
   schedule:
-  #  - cron: "0 9,15,20 * * *"
+    # 5 posts a day. UTC times -> 8:07am / 12:07pm / 4:07pm / 8:07pm / 11:07pm Eastern
+    #                           -> 5:07am / 9:07am / 1:07pm / 5:07pm / 8:07pm Pacific
+    - cron: "7 12,16,20,0,3 * * *"
 
 jobs:
   post:
@@ -37,7 +39,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/piper
-          key: piper-binary-jenny-dioco-v3
+          key: piper-binary-ryan-v5
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -47,7 +49,7 @@ jobs:
       - name: Install Python deps
         run: pip install selenium webdriver-manager requests edge-tts
 
-      - name: Download Piper binary and voice (backup)
+      - name: Download Piper binary and voice (main voice if Edge is blocked)
         run: |
           mkdir -p ~/.cache/piper
           PIPER_BIN=~/.cache/piper/piper
@@ -55,30 +57,31 @@ jobs:
             echo "Downloading Piper binary..."
             curl -L -o /tmp/piper.tar.gz \
               "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz" || {
-              echo "Piper download failed — will rely on Edge TTS"
+              echo "Piper download failed"
               exit 0
             }
             mkdir -p /tmp/piper_extract
             tar -xzf /tmp/piper.tar.gz -C /tmp/piper_extract
             FOUND=$(find /tmp/piper_extract -name "piper" -type f | head -1)
             if [ -n "$FOUND" ]; then
-              cp "$FOUND" "$PIPER_BIN"
+              # copy the WHOLE folder (binary + .so libs + espeak-ng-data)
+              cp -r "$(dirname "$FOUND")"/. ~/.cache/piper/
               chmod +x "$PIPER_BIN"
-              find /tmp/piper_extract -name "*.so*" -exec cp {} ~/.cache/piper/ \;
               echo "Piper binary ready."
             else
-              echo "Piper binary not found — will rely on Edge TTS"
+              echo "Piper binary not found"
             fi
           else
             echo "Piper binary already cached."
           fi
-          VOICE_FILE=~/.cache/piper/en_US-jenny_dioco-medium.onnx
+          VOICE_FILE=~/.cache/piper/en_US-ryan-medium.onnx
           if [ ! -f "$VOICE_FILE" ]; then
             curl -L -o "$VOICE_FILE" \
-              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx" || true
+              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/medium/en_US-ryan-medium.onnx" || true
             curl -L -o "${VOICE_FILE}.json" \
-              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/jenny_dioco/medium/en_US-jenny_dioco-medium.onnx.json" || true
+              "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/medium/en_US-ryan-medium.onnx.json" || true
           fi
+          ls -la ~/.cache/piper | head -20
 
       - name: Set timestamp
         run: echo "TS=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
@@ -102,13 +105,16 @@ jobs:
 
           MUSIC_EXTENSIONS = ["mp3","wav","m4a","mp4","aac","ogg","flac","wma","opus"]
           PIPER_BIN   = str(Path.home() / ".cache/piper/piper")
-          PIPER_VOICE = str(Path.home() / ".cache/piper/en_US-jenny_dioco-medium.onnx")
-          EDGE_VOICE  = "en-US-JennyNeural"
+          PIPER_VOICE = str(Path.home() / ".cache/piper/en_US-ryan-medium.onnx")
+          EDGE_VOICE  = "en-US-AndrewNeural"   # alt deeper voice: en-US-GuyNeural
+          REC_SECONDS = 26                     # max recording length; trimmed to voice length later
 
           ORDINAL_BOOKS = {"1 ":"First ","2 ":"Second ","3 ":"Third "}
 
           def clean_for_tts(text):
             if not text: return text
+            # strip emojis and invisible joiners so they are never read aloud
+            text=re.sub(r'[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F\u200D]+','',text)
             for p,r in ORDINAL_BOOKS.items():
               text=re.sub(r'\b'+re.escape(p),r,text)
             text=re.sub(r'(\b[A-Za-z]+\s+)(\d+):(\d+)',lambda m:f"{m.group(1)}chapter {m.group(2)} verse {m.group(3)}",text)
@@ -122,6 +128,28 @@ jobs:
           def make_silence(dur,path,sr=24000):
             subprocess.run(["ffmpeg","-y","-f","lavfi","-i",f"anullsrc=r={sr}:cl=mono","-t",str(dur),"-acodec","pcm_s16le",path],capture_output=True)
 
+          def normalize(wav, target=-15.0):
+            # trim leading silence, measure average loudness, apply exact gain so every clip matches
+            # target: higher (e.g. -13) = louder, lower (e.g. -19) = quieter
+            tmp=wav+".n.wav"
+            trim="silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05"
+            p=subprocess.run(["ffmpeg","-hide_banner","-i",wav,"-af",trim+",volumedetect","-f","null","-"],capture_output=True,text=True)
+            m=re.search(r"mean_volume:\s*(-?[\d.]+) dB",p.stderr)
+            if not m:
+              print("  (normalize: could not measure, left as is)"); return
+            gain=max(-20.0,min(20.0,target-float(m.group(1))))
+            r=subprocess.run(["ffmpeg","-y","-i",wav,"-af",f"{trim},volume={gain:.1f}dB,alimiter=limit=0.95","-ar","24000","-ac","1","-acodec","pcm_s16le",tmp],capture_output=True)
+            if r.returncode==0 and Path(tmp).exists():
+              os.replace(tmp,wav); print(f"  (volume matched, gain {gain:+.1f} dB)")
+
+          def audio_duration(path):
+            p=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",path],capture_output=True,text=True)
+            try: return float(p.stdout.strip())
+            except: return 0.0
+
+          # Edge is tried once per run; if GitHub's IP is blocked (403) we switch to Piper for the rest
+          EDGE_BLOCKED = False
+
           async def edge_async(text,out_mp3):
             try:
               import edge_tts
@@ -129,7 +157,7 @@ jobs:
               await comm.save(out_mp3)
               return Path(out_mp3).exists() and Path(out_mp3).stat().st_size>100
             except Exception as e:
-              print(f"  Edge error: {e}"); return False
+              print(f"  Edge error: {str(e)[:120]}"); return False
 
           def edge_speak(text,out_wav):
             mp3=out_wav.replace(".wav","_e.mp3")
@@ -140,22 +168,30 @@ jobs:
             return r.returncode==0 and Path(out_wav).exists() and Path(out_wav).stat().st_size>100
 
           def piper_speak(text,out_wav):
-            if not Path(PIPER_BIN).exists() or not Path(PIPER_VOICE).exists(): return False
+            if not Path(PIPER_BIN).exists():
+              print("  Piper binary missing"); return False
+            if not Path(PIPER_VOICE).exists():
+              print("  Piper voice missing"); return False
             try:
               env=os.environ.copy()
               env["LD_LIBRARY_PATH"]=str(Path.home()/".cache/piper")+":"+env.get("LD_LIBRARY_PATH","")
-              r=subprocess.run([PIPER_BIN,"--model",PIPER_VOICE,"--output_file",out_wav],input=text.encode(),capture_output=True,timeout=40,env=env)
+              r=subprocess.run([PIPER_BIN,"--model",PIPER_VOICE,"--output_file",out_wav],input=text.encode(),capture_output=True,timeout=60,env=env,cwd=str(Path.home()/".cache/piper"))
+              if r.returncode!=0:
+                print(f"  Piper exit {r.returncode}: {r.stderr.decode(errors='ignore')[-300:]}")
               return r.returncode==0 and Path(out_wav).exists() and Path(out_wav).stat().st_size>100
             except Exception as e:
               print(f"  Piper error: {e}"); return False
 
           def synthesise(text,out_wav):
+            global EDGE_BLOCKED
             text=clean_for_tts(text)
             if not text: return False
             print(f"  TTS: '{text[:70]}...'" if len(text)>70 else f"  TTS: '{text}'")
-            if edge_speak(text,out_wav): print("  -> Edge OK"); return True
-            print("  -> Edge failed, trying Piper...")
-            if piper_speak(text,out_wav): print("  -> Piper OK"); return True
+            if not EDGE_BLOCKED:
+              if edge_speak(text,out_wav): normalize(out_wav); print("  -> Edge OK"); return True
+              EDGE_BLOCKED=True
+              print("  -> Edge failed, using Piper for the rest of this run")
+            if piper_speak(text,out_wav): normalize(out_wav); print("  -> Piper OK"); return True
             print("  -> Both failed"); return False
 
           def concat_wavs(wavs,out):
@@ -205,11 +241,9 @@ jobs:
               chosen=random.choice(candidates); print(f"Music: {chosen}"); return chosen
             print("No bgmusic folder found."); return None
 
-          def music_start(path):
-            probe=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",path],capture_output=True,text=True)
-            try: d=float(probe.stdout.strip())
-            except: d=0
-            return random.uniform(0,max(0,d-12)) if d>15 else 0
+          def music_start(path,need):
+            d=audio_duration(path)
+            return random.uniform(0,max(0,d-need)) if d>need+3 else 0
 
           # ── SELENIUM ──────────────────────────────────
           ts         = os.environ.get("TS","test")
@@ -258,8 +292,8 @@ jobs:
             if(typeof AC!=='undefined') AC.resume();
             window.startRecordingFreshScene(30);
           """)
-          print("Recording 10 seconds...")
-          time.sleep(10)
+          print(f"Recording {REC_SECONDS} seconds...")
+          time.sleep(REC_SECONDS)
 
           driver.execute_script("window.stopRecording();")
           time.sleep(1)
@@ -298,18 +332,18 @@ jobs:
           print(f"WebM: {os.path.getsize(webm_file)/1024/1024:.1f} MB")
 
           print("Converting to MP4...")
+          t0=time.time()
           r=subprocess.run([
             "ffmpeg","-y","-i",webm_file,
-            "-c:v","libx264","-preset","veryslow","-crf","10",
-            "-b:v","20M","-maxrate","25M","-bufsize","40M",
+            "-c:v","libx264","-preset","medium","-crf","20","-r","30",
             "-pix_fmt","yuv420p","-vf","scale=1080:1920:flags=lanczos",
-            "-c:a","aac","-b:a","320k","-ar","48000",
+            "-c:a","aac","-b:a","192k","-ar","48000",
             "-movflags","+faststart",mp4_file
           ],capture_output=True,text=True)
           if not os.path.exists(mp4_file) or os.path.getsize(mp4_file)<10000:
             raise RuntimeError(f"MP4 failed: {r.stderr[-500:]}")
           os.remove(webm_file)
-          print(f"MP4: {os.path.getsize(mp4_file)/1024/1024:.1f} MB")
+          print(f"MP4: {os.path.getsize(mp4_file)/1024/1024:.1f} MB in {time.time()-t0:.0f}s")
 
           # ── TTS ───────────────────────────────────────
           tts_wav=None
@@ -325,66 +359,65 @@ jobs:
                 else: print("TTS mp3 failed")
             else: print("No headline — skipping TTS")
 
+          # never post a video without a voice
+          if not tts_wav:
+            raise RuntimeError("TTS failed (Edge and Piper) - not posting a silent video")
+
+          # ── FINAL LENGTH ──────────────────────────────
+          video_dur=audio_duration(mp4_file) or float(REC_SECONDS)
+          voice_dur=audio_duration(tts_wav)
+          final_len=min(video_dur-0.3, voice_dur+1.2+1.5)   # 1.2s voice delay + 1.5s tail
+          final_len=max(final_len,6.0)
+          print(f"Final length: {final_len:.1f}s (video {video_dur:.1f}s, voice {voice_dur:.1f}s)")
+          fade_out_st=max(0,final_len-2)
+
           # ── MUSIC + MIX ───────────────────────────────
           music_file=pick_music()
           mixed_file=f"/tmp/engage_{ts}_final.mp4"
           mix_ok=False
 
-          if tts_wav and music_file:
+          if music_file:
             print("Mixing voice + music...")
-            ms=music_start(music_file)
+            ms=music_start(music_file,final_len+2)
+            # every input is padded (apad) so amix keeps a constant input count
+            # -> voice level stays the same from start to end; volume=3 compensates amix's 1/3 scaling
             mix=subprocess.run([
               "ffmpeg","-y",
               "-i",mp4_file,
-              "-ss",str(ms),"-t","14","-i",music_file,
+              "-ss",str(ms),"-t",str(final_len+1),"-i",music_file,
               "-i",tts_wav,
               "-filter_complex",
-              "[1:a]volume=0.35,afade=t=in:st=0:d=1.5,afade=t=out:st=11:d=2[music];"
-              "[2:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
-              "[0:a]volume=0.06[orig];"
-              "[orig][music][voice]amix=inputs=3:duration=longest:dropout_transition=2[aout]",
+              f"[1:a]volume=0.35,afade=t=in:st=0:d=1.5,afade=t=out:st={fade_out_st}:d=2,apad[music];"
+              "[2:a]adelay=1200|1200,afade=t=in:st=0:d=0.3,apad[voice];"
+              "[0:a]volume=0.06,apad[orig];"
+              "[voice][music][orig]amix=inputs=3:duration=longest:dropout_transition=0,volume=3[aout]",
               "-map","0:v","-map","[aout]",
+              "-t",str(final_len),
               "-c:v","copy","-c:a","aac","-b:a","256k",
               "-movflags","+faststart",mixed_file
             ],capture_output=True,text=True)
-            mix_ok=os.path.exists(mixed_file) and os.path.getsize(mixed_file)>10000
-            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
-
-          elif tts_wav:
+          else:
             print("Voice only...")
             mix=subprocess.run([
               "ffmpeg","-y","-i",mp4_file,"-i",tts_wav,
               "-filter_complex",
-              "[1:a]volume=1.0,adelay=1200|1200,afade=t=in:st=0:d=0.3[voice];"
-              "[0:a]volume=0.06[orig];"
-              "[orig][voice]amix=inputs=2:duration=longest:dropout_transition=2[aout]",
-              "-map","0:v","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","256k",
+              "[1:a]adelay=1200|1200,afade=t=in:st=0:d=0.3,apad[voice];"
+              "[0:a]volume=0.06,apad[orig];"
+              "[voice][orig]amix=inputs=2:duration=longest:dropout_transition=0,volume=2[aout]",
+              "-map","0:v","-map","[aout]",
+              "-t",str(final_len),
+              "-c:v","copy","-c:a","aac","-b:a","256k",
               "-movflags","+faststart",mixed_file
             ],capture_output=True,text=True)
-            mix_ok=os.path.exists(mixed_file) and os.path.getsize(mixed_file)>10000
-            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
 
-          elif music_file:
-            print("Music only...")
-            ms=music_start(music_file)
-            mix=subprocess.run([
-              "ffmpeg","-y","-i",mp4_file,
-              "-ss",str(ms),"-t","10","-i",music_file,
-              "-filter_complex",
-              "[1:a]volume=0.45,afade=t=in:st=0:d=1,afade=t=out:st=8.5:d=1.5[music];"
-              "[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[aout]",
-              "-map","0:v","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","256k",
-              "-movflags","+faststart",mixed_file
-            ],capture_output=True,text=True)
-            mix_ok=os.path.exists(mixed_file) and os.path.getsize(mixed_file)>10000
-            print("Done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
-          else:
-            print("No voice, no music — posting as-is.")
+          mix_ok=os.path.exists(mixed_file) and os.path.getsize(mixed_file)>10000
+          print("Mix done." if mix_ok else f"Mix failed: {mix.stderr[-400:]}")
+          if not mix_ok:
+            raise RuntimeError("Mix failed - not posting a video without the voice")
 
-          final_mp4=mixed_file if mix_ok else mp4_file
-          if tts_wav:
-            try: os.remove(tts_wav)
-            except: pass
+          final_mp4=mixed_file
+          try: os.remove(tts_wav)
+          except: pass
 
           # ── CAPTIONS ──────────────────────────────────
           CAPTIONS={
@@ -418,6 +451,11 @@ jobs:
               "He sees what you are carrying. Save this for when you need the reminder. #Hope #Faith #Christian",
               "Tag someone who needs to hear this right now. #Faith #Hope #Christian #Jesus",
               "Share this with someone going through a hard season. #Faith #Hope #Christian #God",
+            ],
+            "askverse":[
+              "What verse gets you through? Type it in the comments so others can save it. #Bible #Faith #Christian #Verse",
+              "Share your favorite verse below. Someone needs it today. #Faith #Bible #Christian #Hope",
+              "Drop a verse in the comments for someone who is hurting. #Faith #Bible #Jesus #Christian",
             ],
           }
           description=random.choice(CAPTIONS.get(category,CAPTIONS["verse"]))

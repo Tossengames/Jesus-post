@@ -1,0 +1,841 @@
+name: faith-post
+
+"on":
+  workflow_dispatch:
+    inputs:
+      game:
+        description: "Post type"
+        required: false
+        default: "auto"
+        type: choice
+        options: [auto, understands, hold_on, season_poll, verse_blank]
+  schedule:
+    - cron: "0 14,23 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: faith-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install-deps
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg jq python3-pip fonts-noto-core
+          pip install --quiet --break-system-packages pillow numpy edge-tts
+
+      - name: build-video
+        id: build
+        timeout-minutes: 12
+        env:
+          GAME: ${{ github.event.inputs.game }}
+          VOICE: en-US-AndrewNeural
+        run: |
+          cat > game.py << 'PYEOF'
+          import os, re, json, random, math, subprocess, glob, wave
+          import numpy as np
+          from PIL import Image, ImageDraw, ImageFont
+
+          W, H, FPS, SR = 1080, 1920, 24, 44100
+          VOICE = os.environ.get("VOICE", "en-US-AndrewNeural")
+
+
+          def find(cands):
+              for c in cands:
+                  m = sorted(glob.glob(c))
+                  if m:
+                      return m[0]
+              return None
+
+
+          F_SANS = find(["/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+                         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"])
+          F_SERIF = find(["/usr/share/fonts/truetype/noto/NotoSerif-Bold.ttf",
+                          "/usr/share/fonts/truetype/noto/NotoSerif-*.ttf"]) or F_SANS
+
+          _fc = {}
+
+
+          def font(p, s):
+              k = (p, s)
+              if k not in _fc:
+                  _fc[k] = ImageFont.truetype(p, s)
+              return _fc[k]
+
+
+          M = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+
+
+          def hexrgb(h):
+              h = h.lstrip("#")
+              return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+          def sanitize(t):
+              t = re.sub(r"[^A-Za-z0-9\s\.\,\!\?\;\'\-]", " ", t)
+              return re.sub(r"\s+", " ", t).strip()
+
+
+          def refs(ref):
+              return ref.replace(":", " verse ")
+
+
+          # ================================================================== CONTENT
+          # Verses are World English Bible (public domain), "Yahweh" written as "the LORD".
+
+          # (id, hook, what Jesus went through, what it means for you, verse, reference, question)
+          UNDERSTANDS = [
+              ("tired", "Running on empty and nobody notices?",
+               "Jesus knows exhaustion. He was so worn out He fell asleep in a boat in the middle of a storm.",
+               "You can bring your tiredness to Him and find real rest.",
+               "Come to me, all you who labor and are heavily burdened, and I will give you rest.",
+               "Matthew 11:28", "What is wearing you out this week? Tell us in one sentence."),
+              ("betrayed", "Hurt by someone you trusted?",
+               "Jesus was betrayed by a close friend, and the rest of His friends ran away.",
+               "You can have a Friend who never leaves, even when everyone else does.",
+               "Behold, I am with you always, even to the end of the age.",
+               "Matthew 28:20", "Who showed up for you in your hardest season? Give them a shout-out below."),
+              ("grief", "Grieving and nobody knows what to say?",
+               "Jesus wept at the grave of His friend, even though He knew He would raise him.",
+               "You can cry without shame, knowing He cares about every tear.",
+               "Weeping may stay for the night, but joy comes in the morning.",
+               "Psalm 30:5", "Who are you missing today? Share their name if you want to."),
+              ("misunderstood", "Feel misunderstood by your own family?",
+               "Jesus knows that too. Even His own brothers did not believe in Him at first.",
+               "You can be fully accepted by God, even when the people closest to you do not get you.",
+               "For my father and my mother have forsaken me, but the LORD will take me up.",
+               "Psalm 27:10", "Has family ever been the hardest place to feel understood? You are not alone."),
+              ("anxious", "Lying awake at night worrying?",
+               "Jesus knows anxiety. The night before the cross He told His friends His soul was overwhelmed with sorrow.",
+               "You can hand your worries to Him instead of carrying them alone.",
+               "Casting all your worry on him, because he cares for you.",
+               "1 Peter 5:7", "What worry are you handing over tonight?"),
+              ("alone", "Feeling completely alone?",
+               "On the cross Jesus cried out, My God, why have you forsaken me? He has been in the loneliest place there is.",
+               "You can know that you never have to face your darkest moment alone.",
+               "Don't you be afraid, for I am with you. Don't be dismayed, for I am your God. I will strengthen you.",
+               "Isaiah 41:10", "If you feel alone today, say so below. We will answer."),
+              ("shame", "Carrying shame from your past?",
+               "Jesus was mocked, stripped, and shamed in public, and He carried it so you would not have to.",
+               "You can wake up to mercy that is new every single morning.",
+               "It is of the LORD's loving kindnesses that we are not consumed, because his compassions don't fail. They are new every morning.",
+               "Lamentations 3:22-23", "What would it feel like to finally put that weight down? Tell us."),
+              ("prodigal", "Praying for a child who walked away?",
+               "Jesus told a story of a father who kept watching the road for his lost son.",
+               "You can keep hoping, because the Father never stops running toward the ones who come home.",
+               "But while he was still far off, his father saw him, and had compassion, and ran, and fell on his neck, and kissed him.",
+               "Luke 15:20", "Parents, what are you praying for today?"),
+              ("marriage", "Tired of giving more than you get in your marriage?",
+               "Jesus knelt and washed the feet of the very men who would abandon Him that night.",
+               "You can keep loving when it is hard, and trust that your effort is never wasted.",
+               "Let us not be weary in doing good, for we will reap in due season if we don't give up.",
+               "Galatians 6:9", "Share one small thing you appreciate about your spouse today."),
+              ("money", "Stressed about money and bills?",
+               "Jesus was born in a borrowed stable and said He had nowhere to lay His head.",
+               "You can trust Him to provide, even when the numbers do not add up.",
+               "My God will supply every need of yours according to his riches in glory in Christ Jesus.",
+               "Philippians 4:19", "What is one need you are trusting Him with this month?"),
+              ("waiting", "Stuck in a long season of waiting?",
+               "Jesus spent about thirty years in ordinary life before His public work began.",
+               "You can know that a long wait is not a wasted wait.",
+               "But those who wait for the LORD will renew their strength. They will mount up with wings like eagles.",
+               "Isaiah 40:31", "What are you waiting on right now?"),
+              ("failed", "Think you failed too badly to be forgiven?",
+               "Jesus forgave Peter after Peter denied Him three times, and then trusted him with His people.",
+               "You can have a real second chance, no matter how badly you fell.",
+               "If we confess our sins, he is faithful and righteous to forgive us the sins and to cleanse us from all unrighteousness.",
+               "1 John 1:9", "What does a second chance mean to you? Tell us."),
+              ("burnout", "Doing everything for everyone and still feel behind?",
+               "Jesus saw Martha running herself ragged and gently told her she was worried about many things.",
+               "You can set the pile down and sit with Him for a moment.",
+               "Cast your burden on the LORD, and he will sustain you. He will never allow the righteous to be moved.",
+               "Psalm 55:22", "What is one thing you can set down today?"),
+              ("rejected", "Feel rejected by the people who should have your back?",
+               "Jesus was turned away in His own hometown by people who watched Him grow up.",
+               "You can be sure you are chosen by God, even when people turn you away.",
+               "Don't be afraid, for I have redeemed you. I have called you by your name. You are mine.",
+               "Isaiah 43:1", "Who do you need to be reminded of this for? Share it with them."),
+              ("doubt", "Struggling with doubt and afraid to say it?",
+               "Jesus met Thomas in his doubt without scolding him. He simply showed him His hands.",
+               "You can bring your honest questions to Him.",
+               "I believe. Help my unbelief!",
+               "Mark 9:24", "What question are you carrying quietly? You can say it here."),
+              ("health", "Scared about your health or a loved one's?",
+               "Jesus spent His days with the sick and stopped for the very ones everyone else walked past.",
+               "You can bring your fears about your body and your family to the One who cares.",
+               "Heal me, LORD, and I will be healed; save me, and I will be saved; for you are my praise.",
+               "Jeremiah 17:14", "Who needs prayer for their health today? Name them below."),
+              ("forgive", "Struggling to forgive someone who really hurt you?",
+               "Jesus said, Father, forgive them, while the nails were still going in.",
+               "You can find strength to forgive, even when it feels impossible.",
+               "And be kind to one another, tender hearted, forgiving each other, just as God also in Christ forgave you.",
+               "Ephesians 4:32", "Is forgiveness hard for you right now? You are not alone."),
+              ("fear", "Afraid of what is coming next?",
+               "In the garden the night before the cross, Jesus prayed in deep anguish. He knows what fear feels like.",
+               "You can ask Him for peace, even when the future scares you.",
+               "Peace I leave with you. My peace I give to you. Let not your heart be troubled, neither let it be fearful.",
+               "John 14:27", "What are you afraid of this week? Let it out below."),
+              ("invisible", "Feel invisible and unappreciated?",
+               "Jesus spent His life with fishermen, tax collectors, and outcasts, the people others overlooked.",
+               "You can know that you matter to Him, no matter who forgets you.",
+               "But the very hairs of your head are all numbered. Therefore don't be afraid. You are of more value than many sparrows.",
+               "Luke 12:7", "Tell us one thing that makes you feel valued."),
+              ("parenting", "Feel like you are failing as a parent?",
+               "Jesus welcomed the children when His own disciples tried to send them away.",
+               "You can trust that He loves your kids even more than you do.",
+               "Allow the little children to come to me, and don't forbid them, for the Kingdom of God belongs to such as these.",
+               "Mark 10:14", "What do you pray for your kids most? Share it below."),
+              ("work", "Lost your job or stuck in work that drains you?",
+               "Jesus worked with His hands as a carpenter for years, in ordinary work most people never noticed.",
+               "You can trust that He sees your work and your needs.",
+               "For I know the thoughts that I think toward you, says the LORD, thoughts of peace, and not of evil, to give you hope and a future.",
+               "Jeremiah 29:11", "How can we pray for your work situation?"),
+              ("distant", "Feel far from God lately?",
+               "Jesus often slipped away to quiet places to pray, even when crowds were waiting for Him.",
+               "You can come back to Him anytime, with no big speech needed.",
+               "Draw near to God, and he will draw near to you.",
+               "James 4:8", "When do you feel closest to God? Tell us."),
+              ("loss", "Carrying a loss that few people understand?",
+               "Jesus saw a widow burying her only son, and His heart went out to her.",
+               "You can know that He feels your loss with you.",
+               "You count my wanderings. You put my tears into your bottle. Aren't they in your book?",
+               "Psalm 56:8", "If you need to share your heart, we are here to listen."),
+              ("enough", "Feel like you are not enough?",
+               "Jesus chose ordinary, flawed people to carry His message to the world.",
+               "You can be used by Him exactly as you are.",
+               "My grace is sufficient for you, for my power is made perfect in weakness.",
+               "2 Corinthians 12:9", "What is one thing you are quietly good at? Tell us."),
+              ("home", "Home feels like a battlefield lately?",
+               "Jesus stood in a raging storm and spoke three words that calmed the sea: Peace, be still.",
+               "You can ask Him to speak peace over your home.",
+               "Let the peace of Christ rule in your hearts, to which also you were called in one body, and be thankful.",
+               "Colossians 3:15", "What would more peace at home look like for you?"),
+              ("caregiver", "Worn down caring for someone you love?",
+               "Even from the cross, Jesus made sure His mother would be cared for.",
+               "You can lean on Him for the strength you do not have.",
+               "My flesh and my heart fail, but God is the strength of my heart and my portion forever.",
+               "Psalm 73:26", "Caregivers, how are YOU doing today? Be honest."),
+              ("struggle", "Fighting something you cannot beat alone?",
+               "Jesus was tempted in every way and knows exactly how hard the fight can be.",
+               "You can ask Him for help, because He has been there.",
+               "For we don't have a high priest who can't empathize with our weaknesses, but one who has been in all points tempted like we are, yet without sin.",
+               "Hebrews 4:15", "You do not have to fight alone. Tell us how we can pray."),
+              ("regret", "Wish you could go back and do it all differently?",
+               "Jesus told the criminal beside Him, at the very last hour, that he would be with Him that day.",
+               "You can know it is never too late with Him.",
+               "Assuredly I tell you, today you will be with me in Paradise.",
+               "Luke 23:43", "What do you want a fresh start in? Tell us."),
+              ("prayer", "Do not even have the words to pray?",
+               "Jesus' own friends asked Him to teach them how to pray.",
+               "You can come as you are, in plain, simple words.",
+               "For your Father knows what things you need, before you ask him.",
+               "Matthew 6:8", "What would you say to Him right now, in one sentence?"),
+              ("emmaus", "Struggling to see anything good right now?",
+               "On the road to Emmaus, Jesus walked beside two heartbroken friends, and they did not even recognize Him.",
+               "You can trust that He is walking beside you now, even when you cannot see Him.",
+               "Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me. Your rod and your staff, they comfort me.",
+               "Psalm 23:4", "Where have you seen a small glimmer of hope lately?"),
+          ]
+
+          # (id, big hook, [supporting lines], verse, reference, question)
+          HOLD_ON = [
+              ("badday", "Bad days do not last.", ["This heavy season is not your whole story.", "Morning is on its way."],
+               "Weeping may stay for the night, but joy comes in the morning.", "Psalm 30:5",
+               "What is one thing that got you through today?"),
+              ("dontquit", "Do not give up yet.", ["You may be closer to your breakthrough than you think.", "Keep going."],
+               "Let us not be weary in doing good, for we will reap in due season if we don't give up.", "Galatians 6:9",
+               "What keeps you going? Share it below."),
+              ("wait", "Good things wait for those who wait.", ["Your waiting is not wasted.", "He is working even while you rest."],
+               "But those who wait for the LORD will renew their strength. They will mount up with wings like eagles.", "Isaiah 40:31",
+               "What are you waiting on right now?"),
+              ("broken", "You are not too broken for Him.", ["Jesus came for the tired and the hurting.", "Not for the perfect."],
+               "He heals the broken in heart, and binds up their wounds.", "Psalm 147:3",
+               "If you need prayer today, say so below."),
+              ("newday", "Tomorrow comes with fresh mercy.", ["Whatever happened today, it is not the last word."],
+               "His compassions don't fail. They are new every morning.", "Lamentations 3:23",
+               "What is one thing you are grateful for this morning?"),
+              ("tears", "Your tears are seen.", ["Every sleepless night and silent cry is known to Him."],
+               "Those who sow in tears will reap in joy.", "Psalm 126:5",
+               "Need to let it out? This is a safe place. Share below."),
+              ("glory", "What you are facing is not the end.", ["The pain is real.", "So is the hope that is coming."],
+               "For I consider that the sufferings of this present time are not worthy to be compared with the glory which will be revealed toward us.",
+               "Romans 8:18", "What hope are you holding onto right now?"),
+              ("brave", "You do not walk alone.", ["Be brave today.", "He goes before you."],
+               "Be strong and courageous. Don't be afraid. Don't be dismayed, for the LORD your God is with you wherever you go.",
+               "Joshua 1:9", "What is one thing you need courage for this week?"),
+              ("storm", "Even storms listen to Jesus.", ["He can speak peace over your home.", "Keep your eyes on Him."],
+               "In the world you have trouble; but cheer up! I have overcome the world.", "John 16:33",
+               "What storm are you walking through? Share below."),
+              ("near", "He is closer than you think.", ["When your heart is breaking, He is already there."],
+               "The LORD is near to those who have a broken heart, and saves those who have a crushed spirit.", "Psalm 34:18",
+               "Who would you want to remind of this today? Share it with them."),
+              ("stronger", "You are stronger than this season.", ["You have survived every hard day so far.", "That is not luck."],
+               "I can do all things through Christ who strengthens me.", "Philippians 4:13",
+               "What is one hard thing you already got through?"),
+              ("notfinished", "God is not finished with you.", ["The story is still being written.", "Your best chapters may be ahead."],
+               "Being confident of this very thing, that he who began a good work in you will complete it until the day of Jesus Christ.",
+               "Philippians 1:6", "What are you hoping He will do next?"),
+              ("rest", "Rest is not weakness.", ["Even Jesus withdrew to quiet places.", "Take a breath today."],
+               "Be still, and know that I am God.", "Psalm 46:10", "How will you rest this week?"),
+              ("heard", "Your prayers are not going unheard.", ["Keep praying.", "Keep trusting."],
+               "The righteous cry, and the LORD hears, and delivers them out of all their troubles.", "Psalm 34:17",
+               "What are you praying for? Share it below."),
+              ("familyheal", "Your family can heal.", ["Broken does not mean finished.", "Small steps still count."],
+               "Unless the LORD builds the house, they labor in vain who build it.", "Psalm 127:1",
+               "What is one small step you can take for your family this week?"),
+              ("lovetry", "Love is worth another try.", ["Marriages are rebuilt one honest conversation at a time.", "Start with kindness today."],
+               "Love bears all things, believes all things, hopes all things, endures all things.", "1 Corinthians 13:7",
+               "Tell your spouse one thing you appreciate, then come back and tell us how it went."),
+              ("prayedfor", "Someone is praying for you.", ["You are not forgotten.", "You are not invisible."],
+               "The LORD bless you, and keep you. The LORD make his face to shine on you, and be gracious to you.",
+               "Numbers 6:24-25", "Who needs a prayer today? Name them below."),
+              ("eyes", "Keep your eyes on Him.", ["Not on the size of the wave.", "Peter walked on water until he looked away."],
+               "Looking to Jesus, the author and perfecter of our faith.", "Hebrews 12:2",
+               "What do you need to stop staring at today?"),
+              ("notok", "It is okay to not be okay.", ["Faith is not pretending.", "Even the psalmists cried out."],
+               "Trust in him at all times, you people. Pour out your heart before him.", "Psalm 62:8",
+               "What would you pour out to Him today?"),
+              ("past", "Your past does not define you.", ["Mercy is stronger than your mistakes.", "You are allowed to begin again."],
+               "Therefore if anyone is in Christ, he is a new creation. The old things have passed away. Behold, all things have become new.",
+               "2 Corinthians 5:17", "What is one thing you are leaving behind?"),
+              ("seasons", "Seasons change. He does not.", ["Whatever you are facing today,", "He is the same God as yesterday."],
+               "Jesus Christ is the same yesterday, today, and forever.", "Hebrews 13:8",
+               "Which season are you in right now?"),
+              ("loved", "You are loved more than you know.", ["Not for what you do.", "Simply because you are His."],
+               "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life.",
+               "John 3:16", "Who can you remind of this today?"),
+              ("breakthrough", "Your breakthrough may be close.", ["Do not stop now.", "The hardest stretch is often right before the turn."],
+               "Wait for the LORD. Be strong, and let your heart take courage. Yes, wait for the LORD.", "Psalm 27:14",
+               "What are you still believing for?"),
+              ("parents", "Parents, you are doing better than you think.", ["Your kids see your effort.", "Keep showing up."],
+               "Train up a child in the way he should go, and when he is old he will not depart from it.", "Proverbs 22:6",
+               "What is one thing you hope your kids remember about home?"),
+              ("carry", "You do not have to carry it all.", ["Ask for help.", "Let someone in."],
+               "Bear one another's burdens, and so fulfill the law of Christ.", "Galatians 6:2",
+               "Who can you reach out to today?"),
+              ("peace", "Peace is possible, even now.", ["Not because life is easy.", "Because He is near."],
+               "And the peace of God, which surpasses all understanding, will guard your hearts and your thoughts in Christ Jesus.",
+               "Philippians 4:7", "What would peace look like for you today?"),
+              ("hope", "Do not let hard days steal your hope.", ["Hope is a choice you can make again tomorrow."],
+               "Now may the God of hope fill you with all joy and peace in believing, that you may abound in hope.",
+               "Romans 15:13", "What gives you hope lately?"),
+              ("forgotten", "He has not forgotten you.", ["Not in the waiting.", "Not in the silence."],
+               "Can a woman forget her nursing child? Yes, these may forget, yet I will not forget you.",
+               "Isaiah 49:15", "Do you feel forgotten today? Tell us."),
+              ("small", "Small faithfulness matters.", ["Showing up counts.", "Even on the days you feel nothing."],
+               "He who is faithful in a very little is faithful also in much.", "Luke 16:10",
+               "What small thing did you do faithfully today?"),
+              ("better", "Better days are coming.", ["Hold on a little longer.", "The night will end."],
+               "We know that all things work together for good for those who love God, to those who are called according to his purpose.",
+               "Romans 8:28", "What good do you hope to see?"),
+          ]
+
+          # (id, top title, question, 4 options, reply text for first comment)
+          REPLY = ("Thank you for sharing. Whatever number you picked, you are not alone.\n\n"
+                   "\"Come to me, all you who labor and are heavily burdened, and I will give you rest.\" (Matthew 11:28)\n\n"
+                   "Tell us a little about your season if you want to. We read every comment.")
+          POLLS = [
+              ("season", "CHECK IN", "Which season are you in right now?", ["Wrestling", "Waiting", "Weary", "At peace"], REPLY),
+              ("home", "FAMILY CHECK IN", "How does your home feel this week?",
+               ["Close and thankful", "Busy and distant", "Tense", "Slowly healing"], REPLY),
+              ("need", "TODAY", "What do you need most today?", ["Rest", "Peace", "Strength", "Hope"], REPLY),
+              ("heavy", "HEART CHECK", "What weighs on your heart the most?",
+               ["My kids", "My marriage", "My money", "My health"], REPLY),
+              ("couple", "COUPLES", "Be honest. How is your connection with your spouse lately?",
+               ["Strong", "Just okay", "Distant", "Rebuilding"], REPLY),
+              ("famneed", "FAMILY", "What does your family need most right now?",
+               ["More time together", "More patience", "More laughter", "More prayer"], REPLY),
+              ("parenthard", "PARENTS", "What is the hardest part of parenting lately?",
+               ["Exhaustion", "Guilt", "Screens", "Worry"], REPLY),
+              ("marrneed", "COUPLES", "What does your marriage need most right now?",
+               ["More time", "Better talks", "Forgiveness", "Fun again"], REPLY),
+              ("really", "TODAY", "How are you really doing today?",
+               ["Great", "Okay", "Struggling", "Barely holding on"], REPLY),
+              ("worknow", "WORK", "How is work treating you lately?",
+               ["Thankful", "Stressed", "Burned out", "Searching"], REPLY),
+              ("sleepless", "LATE NIGHT", "What keeps you up at night?",
+               ["Money", "Family", "Health", "The future"], REPLY),
+              ("faithnow", "FAITH", "Where is your faith right now?",
+               ["Strong", "Growing", "Shaky", "Starting over"], REPLY),
+              ("prayerlife", "PRAYER", "How is your prayer life lately?",
+               ["Daily", "Now and then", "Struggling", "Want to restart"], REPLY),
+              ("drain", "STRESS", "What is draining you the most?",
+               ["Bills", "Work", "Relationships", "Loneliness"], REPLY),
+              ("holiday", "HOLIDAYS", "How do you feel about the holidays?",
+               ["Excited", "Mixed", "Dreading", "Missing someone"], REPLY),
+              ("connect", "CONNECTION", "How connected do you feel to others?",
+               ["Very", "Somewhat", "Not much", "Lonely"], REPLY),
+              ("healthnow", "HEALTH", "How is your health this season?",
+               ["Good", "Up and down", "Struggling", "Waiting on answers"], REPLY),
+              ("forgiveq", "FORGIVENESS", "Is there someone you need to forgive?",
+               ["Yes", "Working on it", "Already did", "Not ready"], REPLY),
+              ("hopeq", "HOPE", "How hopeful do you feel?",
+               ["Very", "A little", "Hanging on", "Need hope"], REPLY),
+              ("mornings", "MORNINGS", "How do mornings feel right now?",
+               ["Peaceful", "Rushed", "Heavy", "Hopeful"], REPLY),
+              ("comm", "FAMILY", "How is communication at home?",
+               ["Open", "Okay", "Tense", "Silent"], REPLY),
+              ("kidsneed", "PARENTS", "What do your kids need from you most?",
+               ["Time", "Patience", "Listening", "Prayer"], REPLY),
+              ("alone", "BURDENS", "What are you carrying alone?",
+               ["Worry", "Grief", "Guilt", "Stress"], REPLY),
+              ("change", "CHANGE", "How are you handling change?",
+               ["Embracing it", "Adjusting", "Resisting", "Overwhelmed"], REPLY),
+              ("asking", "THIS WEEK", "What are you asking God for this week?",
+               ["Strength", "Healing", "Provision", "Direction"], REPLY),
+              ("thankful", "GRATITUDE", "What are you most thankful for?",
+               ["Family", "Health", "Faith", "A fresh start"], REPLY),
+              ("realtalk", "COUPLES", "When did you last have a real talk with your spouse?",
+               ["Today", "This week", "A while ago", "Cannot remember"], REPLY),
+              ("yearso", "THIS YEAR", "Which describes your year so far?",
+               ["Blessed", "Hard", "Both", "Survival mode"], REPLY),
+              ("weekq", "THIS WEEK", "How was your week?", ["Good", "Okay", "Tough", "Do not ask"], REPLY),
+              ("hearthear", "HEART CHECK", "What does your heart need to hear today?",
+               ["You are loved", "You are not alone", "Keep going", "It will be okay"], REPLY),
+          ]
+
+          # (id, verse with ___, options, index of correct option, reference)
+          BLANKS = [
+              ("b1", "Come to me, all you who labor and are heavily ___, and I will give you rest.", ["burdened", "afraid", "hungry"], 0, "Matthew 11:28"),
+              ("b2", "The LORD is near to those who have a broken ___.", ["heart", "home", "promise"], 0, "Psalm 34:18"),
+              ("b3", "Let us not be weary in doing good, for we will reap in due season if we don't give ___.", ["in", "up", "out"], 1, "Galatians 6:9"),
+              ("b4", "Be strong and ___. Don't be afraid.", ["courageous", "quiet", "patient"], 0, "Joshua 1:9"),
+              ("b5", "Weeping may stay for the night, but joy comes in the ___.", ["morning", "evening", "end"], 0, "Psalm 30:5"),
+              ("b6", "In the world you have trouble; but cheer up! I have ___ the world.", ["overcome", "left", "seen"], 0, "John 16:33"),
+              ("b7", "His compassions don't fail. They are new every ___.", ["morning", "week", "year"], 0, "Lamentations 3:23"),
+              ("b8", "He heals the broken in heart, and binds up their ___.", ["wounds", "hands", "chains"], 0, "Psalm 147:3"),
+              ("b9", "But those who wait for the LORD will renew their ___.", ["strength", "hope", "faith"], 0, "Isaiah 40:31"),
+              ("b10", "Behold, I am with you ___, even to the end of the age.", ["always", "sometimes", "rarely"], 0, "Matthew 28:20"),
+              ("b11", "I can do all things through Christ who ___ me.", ["strengthens", "loves", "finds"], 0, "Philippians 4:13"),
+              ("b12", "Be still, and know that I am ___.", ["God", "here", "near"], 0, "Psalm 46:10"),
+              ("b13", "Cast your burden on the LORD, and he will ___ you.", ["sustain", "teach", "leave"], 0, "Psalm 55:22"),
+              ("b14", "Draw near to God, and he will draw near to ___.", ["you", "us", "them"], 0, "James 4:8"),
+              ("b15", "Don't be afraid, for I have redeemed you. I have called you by your ___.", ["name", "side", "word"], 0, "Isaiah 43:1"),
+              ("b16", "Wait for the LORD. Be strong, and let your heart take ___.", ["courage", "rest", "cover"], 0, "Psalm 27:14"),
+              ("b17", "Bear one another's ___, and so fulfill the law of Christ.", ["burdens", "stories", "gifts"], 0, "Galatians 6:2"),
+              ("b18", "Jesus Christ is the same yesterday, today, and ___.", ["forever", "soon", "again"], 0, "Hebrews 13:8"),
+              ("b19", "Trust in him at all times, you people. Pour out your ___ before him.", ["heart", "list", "plans"], 0, "Psalm 62:8"),
+              ("b20", "Therefore if anyone is in Christ, he is a new ___.", ["creation", "beginning", "day"], 0, "2 Corinthians 5:17"),
+              ("b21", "My grace is sufficient for you, for my power is made perfect in ___.", ["weakness", "strength", "love"], 0, "2 Corinthians 12:9"),
+              ("b22", "Allow the little ___ to come to me, and don't forbid them.", ["children", "people", "sheep"], 0, "Mark 10:14"),
+              ("b23", "Even though I walk through the valley of the shadow of death, I will fear no ___.", ["evil", "man", "storm"], 0, "Psalm 23:4"),
+              ("b24", "Let not your heart be ___, neither let it be fearful.", ["troubled", "hardened", "silent"], 0, "John 14:27"),
+              ("b25", "He who began a good work in you will ___ it until the day of Jesus Christ.", ["complete", "start", "test"], 0, "Philippians 1:6"),
+              ("b26", "The LORD is my shepherd; I shall not ___.", ["want", "fear", "fall"], 0, "Psalm 23:1"),
+              ("b27", "Rejoice always. Pray without ceasing. In everything give ___.", ["thanks", "praise", "up"], 0, "1 Thessalonians 5:16-18"),
+              ("b28", "Love is patient and is ___.", ["kind", "strong", "quiet"], 0, "1 Corinthians 13:4"),
+              ("b29", "Trust in the LORD with all your ___.", ["heart", "mind", "strength"], 0, "Proverbs 3:5"),
+              ("b30", "For God so loved the world, that he gave his only born ___.", ["Son", "gift", "life"], 0, "John 3:16"),
+          ]
+
+          POOLS = {"understands": UNDERSTANDS, "hold_on": HOLD_ON, "season_poll": POLLS, "verse_blank": BLANKS}
+          TYPES = list(POOLS)
+
+          # ================================================================== PICK
+          USED_FILE = "used.json"
+          used = json.load(open(USED_FILE)) if os.path.exists(USED_FILE) else {}
+          game = os.environ.get("GAME", "auto")
+          if game not in TYPES:
+              game = random.choices(TYPES, [4, 3, 1, 2])[0]
+          pool = POOLS[game]
+          ug = used.get(game, [])
+          cands = [p for p in pool if p[0] not in ug]
+          if not cands:
+              ug = []
+              cands = pool
+          puz = random.choice(cands)
+          used[game] = ug + [puz[0]]
+          print("Post type:", game, "| Item:", puz[0])
+
+          # ================================================================== SPRITES
+          COLORS = ["#FF5A5F", "#FFB400", "#00B8A9", "#7C4DFF", "#FF7A00", "#2EA8F1", "#FF4D9D", "#4CAF50"]
+          PALETTES = [("#1B2A49", "#8E5572", "#F2A65A"), ("#0F2027", "#2C5364", "#E8A87C"),
+                      ("#2D1B69", "#6A4C93", "#FFB88C"), ("#14213D", "#4A6FA5", "#FCA311")]
+          WHITE, GOLD = "white", "#FFE9A8"
+
+
+          def block(text, size, color, fp, maxw=940, panel=False):
+              f = font(fp, size)
+              lines, cur = [], ""
+              for w in text.split():
+                  tr = (cur + " " + w).strip()
+                  if cur and M.textlength(tr, font=f) > maxw:
+                      lines.append(cur)
+                      cur = w
+                  else:
+                      cur = tr
+              if cur:
+                  lines.append(cur)
+              lh = int(size * 1.4)
+              w, h = maxw + 80, lh * len(lines) + 40
+              im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+              d = ImageDraw.Draw(im)
+              if panel:
+                  d.rounded_rectangle([0, 0, w - 1, h - 1], radius=40, fill=(20, 10, 50, 130))
+              for i, l in enumerate(lines):
+                  cy = 20 + lh * i + lh / 2
+                  d.text((w / 2 + 3, cy + 4), l, font=f, fill=(0, 0, 0, 90), anchor="mm")
+                  d.text((w / 2, cy), l, font=f, fill=color, anchor="mm", stroke_width=4, stroke_fill=(40, 20, 70, 255))
+              return im
+
+
+          def pill(text, size, color, minw=0):
+              f = font(F_SANS, size)
+              tw = M.textlength(text, font=f)
+              h = int(size * 1.7)
+              w = max(int(tw + size * 1.2), minw)
+              pad = 16
+              im = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
+              d = ImageDraw.Draw(im)
+              d.rounded_rectangle([pad + 5, pad + 9, pad + w + 5, pad + h + 9], radius=h // 2, fill=(0, 0, 0, 80))
+              d.rounded_rectangle([pad, pad, pad + w, pad + h], radius=h // 2, fill=hexrgb(color) + (255,),
+                                  outline=(255, 255, 255, 255), width=5)
+              d.text((pad + w / 2, pad + h / 2), text, font=f, fill="white", anchor="mm", stroke_width=3, stroke_fill=(0, 0, 0, 90))
+              return im
+
+
+          def cross():
+              im = Image.new("RGBA", (150, 200), (0, 0, 0, 0))
+              d = ImageDraw.Draw(im)
+              d.rounded_rectangle([57, 15, 93, 185], radius=8, fill=(255, 233, 168, 255))
+              d.rounded_rectangle([20, 60, 130, 96], radius=8, fill=(255, 233, 168, 255))
+              return im
+
+
+          def S(items, speech, hold=0.0):
+              return dict(items=items, speech=speech, hold=hold)
+
+
+          def verse_slide(verse, ref):
+              return S([block(verse, 58, WHITE, F_SERIF, panel=True), pill(ref, 48, "#FF7A00")], verse + " " + refs(ref))
+
+
+          # ================================================================== SLIDES
+          if game == "understands":
+              _, hook, went, so, verse, ref, q = puz
+              title = "HE'S BEEN THERE"
+              slides = [
+                  S([block(hook, 88, WHITE, F_SANS)], hook),
+                  S([block(went, 60, GOLD, F_SANS)], went),
+                  S([block(so, 64, WHITE, F_SANS)], so),
+                  verse_slide(verse, ref),
+                  S([block(q, 62, GOLD, F_SANS), pill("Share below", 52, "#FF3D71")], q),
+              ]
+              caption_top, caption_q = hook, q
+              comment = f"{ref} (WEB)\n\"{verse}\"\n\n{q}"
+
+          elif game == "hold_on":
+              _, hook, lines, verse, ref, q = puz
+              title = "HOLD ON"
+              slides = [
+                  S([block(hook, 92, WHITE, F_SANS)], hook),
+                  S([block(l, 64, GOLD if i == 0 else WHITE, F_SANS) for i, l in enumerate(lines)], " ".join(lines)),
+                  verse_slide(verse, ref),
+                  S([block(q, 62, GOLD, F_SANS), pill("Share below", 52, "#FF3D71")], q),
+              ]
+              caption_top, caption_q = hook, q
+              comment = f"{ref} (WEB)\n\"{verse}\"\n\n{q}"
+
+          elif game == "season_poll":
+              _, title, q, opts, reply = puz
+              spoken = " ".join(f"{i + 1}, {o}." for i, o in enumerate(opts))
+              slides = [
+                  S([block(q, 84, WHITE, F_SANS)], q),
+                  S([pill(f"{i + 1})  {o}", 58, COLORS[i], minw=760) for i, o in enumerate(opts)],
+                    "Comment the number that fits you. " + spoken, hold=2.0),
+                  S([block("Tell us your number", 72, GOLD, F_SANS), pill("You are not alone", 56, "#FF3D71")],
+                    "Tell us your number in the comments. You are not alone."),
+              ]
+              caption_top, caption_q = q, "Comment your number below."
+              comment = reply
+
+          else:  # verse_blank
+              _, text, opts, ci, ref = puz
+              correct = opts[ci]
+              opts = opts[:]
+              random.shuffle(opts)
+              ci = opts.index(correct)
+              title = "FINISH THE VERSE"
+              spoken_opts = " ".join(f"{'ABC'[i]}, {o}." for i, o in enumerate(opts))
+              slides = [
+                  S([block("Can you finish this verse?", 84, WHITE, F_SANS)], "Can you finish this verse?"),
+                  S([block(text.replace("___", "_____"), 58, WHITE, F_SERIF, panel=True)] +
+                    [pill(f"{'ABC'[i]})  {o}", 56, COLORS[i], minw=620) for i, o in enumerate(opts)],
+                    text.replace("___", "blank") + " " + spoken_opts, hold=3.0),
+                  S([block("Answer A, B or C below", 70, GOLD, F_SANS), pill("No peeking", 52, "#FF3D71")],
+                    "Type your answer in the comments."),
+              ]
+              caption_top, caption_q = "Can you finish this verse?", "Comment A, B or C below."
+              full = text.replace("___", correct)
+              comment = (f"Answer: {'ABC'[ci]}) {correct}\n\n\"{full}\" ({ref}, WEB)\n\n"
+                         f"Which verse is carrying you right now? Share it below.")
+
+
+          # ================================================================== TTS
+          def tts(text, out):
+              for _ in range(3):
+                  try:
+                      subprocess.run(["edge-tts", "--voice", VOICE, "--rate=-4%", "--text", text, "--write-media", out],
+                                     capture_output=True, timeout=90)
+                  except Exception:
+                      pass
+                  if os.path.exists(out) and os.path.getsize(out) > 0:
+                      return True
+              return False
+
+
+          def load(path):
+              raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
+                                   capture_output=True, check=True).stdout
+              return np.frombuffer(raw, dtype=np.float32).copy()
+
+
+          for i, s in enumerate(slides):
+              clean = sanitize(s["speech"])
+              out = f"/tmp/s{i}.mp3"
+              if tts(clean, out):
+                  arr = load(out)
+                  arr = arr / (float(np.max(np.abs(arr))) or 1.0) * 0.9
+              else:
+                  print("TTS failed for slide", i)
+                  arr = np.zeros(int(SR * max(2.0, len(clean.split()) * 0.45)), dtype=np.float32)
+              s["audio"] = arr
+              s["dur"] = len(arr) / SR
+
+          # ================================================================== TIMELINE + ELEMENTS
+          els, pops, starts = [], [], []
+
+
+          def add(im, cx, cy, a, b=None, bounce=True, ph=0.0):
+              els.append(dict(im=im, cx=cx, cy=cy, a=a, b=b, bounce=bounce, ph=ph))
+
+
+          add(cross(), W / 2, 130, 0.2, bounce=False)
+          add(block(title, 64, GOLD, F_SANS, maxw=960), W / 2, 270, 0.3, bounce=False)
+
+          cursor = 0.5
+          for i, s in enumerate(slides):
+              last = i == len(slides) - 1
+              sdur = max(2.8, s["dur"] + 0.9 + s["hold"])
+              start, end = cursor, cursor + sdur
+              starts.append(start)
+              items = s["items"]
+              n, gap = len(items), 24
+              total = sum(im.height for im in items) + gap * (n - 1)
+              y = max(400, 960 - total / 2 + 30)
+              stagger = max(0.3, min(1.3, (s["dur"] - 0.2) / max(1, n)))
+              for j, im in enumerate(items):
+                  a = start + 0.15 + j * stagger
+                  add(im, W / 2, y + im.height / 2, a, None if last else end, ph=j * 0.8)
+                  pops.append(a)
+                  y += im.height + gap
+              cursor = end
+          TOTAL = cursor + 1.0
+          print(f"Total length: {TOTAL:.1f}s")
+
+          # ================================================================== BACKGROUND
+          pal = [hexrgb(c) for c in random.choice(PALETTES)]
+          ys = (np.arange(2 * H) % H) / H * 3
+          idx = np.floor(ys).astype(int)
+          fr = (ys - idx)[:, None]
+          cols = np.array(pal, dtype=np.float32)
+          grad = cols[idx] * (1 - fr) + cols[(idx + 1) % 3] * fr
+          bg = Image.fromarray(np.repeat(grad[:, None, :], W, axis=1).astype(np.uint8))
+
+          rng = random.Random(7)
+          bokeh = []
+          for i in range(9):
+              r = rng.randint(70, 200)
+              im = Image.new("RGBA", (2 * r, 2 * r), (0, 0, 0, 0))
+              ImageDraw.Draw(im).ellipse([0, 0, 2 * r - 1, 2 * r - 1], fill=(255, 255, 255, rng.randint(20, 45)))
+              bokeh.append((im, rng.randint(0, W), rng.randint(0, H), rng.uniform(15, 45), rng.uniform(0, 6)))
+
+
+          def ease_back(x):
+              if x <= 0:
+                  return 0.0
+              if x >= 1:
+                  return 1.0
+              c1 = 1.70158
+              c3 = c1 + 1
+              return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2
+
+
+          def put(frame, im, cx, cy, s=1.0):
+              if s <= 0.02:
+                  return
+              if abs(s - 1) > 0.005:
+                  im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.BILINEAR)
+              frame.paste(im, (int(cx - im.width / 2), int(cy - im.height / 2)), im)
+
+
+          def render(t):
+              off = int(t * 60) % H
+              img = bg.crop((0, off, W, off + H))
+              for im, bx, by, sp, ph in bokeh:
+                  put(img, im, bx + math.sin(t * 0.5 + ph) * 50, (by - t * sp) % (H + 400) - 200)
+              for e in els:
+                  if t < e["a"]:
+                      continue
+                  s = ease_back((t - e["a"]) / 0.4)
+                  active = True
+                  if e["b"] is not None and t > e["b"]:
+                      s = max(0.0, 1 - (t - e["b"]) / 0.25)
+                      active = False
+                      if s <= 0:
+                          continue
+                  dy = math.sin((t - e["a"]) * 3 + e["ph"]) * 5 if (e["bounce"] and active) else 0
+                  put(img, e["im"], e["cx"], e["cy"] + dy, s)
+              return img
+
+
+          # ================================================================== AUDIO
+          buf = np.zeros(int((TOTAL + 0.5) * SR), dtype=np.float32)
+
+
+          def tone(freq, d_, vol, decay):
+              t = np.arange(int(SR * d_)) / SR
+              return (np.sin(2 * np.pi * freq * t) * np.exp(-decay * t) * vol).astype(np.float32)
+
+
+          snd_pop = tone(660, 0.12, 0.35, 25) + tone(990, 0.12, 0.18, 25)
+          snd_chime = tone(1046, 0.9, 0.3, 4) + tone(1568, 0.9, 0.18, 4)
+          nz = int(SR * 0.35)
+          snd_whoosh = (np.random.randn(nz) * (np.sin(np.linspace(0, np.pi, nz)) ** 2) * 0.08).astype(np.float32)
+
+
+          def mix(snd, t, gain=1.0):
+              i = int(t * SR)
+              n = min(len(snd), len(buf) - i)
+              if n > 0 and i >= 0:
+                  buf[i:i + n] += snd[:n] * gain
+
+
+          for a in pops:
+              mix(snd_pop, a)
+          for i, s in enumerate(slides):
+              mix(snd_whoosh, starts[i] - 0.05)
+              mix(s["audio"], starts[i] + 0.2)
+          mix(snd_chime, starts[-1])
+
+          tracks = [p for e in ("mp3", "wav", "m4a", "aac", "ogg", "flac", "mp4") for p in glob.glob(f"bgmusic/*.{e}")]
+          if tracks:
+              try:
+                  mp = random.choice(tracks)
+                  dd = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp],
+                                      capture_output=True, text=True).stdout.strip()
+                  mdur = float(dd) if dd else 0
+                  ms = random.uniform(0, mdur - TOTAL - 2) if mdur > TOTAL + 4 else 0
+                  raw = subprocess.run(["ffmpeg", "-v", "error", "-stream_loop", "-1", "-ss", f"{ms:.1f}", "-t", f"{TOTAL:.1f}",
+                                        "-i", mp, "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"], capture_output=True).stdout
+                  m = np.frombuffer(raw, dtype=np.float32)
+                  n = min(len(m), len(buf))
+                  env = np.ones(n, dtype=np.float32)
+                  fi, fo = int(SR * 0.8), int(SR * 1.5)
+                  if n > fi + fo:
+                      env[:fi] = np.linspace(0, 1, fi)
+                      env[-fo:] = np.linspace(1, 0, fo)
+                  buf[:n] += m[:n] * env * 0.15
+              except Exception as ex:
+                  print("music failed:", ex)
+
+          buf = np.clip(buf * 0.9, -1, 1)
+          with wave.open("audio.wav", "wb") as wf:
+              wf.setnchannels(1)
+              wf.setsampwidth(2)
+              wf.setframerate(SR)
+              wf.writeframes((buf * 32767).astype(np.int16).tobytes())
+
+          # ================================================================== RENDER
+          ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
+                                 "-r", str(FPS), "-i", "-", "-i", "audio.wav", "-c:v", "libx264", "-preset", "veryfast",
+                                 "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ac", "2",
+                                 "-t", f"{TOTAL:.2f}", "-movflags", "+faststart", "final.mp4"], stdin=subprocess.PIPE)
+          for k in range(int(TOTAL * FPS)):
+              ff.stdin.write(render(k / FPS).tobytes())
+          ff.stdin.close()
+          ff.wait()
+
+          # ================================================================== TEXT OUTPUTS
+          caption = f"{caption_top}\n\n{caption_q}\n\n#Jesus #Faith #Encouragement #Bible #Hope"
+          open("caption.txt", "w", encoding="utf-8").write(caption)
+          open("comment.txt", "w", encoding="utf-8").write(comment)
+          json.dump(used, open(USED_FILE, "w"), ensure_ascii=False, indent=1)
+          print("Done.")
+          PYEOF
+
+          python3 game.py
+          ls -lh final.mp4
+
+      - name: post-reel
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        timeout-minutes: 10
+        env:
+          PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+        run: |
+          API="https://graph.facebook.com/v19.0"
+          SIZE=$(stat -c%s final.mp4)
+          POST_ID=""; VID=""
+          for attempt in 1 2 3; do
+            INIT=$(curl -s -X POST "$API/$PAGE_ID/video_reels" -H "Content-Type: application/json" \
+              -d "$(jq -n --arg t "$PAGE_TOKEN" '{upload_phase:"start",access_token:$t}')")
+            VID=$(echo "$INIT" | jq -r '.video_id // empty')
+            URL=$(echo "$INIT" | jq -r '.upload_url // empty')
+            if [ -n "$VID" ] && [ -n "$URL" ]; then
+              curl -s -X POST "$URL" -H "Authorization: OAuth $PAGE_TOKEN" -H "offset: 0" -H "file_size: $SIZE" \
+                --data-binary "@final.mp4" > /dev/null
+              FIN=$(curl -s -X POST "$API/$PAGE_ID/video_reels" -H "Content-Type: application/json" \
+                -d "$(jq -n --arg t "$PAGE_TOKEN" --arg v "$VID" --rawfile d caption.txt \
+                '{upload_phase:"finish",video_id:$v,video_state:"PUBLISHED",description:$d,access_token:$t}')")
+              if echo "$FIN" | jq -e '.success == true' > /dev/null 2>&1; then
+                POST_ID=$(echo "$FIN" | jq -r '.post_id // empty')
+                echo "Reel published"
+                break
+              fi
+              echo "Finish failed: $FIN"
+            else
+              echo "Init failed: $INIT"
+            fi
+            VID=""
+            sleep 10
+          done
+
+          if [ -z "$VID" ]; then
+            echo "Falling back to regular video upload"
+            RESP=$(curl -s -X POST "$API/$PAGE_ID/videos" -F "source=@final.mp4" \
+              -F "description=<caption.txt" -F "access_token=$PAGE_TOKEN")
+            VID=$(echo "$RESP" | jq -r '.id // empty')
+            [ -z "$VID" ] && { echo "Upload failed: $RESP"; exit 1; }
+          fi
+
+          for i in $(seq 1 8); do
+            for ID in $POST_ID $VID; do
+              R=$(curl -s -X POST "$API/$ID/comments" \
+                --data-urlencode "access_token=$PAGE_TOKEN" --data-urlencode "message@comment.txt")
+              if echo "$R" | jq -e '.id' > /dev/null 2>&1; then echo "Comment posted on $ID"; exit 0; fi
+            done
+            echo "Comment retry $i: $R"
+            sleep 30
+          done
+          echo "Could not post comment"; exit 1
+
+      - name: save-used
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add used.json
+          git diff --cached --quiet || (git commit -m "update used items [skip ci]" && git pull --rebase && git push)

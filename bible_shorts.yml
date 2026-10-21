@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Bible Shorts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700;900&family=Lora:wght@500;700&family=Merriweather:wght@400;700&family=Montserrat:wght@600;800;900&family=Nunito:wght@700;800&family=Playfair+Display:wght@700;900&family=Poppins:wght@400;600;800&family=Raleway:wght@600;800&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,sans-serif}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
+canvas{height:100%;max-width:100%;aspect-ratio:9/16;display:block}
+#hint{position:fixed;left:0;right:0;bottom:14px;text-align:center;color:rgba(255,255,255,.9);font:600 14px system-ui,sans-serif;pointer-events:none;text-shadow:0 1px 4px #000}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="hint">Tap for a new video</div>
+<script>
+/* =====================================================================
+   BIBLE SHORTS  -  one file: content + themes + layouts + animations
+   Preview: open the page and tap. Each tap builds a new random video.
+   CI: GitHub Actions calls window.prepareScene() -> makes the voice ->
+       window.playScene(timing, {record:true}) -> reads the WebM back.
+   Scripture quotes use the King James Version (public domain).
+   ===================================================================== */
+(()=>{
+'use strict';
+const W=540,H=960,RES=720,K=RES/W;
+const cv=document.getElementById('c');
+cv.width=RES;cv.height=Math.round(H*K);
+const ctx=cv.getContext('2d');
+const TAU=Math.PI*2;
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const sr=i=>{const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x);};
+const easeOut=t=>1-Math.pow(1-clamp(t),3);
+const easeBack=t=>{t=clamp(t);const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2);};
+const easeBounce=t=>{t=clamp(t);const n=7.5625,d=2.75;if(t<1/d)return n*t*t;if(t<2/d){t-=1.5/d;return n*t*t+.75;}if(t<2.5/d){t-=2.25/d;return n*t*t+.9375;}t-=2.625/d;return n*t*t+.984375;};
+const ls=px=>{if('letterSpacing' in ctx)ctx.letterSpacing=px+'px';};
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function chapterOnly(ref){return ref.replace(/:.*$/,'');}
+
+/* =====================================================================
+   CONTENT  (add or edit freely - the format is shown on each line)
+   ===================================================================== */
+const DATA={
+/* verse: [title, text, reference] */
+verse:[
+['Strength','I can do all things through Christ which strengtheneth me.','Philippians 4:13'],
+['Shepherd','The Lord is my shepherd; I shall not want.','Psalm 23:1'],
+['Be Still','Be still, and know that I am God.','Psalm 46:10'],
+['Peace','Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you.','John 14:27'],
+['Rest','Come unto me, all ye that labour and are heavy laden, and I will give you rest.','Matthew 11:28'],
+['Trust','Trust in the Lord with all thine heart; and lean not unto thine own understanding.','Proverbs 3:5'],
+['Close to You','The Lord is nigh unto them that are of a broken heart.','Psalm 34:18'],
+['Courage','Be strong and of a good courage; be not afraid, neither be thou dismayed.','Joshua 1:9'],
+['Light','Thy word is a lamp unto my feet, and a light unto my path.','Psalm 119:105'],
+['Love','For God so loved the world, that he gave his only begotten Son.','John 3:16'],
+['New Mercies','His compassions fail not. They are new every morning: great is thy faithfulness.','Lamentations 3:22-23'],
+['Faith','Now faith is the substance of things hoped for, the evidence of things not seen.','Hebrews 11:1'],
+['No Worry','Take therefore no thought for the morrow: for the morrow shall take thought for the things of itself.','Matthew 6:34'],
+['Fearless','The Lord is my light and my salvation; whom shall I fear?','Psalm 27:1'],
+['Seek First','But seek ye first the kingdom of God, and his righteousness; and all these things shall be added unto you.','Matthew 6:33'],
+['Be Kind','Be ye kind one to another, tenderhearted, forgiving one another.','Ephesians 4:32'],
+['Joy','This is the day which the Lord hath made; we will rejoice and be glad in it.','Psalm 118:24'],
+['Pray','Pray without ceasing. In every thing give thanks.','1 Thessalonians 5:17-18'],
+['Pure Heart','Create in me a clean heart, O God; and renew a right spirit within me.','Psalm 51:10'],
+['Walk by Faith','For we walk by faith, not by sight.','2 Corinthians 5:7']
+],
+/* promise: [title, text, reference] */
+promise:[
+['Cast Your Care','Casting all your care upon him; for he careth for you.','1 Peter 5:7'],
+['He Provides','But my God shall supply all your need according to his riches in glory by Christ Jesus.','Philippians 4:19'],
+['New Strength','But they that wait upon the Lord shall renew their strength; they shall mount up with wings as eagles.','Isaiah 40:31'],
+['Never Alone','Lo, I am with you alway, even unto the end of the world.','Matthew 28:20'],
+['Your Refuge','God is our refuge and strength, a very present help in trouble.','Psalm 46:1'],
+['Enough Grace','My grace is sufficient for thee: for my strength is made perfect in weakness.','2 Corinthians 12:9'],
+['Victory','Thanks be to God, which giveth us the victory through our Lord Jesus Christ.','1 Corinthians 15:57'],
+['He Sustains','Cast thy burden upon the Lord, and he shall sustain thee.','Psalm 55:22'],
+['Desires of Your Heart','Delight thyself also in the Lord; and he shall give thee the desires of thine heart.','Psalm 37:4'],
+['Goodness','Surely goodness and mercy shall follow me all the days of my life.','Psalm 23:6'],
+['He Hears','The Lord is nigh unto all them that call upon him, to all that call upon him in truth.','Psalm 145:18'],
+['Fear Not','Fear thou not; for I am with thee: be not dismayed; for I am thy God.','Isaiah 41:10']
+],
+/* jesus: [words of Jesus, reference] */
+jesus:[
+['I am the bread of life: he that cometh to me shall never hunger.','John 6:35'],
+['I am the light of the world: he that followeth me shall not walk in darkness.','John 8:12'],
+['I am the way, the truth, and the life: no man cometh unto the Father, but by me.','John 14:6'],
+['I am the good shepherd: the good shepherd giveth his life for the sheep.','John 10:11'],
+['I am the resurrection, and the life: he that believeth in me, though he were dead, yet shall he live.','John 11:25'],
+['Follow me, and I will make you fishers of men.','Matthew 4:19'],
+['Let the little children come unto me, and forbid them not: for of such is the kingdom of God.','Mark 10:14'],
+['A new commandment I give unto you, That ye love one another; as I have loved you.','John 13:34'],
+['Greater love hath no man than this, that a man lay down his life for his friends.','John 15:13'],
+['Ask, and it shall be given you; seek, and ye shall find; knock, and it shall be opened unto you.','Matthew 7:7'],
+['Blessed are the peacemakers: for they shall be called the children of God.','Matthew 5:9'],
+['Blessed are the pure in heart: for they shall see God.','Matthew 5:8'],
+['Be of good cheer; I have overcome the world.','John 16:33'],
+['All things are possible to him that believeth.','Mark 9:23'],
+['Fear not, little flock; for it is your Father\'s good pleasure to give you the kingdom.','Luke 12:32'],
+['I am the door: by me if any man enter in, he shall be saved.','John 10:9']
+],
+/* miracle: [title, short summary, reference] */
+miracle:[
+['Water Into Wine','At a wedding in Cana, Jesus turned water into wine. It was his first miracle.','John 2:1-11'],
+['Walking on Water','In the storm, Jesus walked on the sea to reach his disciples.','Matthew 14:25-33'],
+['Feeding the Five Thousand','Five loaves and two fish fed a crowd of five thousand men.','Matthew 14:13-21'],
+['Calming the Storm','Jesus said, Peace, be still. The wind and the sea obeyed him.','Mark 4:35-41'],
+['Lazarus Raised','Lazarus had been dead four days. Jesus called him out of the tomb.','John 11:38-44'],
+['Sight for Bartimaeus','A blind beggar cried out to Jesus and received his sight.','Mark 10:46-52'],
+['The Leper Cleansed','Jesus touched a man with leprosy and made him clean.','Mark 1:40-42'],
+['Through the Roof','Four friends lowered their friend through a roof. Jesus forgave him and he walked.','Mark 2:1-12'],
+['Ten Lepers','Jesus healed ten lepers. Only one came back to say thank you.','Luke 17:11-19'],
+['A Net Full of Fish','After a night of catching nothing, Jesus filled their nets with fish.','Luke 5:1-11'],
+['Jairus\' Daughter','Jesus took a little girl by the hand and she stood up alive.','Mark 5:35-42'],
+['A Touch of Faith','A woman touched his cloak and was healed. Jesus said, thy faith hath made thee whole.','Mark 5:25-34']
+],
+/* parable: [title, short summary, reference] */
+parable:[
+['The Good Samaritan','A stranger helped a wounded man when others walked past. Go and do likewise.','Luke 10:25-37'],
+['The Prodigal Son','A son wasted everything and came home. His father ran to welcome him.','Luke 15:11-32'],
+['The Lost Sheep','A shepherd left ninety and nine sheep to find the one that was lost.','Luke 15:3-7'],
+['The Sower','Seed fell on different soils. Only the good ground bore fruit.','Matthew 13:3-9'],
+['The Mustard Seed','The smallest seed grows into a great tree. God\'s kingdom starts small.','Matthew 13:31-32'],
+['Two Builders','One man built on rock and stood in the storm. One built on sand and fell.','Matthew 7:24-27'],
+['The Lost Coin','A woman searched until she found one lost coin, and then she rejoiced.','Luke 15:8-10'],
+['The Persistent Widow','A widow kept asking until she was heard. Pray and do not give up.','Luke 18:1-8'],
+['The Talents','A master gave his servants gold. He praised those who used it well.','Matthew 25:14-30']
+],
+/* names: [name, meaning, reference] */
+names:[
+['Emmanuel','God with us.','Matthew 1:23'],
+['Prince of Peace','The ruler who brings true peace.','Isaiah 9:6'],
+['Good Shepherd','He knows his sheep and lays down his life for them.','John 10:11'],
+['Bread of Life','He satisfies the deepest hunger of the soul.','John 6:35'],
+['Light of the World','He leads us out of the darkness.','John 8:12'],
+['Lamb of God','He takes away the sin of the world.','John 1:29'],
+['Alpha and Omega','The beginning and the end.','Revelation 22:13'],
+['King of Kings','Lord of lords, ruling forever.','Revelation 19:16'],
+['Wonderful Counsellor','The one who guides us with perfect wisdom.','Isaiah 9:6'],
+['Savior','He came to save his people from their sins.','Matthew 1:21'],
+['Living Water','He gives water that leaves you thirsty no more.','John 4:14'],
+['The Messiah','The anointed one God promised.','John 1:41']
+],
+/* quiz: [question, answer, reference or ''] */
+quiz:[
+['How many disciples did Jesus choose?','Twelve','Luke 6:13'],
+['In which town was Jesus born?','Bethlehem','Luke 2:4-7'],
+['Who baptized Jesus in the Jordan River?','John the Baptist','Matthew 3:13'],
+['What was the first miracle of Jesus?','Water into wine','John 2:11'],
+['Who was raised from the dead after four days?','Lazarus','John 11:39-44'],
+['Which disciple denied Jesus three times?','Peter','Luke 22:61'],
+['What did five loaves and two fish feed?','Five thousand men','Matthew 14:17-21'],
+['Which tax collector climbed a tree to see Jesus?','Zacchaeus','Luke 19:2-4'],
+['Who gave Jesus his own tomb?','Joseph of Arimathea','Matthew 27:57-60'],
+['What did Jesus say to the stormy sea?','Peace, be still','Mark 4:39'],
+['Who walked on water toward Jesus?','Peter','Matthew 14:29'],
+['Which prophet was swallowed by a great fish?','Jonah','Jonah 1:17'],
+['Who defeated Goliath with a sling and a stone?','David','1 Samuel 17:50'],
+['Who built an ark to survive the flood?','Noah','Genesis 6:14-22'],
+['Which prophet was thrown into the lions\' den?','Daniel','Daniel 6:16'],
+['How many books are in the Bible?','Sixty six','']
+],
+/* whosaid: [quote, who said it, reference] */
+whosaid:[
+['The Lord is my shepherd; I shall not want.','King David','Psalm 23:1'],
+['I can do all things through Christ which strengtheneth me.','The Apostle Paul','Philippians 4:13'],
+['Here am I; send me.','The prophet Isaiah','Isaiah 6:8'],
+['Let my people go.','Moses','Exodus 5:1'],
+['Thou art the Christ, the Son of the living God.','Peter','Matthew 16:16'],
+['Behold the Lamb of God, which taketh away the sin of the world.','John the Baptist','John 1:29'],
+['My Lord and my God.','Thomas','John 20:28'],
+['Speak, Lord; for thy servant heareth.','Samuel','1 Samuel 3:9'],
+['As for me and my house, we will serve the Lord.','Joshua','Joshua 24:15'],
+['For whither thou goest, I will go.','Ruth','Ruth 1:16'],
+['Be it unto me according to thy word.','Mary','Luke 1:38'],
+['I know that my redeemer liveth.','Job','Job 19:25']
+],
+/* prophecy: [old testament words, OT reference, new testament words, NT reference] */
+prophecy:[
+['Out of thee shall he come forth unto me that is to be ruler in Israel.','Micah 5:2','Jesus was born in Bethlehem of Judaea.','Matthew 2:1'],
+['A virgin shall conceive, and bear a son, and shall call his name Immanuel.','Isaiah 7:14','They shall call his name Emmanuel, God with us.','Matthew 1:23'],
+['Behold, thy King cometh unto thee.','Zechariah 9:9','Hosanna to the Son of David.','Matthew 21:9'],
+['They pierced my hands and my feet.','Psalm 22:16','They crucified him, and two other with him.','John 19:18'],
+['He was wounded for our transgressions.','Isaiah 53:5','By whose stripes ye were healed.','1 Peter 2:24'],
+['So they weighed for my price thirty pieces of silver.','Zechariah 11:12','They covenanted with him for thirty pieces of silver.','Matthew 26:15']
+],
+/* prayer: [heading, short prayer or prompt] */
+prayer:[
+['Pause and Pray','Take a breath. Thank God for one thing today.'],
+['A Short Prayer','Lord, quiet my heart and help me trust you today. Amen.'],
+['Pray for Someone','Think of someone who is struggling. Pray for them right now.'],
+['Give It to God','Lord, I give you my worries. Carry what I cannot. Amen.'],
+['Be Thankful','Name three blessings. God is already working in your life.'],
+['Open Hands','Open your hands and tell God what you are holding on to.'],
+['Let It Go','Is there someone to forgive? Ask God for strength to let go.'],
+['Morning Prayer','Thank you for this new day, Lord. Lead me in your way. Amen.'],
+['Night Prayer','Lord, I rest in you tonight. Watch over those I love. Amen.']
+]
+};
+
+const CTA={
+  general:['Follow for more','Share this','Like if you agree','Tag someone who needs this','Save this','Amen','Share the love','Pass it on'],
+  quiz:['Tag a friend to try this','Did you know it? Comment below','Share this quiz'],
+  prayer:['Type amen if you prayed','Share this prayer','Amen']
+};
+const CAPTIONS={
+  verse:['A word for today. #Bible #Scripture #Faith #Jesus','His word is a lamp for your path. #Bible #Verse #Christian #Faith','Hold on to this one. #Scripture #Bible #Faith #God'],
+  promise:['God keeps his promises. #Promises #Bible #Faith #Jesus','Standing on his promises. #Bible #Christian #Faith #Hope','He is faithful. #Faith #God #Scripture #Hope'],
+  jesus:['The words of Jesus still change lives. #Jesus #Gospel #Faith #Bible','Listen to what he said. #Jesus #Christ #Bible #Faith','Red letter words. #Jesus #Gospel #Christian #Bible'],
+  miracle:['The miracles of Jesus. #Jesus #Miracles #Bible #Faith','Nothing is impossible with God. #Jesus #Miracle #Faith #Bible','He still does the impossible. #Jesus #Faith #Christian'],
+  parable:['A story Jesus told. #Parables #Jesus #Bible #Faith','Short story, big lesson. #Jesus #Bible #Christian #Faith','Do you know this parable? #Parable #Jesus #Bible'],
+  names:['Names of Jesus. #Jesus #Christ #Bible #Faith','Who is Jesus? #Jesus #Christian #Bible #Faith','Every name tells us who he is. #Jesus #Bible #Faith'],
+  quiz:['Bible quiz! How did you do? #BibleQuiz #Bible #Jesus #Faith','Test your Bible knowledge. #BibleQuiz #Bible #Christian','Did you get it right? #BibleQuiz #Faith #Bible'],
+  whosaid:['Who said it? #BibleQuiz #Bible #Scripture #Faith','Can you guess the speaker? #Bible #Quiz #Christian #Faith','Test your Bible knowledge. #WhoSaidIt #Bible #Faith'],
+  prophecy:['Promised, then fulfilled. #Prophecy #Jesus #Bible #Faith','Written centuries before it happened. #Prophecy #Bible #Jesus','The Bible fits together. #Prophecy #Jesus #Faith #Bible'],
+  prayer:['Take a moment to pray. #Prayer #Faith #Jesus #Christian','Pray with us. #Prayer #God #Faith #Bible','Amen. #Prayer #Christian #Faith #Jesus']
+};
+const WEIGHTS={verse:3,promise:2,jesus:3,miracle:2,parable:1,names:1,quiz:2,whosaid:1,prophecy:1,prayer:1};
+const CTA_CHANCE={quiz:.5,whosaid:.5,prayer:.6};
+
+/* =====================================================================
+   LOOKS: fonts, themes (backgrounds), layouts, text animations
+   ===================================================================== */
+const FONTS=[
+ {n:'Cinzel / Raleway',      d:'"Cinzel",Georgia,serif',            b:'"Raleway",Arial,sans-serif',    dw:900,bw:600,upper:true, ds:.95},
+ {n:'Playfair / Lora',       d:'"Playfair Display",Georgia,serif',  b:'"Lora",Georgia,serif',          dw:900,bw:500,upper:false,ds:1.0},
+ {n:'Montserrat / Nunito',   d:'"Montserrat",Arial,sans-serif',     b:'"Nunito",Arial,sans-serif',     dw:900,bw:700,upper:true, ds:.9},
+ {n:'Bebas / Poppins',       d:'"Bebas Neue",Impact,sans-serif',    b:'"Poppins",Arial,sans-serif',    dw:400,bw:600,upper:true, ds:1.3},
+ {n:'Merriweather / Montserrat',d:'"Merriweather",Georgia,serif',   b:'"Montserrat",Arial,sans-serif', dw:700,bw:600,upper:false,ds:.88},
+ {n:'Poppins / Merriweather',d:'"Poppins",Arial,sans-serif',        b:'"Merriweather",Georgia,serif',  dw:800,bw:400,upper:true, ds:.9}
+];
+const LAYOUTS={
+ center:{align:'center',anchor:'center',mx:46,ornament:true},
+ lower:{align:'left',anchor:'lower',mx:50,bar:true},
+ quote:{align:'center',anchor:'center',mx:50,glyph:true},
+ split:{align:'center',anchor:'upper',mx:46,divider:true},
+ card:{align:'center',anchor:'center',mx:62,card:true}
+};
+const ANIMS=['wordpop','typewriter','slide','blur','drop','zoom'];
+
+function lg(x0,y0,x1,y1,stops){const g=ctx.createLinearGradient(x0,y0,x1,y1);stops.forEach(s=>g.addColorStop(s[0],s[1]));return g;}
+function rg(x,y,r,c0,c1){const g=ctx.createRadialGradient(x,y,0,x,y,Math.max(1,r));g.addColorStop(0,c0);g.addColorStop(1,c1);return g;}
+function hill(color,y0,amp,freq,ph,seed){ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(0,H);for(let x=0;x<=W+6;x+=6){ctx.lineTo(x,y0+Math.sin(x*freq+ph)*amp+Math.sin(x*freq*2.3+seed)*amp*.4);}ctx.lineTo(W,H);ctx.closePath();ctx.fill();}
+function crossShape(x,y,h,color,alpha){ctx.save();ctx.globalAlpha=alpha==null?1:alpha;ctx.fillStyle=color;const w=h*.13;ctx.fillRect(x-w/2,y,w,h);ctx.fillRect(x-h*.28,y+h*.28,h*.56,w);ctx.restore();}
+
+function bgDawn(t){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'#2b1055'],[.45,'#b5407c'],[.75,'#ff9a5a'],[1,'#ffd98a']]);ctx.fillRect(0,0,W,H);
+ const sx=W/2,sy=H*.68;
+ ctx.save();ctx.translate(sx,sy);ctx.globalCompositeOperation='lighter';
+ for(let i=0;i<14;i++){const a=i*TAU/14+t*.05;ctx.fillStyle='rgba(255,220,160,.07)';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*900,Math.sin(a)*900);ctx.lineTo(Math.cos(a+.11)*900,Math.sin(a+.11)*900);ctx.closePath();ctx.fill();}
+ ctx.restore();
+ ctx.fillStyle=rg(sx,sy,330+Math.sin(t)*10,'rgba(255,235,170,.9)','rgba(255,150,100,0)');ctx.fillRect(0,0,W,H);
+ ctx.save();ctx.globalAlpha=.5;ctx.fillStyle=rg(sx,sy,330,'rgba(255,200,120,.5)','rgba(255,150,100,0)');ctx.fillRect(0,0,W,H);ctx.restore();
+ hill('#3a1a4a',H*.84,26,.011,t*.08,0);
+ crossShape(W*.8,H*.84-92,92,'#22102f');
+ hill('#22102f',H*.91,20,.015,t*.12,2);
+}
+const STARS=Array.from({length:120},(_,i)=>({x:sr(i)*W,y:sr(i+300)*H*.85,r:.5+sr(i+600)*1.3,p:sr(i+900)*TAU}));
+function bgNight(t){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'#050a24'],[.55,'#16276b'],[1,'#3b3b98']]);ctx.fillRect(0,0,W,H);
+ STARS.forEach(s=>{ctx.globalAlpha=.35+.6*Math.abs(Math.sin(t*.9+s.p));ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,TAU);ctx.fill();});
+ ctx.globalAlpha=1;
+ const mx=W*.74,my=H*.17+Math.sin(t*.2)*4;
+ ctx.fillStyle=rg(mx,my,170,'rgba(210,230,255,.45)','rgba(210,230,255,0)');ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='#f4f8ff';ctx.beginPath();ctx.arc(mx,my,34,0,TAU);ctx.fill();
+ ctx.fillStyle='rgba(120,140,190,.35)';ctx.beginPath();ctx.arc(mx-9,my-6,8,0,TAU);ctx.arc(mx+10,my+9,6,0,TAU);ctx.fill();
+ const c=(t%7)/7;if(c<.16){const p=c/.16;const x=W*.1+p*W*.5,y=H*.08+p*H*.2;ctx.strokeStyle='rgba(255,255,255,'+(1-p)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-60,y-30);ctx.stroke();}
+ hill('#0a1038',H*.9,18,.012,t*.06,1);
+}
+const CLOUDS=Array.from({length:9},(_,i)=>({x:sr(i)*W,y:60+sr(i+40)*H*.8,s:.8+sr(i+80)*1.2,v:4+sr(i+120)*9}));
+function bgClouds(t){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'#17407d'],[.5,'#3d82cc'],[1,'#9cc8ee']]);ctx.fillRect(0,0,W,H);
+ ctx.save();ctx.globalCompositeOperation='lighter';
+ for(let i=0;i<8;i++){const a=.9+i*.1+Math.sin(t*.1+i)*.02;ctx.fillStyle='rgba(255,246,210,.06)';ctx.beginPath();ctx.moveTo(W*.1,-40);ctx.lineTo(W*.1+Math.cos(a)*1300,-40+Math.sin(a)*1300);ctx.lineTo(W*.1+Math.cos(a+.07)*1300,-40+Math.sin(a+.07)*1300);ctx.closePath();ctx.fill();}
+ ctx.restore();
+ CLOUDS.forEach(c=>{const x=((c.x+t*c.v)%(W+400))-200;[[-44,8,36],[-12,-10,46],[28,0,42],[64,10,30]].forEach(o=>{const r=o[2]*c.s;ctx.fillStyle=rg(x+o[0]*c.s,c.y+o[1]*c.s,r,'rgba(255,255,255,.55)','rgba(255,255,255,0)');ctx.beginPath();ctx.arc(x+o[0]*c.s,c.y+o[1]*c.s,r,0,TAU);ctx.fill();});});
+}
+const JEWEL=['#7b1fa2','#1565c0','#00897b','#f9a825','#c62828','#283593'];
+function bgGlass(t){
+ ctx.fillStyle='#0d0720';ctx.fillRect(0,0,W,H);
+ const cx=W/2,cy=H*.42,n=12;
+ for(let k=0;k<n;k++){const a0=k*TAU/n+t*.03,a1=a0+TAU/n;ctx.fillStyle=JEWEL[k%JEWEL.length];ctx.globalAlpha=.2+.12*Math.sin(t*.8+k);ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,760,a0,a1);ctx.closePath();ctx.fill();}
+ ctx.globalAlpha=1;
+ ctx.strokeStyle='rgba(255,213,79,.35)';ctx.lineWidth=2;
+ [90,170,270,400].forEach((r,i)=>{ctx.beginPath();ctx.arc(cx,cy,r+Math.sin(t+i)*4,0,TAU);ctx.stroke();});
+ for(let k=0;k<n;k++){const a=k*TAU/n+t*.03;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*760,cy+Math.sin(a)*760);ctx.stroke();}
+ ctx.fillStyle=rg(cx,cy,260,'rgba(255,230,150,.55)','rgba(255,230,150,0)');ctx.fillRect(0,0,W,H);
+}
+function bgDesert(t){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'#2d1b4e'],[.45,'#d4577a'],[.68,'#ffb36b'],[1,'#ffd9a0']]);ctx.fillRect(0,0,W,H);
+ const sx=W*.5,sy=H*.6;
+ ctx.fillStyle=rg(sx,sy,300,'rgba(255,240,190,.8)','rgba(255,170,100,0)');ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='#fff3c8';ctx.beginPath();ctx.arc(sx,sy,62,0,TAU);ctx.fill();
+ hill('#9a4f3d',H*.7,24,.008,t*.05,0);hill('#6b3530',H*.79,28,.011,-t*.06,3);hill('#3e1f2a',H*.89,22,.014,t*.07,5);
+ for(let i=0;i<30;i++){const x=(sr(i)*W+t*(10+sr(i+9)*14))%W,y=H*.55+sr(i+50)*H*.35;ctx.fillStyle='rgba(255,220,170,'+(.15+.2*sr(i+7))+')';ctx.fillRect(x,y,2,2);}
+}
+function bgWater(t){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'#021b3a'],[.5,'#0a6e8a'],[1,'#33b6b0']]);ctx.fillRect(0,0,W,H);
+ ctx.save();ctx.globalCompositeOperation='lighter';
+ for(let i=0;i<5;i++){const x=W*(.1+i*.22)+Math.sin(t*.3+i)*30;ctx.fillStyle='rgba(180,255,245,.06)';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+90,0);ctx.lineTo(x+260,H);ctx.lineTo(x+60,H);ctx.closePath();ctx.fill();}
+ ctx.strokeStyle='rgba(190,255,248,.07)';ctx.lineWidth=16;
+ for(let i=0;i<10;i++){const b=i*H/9;ctx.beginPath();for(let x=0;x<=W;x+=12){const y=b+Math.sin(x*.02+t*.8+i)*14+Math.sin(x*.05-t*.5+i*2)*6;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.stroke();}
+ ctx.restore();
+ for(let i=0;i<34;i++){const x=sr(i)*W+Math.sin(t+i)*8,y=H-((sr(i+50)*H+t*(18+sr(i+9)*30))%(H+40))+20,r=2+sr(i+3)*5;ctx.strokeStyle='rgba(220,255,250,.35)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.stroke();}
+}
+function bgGold(t){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'#150b03'],[.5,'#4a2c0a'],[1,'#241203']]);ctx.fillRect(0,0,W,H);
+ ctx.fillStyle=rg(W/2,H*.45,430,'rgba(255,200,90,'+(.38+.08*Math.sin(t*.8))+')','rgba(255,200,90,0)');ctx.fillRect(0,0,W,H);
+ crossShape(W/2,H*.45-250,500,'#ffd166',.06);
+ ctx.save();ctx.globalCompositeOperation='lighter';
+ for(let i=0;i<80;i++){const x=sr(i)*W+Math.sin(t*.5+i)*12,y=H-((sr(i+9)*H+t*(8+sr(i+3)*14))%H),a=.25+.5*Math.abs(Math.sin(t*1.2+i));ctx.fillStyle='rgba(255,215,120,'+a+')';ctx.beginPath();ctx.arc(x,y,1+sr(i+5)*1.8,0,TAU);ctx.fill();}
+ ctx.restore();
+}
+function ridge(y0,amp,seed,color,ph){ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(0,H);for(let x=0;x<=W+8;x+=8){const y=y0-amp*(.5+.5*Math.sin(x*.012+seed+ph))-amp*.55*Math.abs(Math.sin(x*.031+seed*2.1));ctx.lineTo(x,y);}ctx.lineTo(W,H);ctx.closePath();ctx.fill();}
+function bgMountain(t){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'#10223d'],[.5,'#2d5a7b'],[1,'#a9cde2']]);ctx.fillRect(0,0,W,H);
+ ctx.fillStyle=rg(W*.3,H*.52,260,'rgba(255,240,200,.5)','rgba(255,240,200,0)');ctx.fillRect(0,0,W,H);
+ ridge(H*.62,110,1,'#6f93aa',t*.02);
+ for(let i=0;i<3;i++){const x=((t*10+i*220)%(W+520))-260,y=H*.66+i*34;ctx.save();ctx.translate(x,y);ctx.scale(1,.16);ctx.fillStyle=rg(0,0,260,'rgba(230,242,250,.35)','rgba(230,242,250,0)');ctx.beginPath();ctx.arc(0,0,260,0,TAU);ctx.fill();ctx.restore();}
+ ridge(H*.78,120,4,'#3d6178',-t*.02);ridge(H*.92,110,7,'#1c3347',t*.015);
+}
+const THEMES=[
+ {id:'dawn',bg:bgDawn,accent:'#ffd98a'},{id:'night',bg:bgNight,accent:'#a9d4ff'},
+ {id:'clouds',bg:bgClouds,accent:'#fff0b8'},{id:'glass',bg:bgGlass,accent:'#ffd54f'},
+ {id:'desert',bg:bgDesert,accent:'#ffe0a3'},{id:'water',bg:bgWater,accent:'#a6f5e8'},
+ {id:'gold',bg:bgGold,accent:'#ffd166'},{id:'mountain',bg:bgMountain,accent:'#cfe8ff'}
+];
+function scrim(){
+ ctx.fillStyle=lg(0,0,0,H,[[0,'rgba(0,0,0,.35)'],[.3,'rgba(0,0,0,.14)'],[.7,'rgba(0,0,0,.2)'],[1,'rgba(0,0,0,.55)']]);ctx.fillRect(0,0,W,H);
+ ctx.fillStyle=rg(W/2,H/2,H*.72,'rgba(0,0,0,0)','rgba(0,0,0,.38)');ctx.fillRect(0,0,W,H);
+}
+
+/* =====================================================================
+   TEXT ROLES + LAYOUT ENGINE
+   ===================================================================== */
+const ROLE={
+ head:    {size:60,min:30,lh:1.08,gap:22},
+ answer:  {size:56,min:30,lh:1.1, gap:14},
+ question:{size:38,min:24,lh:1.22,gap:20},
+ bigquote:{size:44,min:24,lh:1.22,gap:22},
+ body:    {size:30,min:19,lh:1.4, gap:20},
+ ref:     {size:20,min:14,lh:1.3, gap:0,ls:3},
+ tag:     {size:17,min:13,lh:1.3, gap:10,ls:4}
+};
+const isDisp=r=>r==='head'||r==='answer';
+function fontStr(role,size,F){
+ if(isDisp(role))return F.dw+' '+size+'px '+F.d;
+ if(role==='question'||role==='bigquote')return '700 '+size+'px '+F.d;
+ return F.bw+' '+size+'px '+F.b;
+}
+function wrap(text,font,maxW,lsp){
+ ctx.font=font;ls(lsp||0);
+ const words=text.split(' '),lines=[];let cur='';
+ for(const w of words){const t=cur?cur+' '+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}else cur=t;}
+ if(cur)lines.push(cur);ls(0);return lines;
+}
+function measureBlock(b,s,F,maxW){
+ const R=ROLE[b.role];
+ const size=Math.max(R.min,R.size*(isDisp(b.role)?F.ds:1)*s);
+ const font=fontStr(b.role,size,F);
+ const upper=F.upper&&(isDisp(b.role)||b.role==='tag'||b.role==='ref');
+ const text=upper?b.text.toUpperCase():b.text;
+ const lines=wrap(text,font,maxW,R.ls||0);
+ const lh=size*R.lh;
+ let h=lines.length*lh;
+ if(b.cd)h=Math.max(h,118);
+ return {b,size,font,lines,lh,h,ls:R.ls||0,gap:R.gap*s};
+}
+
+/* ===== scene creation ===== */
+const pools={};
+function nextItem(type){
+ if(!pools[type]||!pools[type].length)pools[type]=shuffle(DATA[type]);
+ return pools[type].pop();
+}
+function weighted(){
+ const keys=Object.keys(WEIGHTS);let r=Math.random()*keys.reduce((a,k)=>a+WEIGHTS[k],0);
+ for(const k of keys){r-=WEIGHTS[k];if(r<=0)return k;}return 'verse';
+}
+const recent={theme:[],layout:[],anim:[],font:[]};
+function pickAvoid(list,key,keep){
+ const opts=list.filter(x=>!recent[key].includes(x));
+ const v=pick(opts.length?opts:list);
+ recent[key].push(v);if(recent[key].length>keep)recent[key].shift();return v;
+}
+function buildBlocks(type,d){
+ const B=[];let label='';
+ switch(type){
+  case 'verse':case 'promise':
+   label=type==='verse'?pick(['VERSE OF THE DAY','SCRIPTURE','DAILY WORD']):'PROMISE OF GOD';
+   B.push({role:'head',text:d[0]});
+   B.push({role:'body',text:'\u201C'+d[1]+'\u201D',speak:d[1]});
+   B.push({role:'ref',text:'\u2014 '+d[2],speak:d[2]});break;
+  case 'jesus':
+   label='WORDS OF JESUS';
+   B.push({role:'bigquote',text:'\u201C'+d[0]+'\u201D',speak:d[0]});
+   B.push({role:'ref',text:'\u2014 '+d[1],speak:d[1]});break;
+  case 'miracle':case 'parable':
+   label=type==='miracle'?'MIRACLE OF JESUS':'PARABLE OF JESUS';
+   B.push({role:'head',text:d[0],speak:d[0]});
+   B.push({role:'body',text:d[1],speak:d[1]});
+   B.push({role:'ref',text:d[2],speak:chapterOnly(d[2])});break;
+  case 'names':
+   label='NAMES OF JESUS';
+   B.push({role:'head',text:d[0],speak:d[0]});
+   B.push({role:'body',text:d[1],speak:d[1]});
+   B.push({role:'ref',text:'\u2014 '+d[2],speak:d[2]});break;
+  case 'quiz':
+   label='BIBLE QUIZ';
+   B.push({role:'question',text:d[0],speak:d[0]});
+   B.push({role:'answer',text:d[1],speak:d[1],gap:3.2,cd:true});
+   if(d[2])B.push({role:'ref',text:d[2]});break;
+  case 'whosaid':
+   label='WHO SAID IT?';
+   B.push({role:'question',text:'\u201C'+d[0]+'\u201D',speak:'Who said this? '+d[0]});
+   B.push({role:'answer',text:d[1],speak:d[1],gap:3.2,cd:true});
+   if(d[2])B.push({role:'ref',text:d[2]});break;
+  case 'prophecy':
+   label='PROPHECY FULFILLED';
+   B.push({role:'tag',text:'FORETOLD \u00B7 '+d[1],when:'withNext'});
+   B.push({role:'body',text:'\u201C'+d[0]+'\u201D',speak:'Foretold in '+d[1]+'. '+d[0]});
+   B.push({role:'tag',text:'FULFILLED \u00B7 '+d[3],when:'withNext'});
+   B.push({role:'body',text:'\u201C'+d[2]+'\u201D',speak:'Fulfilled in '+d[3]+'. '+d[2]});break;
+  case 'prayer':
+   label='PRAYER';
+   B.push({role:'head',text:d[0],speak:d[0]});
+   B.push({role:'body',text:d[1],speak:d[1]});break;
+ }
+ const pool=CTA[type]||CTA.general;
+ if(Math.random()<(CTA_CHANCE[type]!=null?CTA_CHANCE[type]:.4)){
+  const c=pick(pool);B.push({role:'cta',text:c,speak:c,gap:.2,optional:true});
+ }
+ return {label,blocks:B};
+}
+let S=null,CUR=null;
+function makeScene(o){
+ o=o||{};
+ const type=o.type||weighted();
+ const d=nextItem(type);
+ const built=buildBlocks(type,d);
+ const quizLike=type==='quiz'||type==='whosaid'||type==='prophecy';
+ const layoutList=quizLike?['center','card']:Object.keys(LAYOUTS);
+ const look={
+  theme:o.theme!=null?o.theme:THEMES.indexOf(pickAvoid(THEMES,'theme',3)),
+  layout:o.layout||pickAvoid(layoutList,'layout',1),
+  anim:o.anim||pickAvoid(ANIMS,'anim',2),
+  font:o.font!=null?o.font:FONTS.indexOf(pickAvoid(FONTS,'font',2))
+ };
+ return {type,label:built.label,blocks:built.blocks,look,caption:pick(CAPTIONS[type]),
+         phase:Math.random()*40};
+}
+
+/* ===== timing ===== */
+function computeTimes(blocks,T,keep){
+ const appear={},starts={},ends={};
+ keep.forEach(i=>{
+  if(blocks[i].speak&&T.starts[i]!=null){starts[i]=T.starts[i];ends[i]=T.ends[i];appear[i]=Math.max(.25,T.starts[i]-.15);}
+ });
+ keep.forEach((i,k)=>{
+  if(appear[i]!=null)return;
+  const b=blocks[i];let a;
+  if(b.when==='withNext'){const nx=keep.slice(k+1).find(j=>appear[j]!=null);a=nx!=null?appear[nx]-.05:.3;}
+  else if(k===0)a=.25;
+  else{const pv=appear[keep[k-1]];a=(pv!=null?pv:.25)+.4;}
+  appear[i]=Math.max(.2,a);
+ });
+ return {appear,starts,ends};
+}
+
+/* ===== build layout + tokens for one playback ===== */
+function modeFor(role,anim){
+ if(isDisp(role))return anim;
+ if(role==='question'||role==='bigquote'||role==='body')return 'sync';
+ return 'line';
+}
+function buildScene(sc,T){
+ const th=THEMES[sc.look.theme],F=FONTS[sc.look.font];
+ const keep=[];sc.blocks.forEach((b,i)=>{if(!T.drop.includes(i))keep.push(i);});
+ const tm=computeTimes(sc.blocks,T,keep);
+ const flow=keep.filter(i=>sc.blocks[i].role!=='cta');
+ const ctaIdx=keep.find(i=>sc.blocks[i].role==='cta');
+ let lname=sc.look.layout;if(lname==='split'&&flow.length<2)lname='center';
+ const LY=LAYOUTS[lname];
+ const mx=LY.mx,textLeft=LY.bar?mx+22:mx;
+ const maxW=LY.align==='center'?W-2*mx:W-textLeft-mx;
+ let top0=150,bot0=690;if(LY.glyph)top0+=50;
+ const areaH=bot0-top0;
+ let res=null,total=0;
+ for(let s=1;s>=.42;s-=.04){
+  res=flow.map(i=>measureBlock(sc.blocks[i],s,F,maxW));
+  total=res.reduce((a,r,k)=>a+r.h+(k<res.length-1?r.gap:0),0);
+  if(total<=areaH)break;
+ }
+ let top=LY.anchor==='lower'?bot0-total:LY.anchor==='upper'?top0+20:top0+(areaH-total)/2-10;
+ const items=[];let y=top;
+ res.forEach((r,k)=>{
+  const i=flow[k],b=sc.blocks[i];
+  const mode=modeFor(b.role,sc.look.anim);
+  const appear=tm.appear[i];
+  const span=(tm.ends[i]!=null&&tm.starts[i]!=null)?Math.max(.6,(tm.ends[i]-tm.starts[i])*.82):.8;
+  const it={idx:i,role:b.role,mode,appear,top:y,h:r.h,font:r.font,size:r.size,ls:r.ls,tokens:[],lines:r.lines.length};
+  ctx.font=r.font;ls(r.ls);
+  const lineInfo=r.lines.map((ln,li)=>{
+   const w=ctx.measureText(ln).width;
+   const x0=LY.align==='center'?W/2-w/2:textLeft;
+   const cyL=y+(b.cd&&r.lines.length*r.lh<r.h?(r.h-r.lines.length*r.lh)/2:0)+li*r.lh+r.lh/2;
+   return {ln,w,x0,cy:cyL};
+  });
+  const unit=(isDisp(b.role)&&(mode==='typewriter'||mode==='drop'))?'char':(mode==='wordpop'||mode==='sync')?'word':'line';
+  const bcx=lineInfo.reduce((a,l)=>a+l.x0+l.w/2,0)/lineInfo.length,bcy=y+r.h/2;
+  const raw=[];
+  lineInfo.forEach((L,li)=>{
+   if(unit==='line'){raw.push({t:L.ln,x:L.x0,y:L.cy,w:L.w,li});}
+   else if(unit==='word'){let pos=0;L.ln.split(' ').forEach(wd=>{const ix=L.ln.indexOf(wd,pos);const px=ctx.measureText(L.ln.slice(0,ix)).width;raw.push({t:wd,x:L.x0+px,y:L.cy,w:ctx.measureText(wd).width,li});pos=ix+wd.length;});}
+   else{for(let c=0;c<L.ln.length;c++){const ch=L.ln[c];if(ch===' ')continue;const px=ctx.measureText(L.ln.slice(0,c)).width;raw.push({t:ch,x:L.x0+px,y:L.cy,w:ctx.measureText(ch).width,li});}}
+  });
+  const n=raw.length;
+  raw.forEach((tk,q)=>{
+   let delay=0;
+   if(mode==='sync')delay=(q/Math.max(1,n))*span;
+   else if(mode==='wordpop')delay=q*Math.min(.14,1/Math.max(1,n));
+   else if(mode==='typewriter'||mode==='drop')delay=q*Math.min(.05,1.3/Math.max(1,n));
+   else if(mode==='slide'||mode==='line')delay=tk.li*.16;
+   else delay=tk.li*.05;
+   tk.start=appear+delay;tk.mode=mode;
+   if(mode==='blur'||mode==='zoom'){tk.ox=bcx;tk.oy=bcy;}else{tk.ox=tk.x+tk.w/2;tk.oy=tk.y;}
+   it.tokens.push(tk);
+  });
+  ls(0);
+  items.push(it);y+=r.h+r.gap;
+ });
+ /* events (sound effects) */
+ const ev=[{t:.1,k:'chime'}];
+ items.forEach(it=>{
+  if(it.mode==='wordpop'&&(it.role==='head'||it.role==='answer')){it.tokens.forEach(tk=>ev.push({t:tk.start,k:'pop'}));}
+  else if(it.role==='answer')ev.push({t:it.appear,k:'ding'});
+  else if(it.role==='head'||it.role==='bigquote'||it.role==='question')ev.push({t:it.appear,k:'whoosh'});
+ });
+ /* countdown window for quiz style scenes */
+ let cd=null;
+ const ai=items.find(it=>it.role==='answer'&&sc.blocks[it.idx].cd);
+ if(ai){
+  let pe=.8;keep.forEach(i=>{if(i<ai.idx&&tm.ends[i]!=null)pe=Math.max(pe,tm.ends[i]);});
+  cd={s:pe+.2,e:ai.appear,cx:W/2,cy:ai.top+ai.h/2};
+  if(cd.e-cd.s<1.2)cd.s=Math.max(.5,cd.e-1.5);
+  for(let q=0;q<3;q++)ev.push({t:cd.s+q*(cd.e-cd.s)/3,k:'tick'});
+ }
+ const cta=ctaIdx!=null?{text:sc.blocks[ctaIdx].text,appear:tm.appear[ctaIdx]}:null;
+ if(cta)ev.push({t:cta.appear,k:'whoosh'});
+ ev.sort((a,b)=>a.t-b.t);
+ return {th,F,look:sc.look,label:sc.label,layout:LY,lname,items,top,total,cd,cta,events:ev,evIdx:0,
+         duration:T.total,phase:sc.phase,mx,textLeft};
+}
+
+/* ===== text animation ===== */
+function animVals(mode,tl){
+ const c=clamp;
+ switch(mode){
+  case 'wordpop':{const p=c(tl/.4);return {a:c(tl/.1),s:.3+.7*easeBack(p),dy:(1-easeOut(p))*30,b:0};}
+  case 'typewriter':return {a:c(tl/.05),s:1,dy:0,b:0};
+  case 'slide':{const p=c(tl/.5);return {a:p,s:1,dy:(1-easeOut(p))*60,b:0};}
+  case 'blur':{const p=c(tl/.9);return {a:easeOut(p),s:1.12-.12*easeOut(p),dy:0,b:(1-easeOut(p))*16};}
+  case 'drop':{const p=c(tl/.55);return {a:c(tl/.08),s:1,dy:-(1-easeBounce(p))*150,b:0};}
+  case 'zoom':{const p=c(tl/.65);return {a:c(tl/.25),s:2.2-1.2*easeBack(p),dy:0,b:0};}
+  case 'sync':{return {a:c(tl/.25),s:1,dy:(1-easeOut(tl/.35))*14,b:0};}
+  default:{const p=c(tl/.45);return {a:p,s:1,dy:(1-easeOut(p))*24,b:0};}
+ }
+}
+
+/* ===== audio ===== */
+let AC=null,master=null,recDest=null,pad=null;
+function initAudio(){
+ if(AC)return;
+ try{AC=new (window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=.7;master.connect(AC.destination);}catch(e){AC=null;}
+}
+function tone(f0,f1,d,vol,type){
+ if(!AC)return;const n=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';
+ o.frequency.setValueAtTime(f0,n);if(f1!==f0)o.frequency.exponentialRampToValueAtTime(f1,n+d);
+ g.gain.setValueAtTime(vol,n);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(master);o.start(n);o.stop(n+d+.05);
+}
+function whoosh(){
+ if(!AC)return;const n=AC.currentTime,d=.4,len=Math.floor(AC.sampleRate*d),buf=AC.createBuffer(1,len,AC.sampleRate),x=buf.getChannelData(0);
+ for(let i=0;i<len;i++)x[i]=Math.random()*2-1;
+ const s=AC.createBufferSource();s.buffer=buf;const f=AC.createBiquadFilter();f.type='bandpass';f.Q.value=1.1;
+ f.frequency.setValueAtTime(400,n);f.frequency.exponentialRampToValueAtTime(3200,n+d);
+ const g=AC.createGain();g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(.22,n+d*.45);g.gain.linearRampToValueAtTime(0,n+d);
+ s.connect(f);f.connect(g);g.connect(master);s.start(n);
+}
+function sfx(k){
+ if(!AC)return;
+ if(k==='pop')tone(760,320,.1,.16);
+ else if(k==='whoosh')whoosh();
+ else if(k==='tick')tone(1000,900,.07,.2);
+ else if(k==='ding'){tone(1318,1318,.9,.2);tone(1976,1976,.6,.08);}
+ else if(k==='chime'){tone(880,880,.5,.1);tone(1320,1320,.7,.07);}
+}
+function startPad(){
+ stopPad();if(!AC)return;
+ const root=pick([174.6,196,220,233.1,261.6]);const ratios=[1,1.26,1.5,2];
+ pad=ratios.map((r,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=root*r;const n=AC.currentTime;g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(.03-i*.005,n+1.5);o.connect(g);g.connect(master);o.start(n);return {o,g};});
+}
+function stopPad(){if(!pad)return;pad.forEach(p=>{try{p.g.gain.setTargetAtTime(0,AC.currentTime,.25);p.o.stop(AC.currentTime+1);}catch(e){}});pad=null;}
+
+/* ===== drawing ===== */
+let playing=false,t0=null,idleTheme=THEMES[Math.floor(Math.random()*THEMES.length)],idleStart=performance.now();
+
+function drawToken(tk,it,C,t){
+ const tl=t-tk.start;if(tl<0)return;
+ const v=animVals(tk.mode,tl);if(v.a<=.003)return;
+ const acc=C.th.accent;
+ ctx.save();
+ ctx.globalAlpha=clamp(v.a);
+ ctx.translate(tk.ox,tk.oy+v.dy);ctx.scale(v.s,v.s);ctx.translate(-tk.ox,-tk.oy);
+ if(v.b>.3)ctx.filter='blur('+v.b.toFixed(1)+'px)';
+ ctx.font=it.font;ls(it.ls);ctx.textBaseline='middle';ctx.textAlign='left';
+ ctx.lineJoin='round';ctx.lineWidth=Math.max(2.5,it.size*.1);ctx.strokeStyle='rgba(0,0,0,.42)';
+ ctx.strokeText(tk.t,tk.x,tk.y);
+ const colored=it.role==='answer'||it.role==='ref'||it.role==='tag';
+ ctx.fillStyle=colored?acc:(it.role==='body'?'rgba(255,255,255,.96)':'#fff');
+ if(isDisp(it.role)&&it.tokens.length<40){ctx.shadowColor=colored?acc:'rgba(255,255,255,.6)';ctx.shadowBlur=14;}
+ ctx.fillText(tk.t,tk.x,tk.y);
+ ls(0);ctx.restore();
+}
+function drawScene(t){
+ const C=CUR,acc=C.th.accent,F=C.F,LY=C.layout;
+ if(playing){while(C.evIdx<C.events.length&&C.events[C.evIdx].t<=t){sfx(C.events[C.evIdx].k);C.evIdx++;}}
+ const first=C.items[0];
+ /* label pill */
+ const lp=easeOut((t-.1)/.45);
+ if(lp>0){ctx.save();ctx.globalAlpha=lp;ctx.font='700 15px '+F.b;ls(5);const w=ctx.measureText(C.label).width+48;const x=W/2-w/2,y=88;
+  rr(x,y,w,34,17);ctx.fillStyle='rgba(0,0,0,.3)';ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=acc;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(C.label,W/2+2,y+17.5);ls(0);ctx.restore();}
+ if(first){
+  const p=easeOut((t-first.appear)/.55);
+  if(p>0){
+   if(LY.card){ctx.save();ctx.globalAlpha=p;const px=C.mx-24,py=C.top-34,pw=W-2*px,ph=C.total+68;ctx.translate(W/2,py+ph/2);ctx.scale(.94+.06*p,.94+.06*p);ctx.translate(-W/2,-(py+ph/2));
+    rr(px,py,pw,ph,26);ctx.fillStyle='rgba(0,0,0,.34)';ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=acc;ctx.globalAlpha=p*.6;ctx.stroke();ctx.restore();}
+   if(LY.bar){ctx.save();ctx.fillStyle=acc;ctx.globalAlpha=.95;ctx.fillRect(C.mx-2,C.top,5,C.total*p);ctx.restore();}
+   if(LY.glyph){ctx.save();ctx.globalAlpha=.28*p;ctx.fillStyle=acc;ctx.font='900 170px '+F.d;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('\u201C',W/2,C.top-12);ctx.restore();}
+   if(LY.ornament){crossShape(W/2,C.top-58,30,acc,.85*p);}
+   if(LY.divider&&C.items[1]){const yy=first.top+first.h+(ROLE[first.role].gap)/2,q=easeOut((t-C.items[1].appear+.2)/.5);if(q>0){ctx.save();ctx.strokeStyle=acc;ctx.lineWidth=2;ctx.globalAlpha=.9;ctx.beginPath();ctx.moveTo(W/2-70*q,yy);ctx.lineTo(W/2+70*q,yy);ctx.stroke();ctx.restore();}}
+  }
+ }
+ C.items.forEach(it=>{it.tokens.forEach(tk=>drawToken(tk,it,C,t));});
+ /* countdown ring */
+ if(C.cd&&t>=C.cd.s&&t<C.cd.e){
+  const p=(t-C.cd.s)/(C.cd.e-C.cd.s),num=3-Math.min(2,Math.floor(p*3)),frac=(p*3)%1,pulse=1+.18*Math.pow(1-frac,3);
+  ctx.save();ctx.translate(C.cd.cx,C.cd.cy);
+  ctx.lineWidth=7;ctx.strokeStyle='rgba(255,255,255,.2)';ctx.beginPath();ctx.arc(0,0,42,0,TAU);ctx.stroke();
+  ctx.strokeStyle=acc;ctx.lineCap='round';ctx.beginPath();ctx.arc(0,0,42,-Math.PI/2,-Math.PI/2+TAU*(1-p));ctx.stroke();
+  ctx.scale(pulse,pulse);ctx.font='900 46px '+F.d;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=5;ctx.strokeStyle='rgba(0,0,0,.4)';ctx.strokeText(String(num),0,2);ctx.fillStyle='#fff';ctx.fillText(String(num),0,2);
+  ctx.restore();
+ }
+ /* call to action pill */
+ if(C.cta){
+  const p=easeBack((t-C.cta.appear)/.5);
+  if(p>0){ctx.save();ctx.globalAlpha=clamp(p);ctx.font='800 22px '+F.b;ls(1);const w=ctx.measureText(C.cta.text).width+56,x=W/2-w/2,y=722+(1-clamp(p))*40;
+   rr(x,y,w,48,24);ctx.fillStyle=acc;ctx.fill();ctx.fillStyle='#1a1020';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(C.cta.text,W/2+.5,y+25);ls(0);ctx.restore();}
+ }
+}
+function drawSplash(t){
+ const th=idleTheme;ctx.save();
+ ctx.font='900 64px "Cinzel",Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.shadowColor=th.accent;ctx.shadowBlur=20;
+ ctx.fillText('BIBLE',W/2,H/2-40);ctx.fillText('SHORTS',W/2,H/2+30);ctx.shadowBlur=0;
+ ctx.font='600 18px "Raleway",Arial,sans-serif';ls(4);ctx.fillStyle=th.accent;ctx.fillText('TAP TO PLAY A SAMPLE',W/2,H/2+110);ls(0);ctx.restore();
+}
+function render(t,bgT){
+ ctx.setTransform(K,0,0,K,0,0);ctx.clearRect(0,0,W,H);
+ const th=CUR?CUR.th:idleTheme;th.bg(bgT);scrim();
+ if(CUR){drawScene(t);const dur=CUR.duration;let f=0;if(t<.3)f=1-t/.3;else if(t>dur-.45)f=clamp((t-(dur-.45))/.45);if(f>0){ctx.fillStyle='rgba(0,0,0,'+f+')';ctx.fillRect(0,0,W,H);}}
+ else drawSplash(t);
+}
+
+/* ===== recording ===== */
+let recorder=null,recChunks=[],recording=false;
+window._recordingDone=false;window._recordingBlob=null;
+function startRec(fps){
+ initAudio();if(AC)AC.resume().catch(()=>{});
+ let tracks=[];
+ const vs=cv.captureStream(fps||30);tracks=tracks.concat(vs.getVideoTracks());
+ if(AC){recDest=AC.createMediaStreamDestination();master.connect(recDest);tracks=tracks.concat(recDest.stream.getAudioTracks());}
+ const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
+ recChunks=[];recorder=new MediaRecorder(new MediaStream(tracks),{mimeType:mime,videoBitsPerSecond:6000000,audioBitsPerSecond:128000});
+ recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
+ recorder.onstop=()=>{try{if(recDest)master.disconnect(recDest);}catch(e){}window._recordingBlob=new Blob(recChunks,{type:'video/webm'});window._recordingDone=true;};
+ recorder.start(200);recording=true;
+}
+window.getRecordingBase64=function(){
+ return new Promise((resolve,reject)=>{const chk=()=>{if(!window._recordingBlob){setTimeout(chk,100);return;}const r=new FileReader();r.onloadend=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(window._recordingBlob);};chk();});
+};
+
+/* ===== public API ===== */
+window.prepareScene=function(o){
+ S=makeScene(o);
+ const head=S.blocks.find(b=>b.role==='head'||b.role==='question'||b.role==='bigquote'||b.role==='tag');
+ window._lastCategory=S.type;window._lastHeadline=head?head.text:'';
+ return {
+  type:S.type,caption:S.caption,label:S.label,
+  look:{theme:THEMES[S.look.theme].id,layout:S.look.layout,anim:S.look.anim,font:FONTS[S.look.font].n},
+  speech:S.blocks.map((b,i)=>b.speak?{i:i,text:b.speak,gap:b.gap||0,optional:!!b.optional}:null).filter(Boolean)
+ };
+};
+window.playScene=function(timing,opts){
+ opts=opts||{};
+ if(!S)window.prepareScene();
+ const T={starts:timing.starts||{},ends:timing.ends||{},drop:timing.drop||[],total:Math.min(14.8,timing.total||12)};
+ CUR=buildScene(S,T);
+ initAudio();if(AC){AC.resume().catch(()=>{});}
+ window._recordingDone=false;window._recordingBlob=null;
+ if(opts.record)startRec(opts.fps||30);
+ startPad();
+ playing=true;t0=null;
+ document.getElementById('hint').style.opacity=0;
+};
+window.renderAt=function(t){playing=false;if(!CUR)return;render(t,t+CUR.phase);};
+window.stopRecording=function(){try{if(recorder&&recorder.state!=='inactive')recorder.stop();}catch(e){}recording=false;};
+window.forceFinalize=function(){if(recChunks.length&&!window._recordingDone){window._recordingBlob=new Blob(recChunks,{type:'video/webm'});window._recordingDone=true;}};
+
+/* preview timing (no voice): estimate about 2.5 words per second */
+function estimateTiming(sp){
+ const T={starts:{},ends:{},drop:[],total:0};let cur=.8;
+ sp.speech.forEach(s=>{const dur=s.text.split(/\s+/).length/2.5+.3;const st=cur+s.gap;T.starts[s.i]=st;T.ends[s.i]=st+dur;cur=st+dur+.3;});
+ T.total=Math.min(14.5,cur+1.0);return T;
+}
+function previewNext(){
+ let sp=window.prepareScene(),T=estimateTiming(sp),tries=0;
+ while(T.total>14.4&&tries<8){const opt=sp.speech.find(s=>s.optional);if(opt){const k=sp.speech.indexOf(opt);sp.speech.splice(k,1);T.drop=[opt.i];T.total=Math.min(14.5,T.total-1.2);if(T.total<=14.4)break;}sp=window.prepareScene();T=estimateTiming(sp);tries++;}
+ window.playScene(T,{record:false});
+}
+document.getElementById('stage').addEventListener('click',()=>{if(!window._ci)previewNext();});
+
+/* ===== main loop ===== */
+function loop(now){
+ requestAnimationFrame(loop);
+ if(playing){
+  if(t0===null)t0=now;
+  const t=(now-t0)/1000;
+  render(t,t+CUR.phase);
+  if(t>=CUR.duration+.1){
+   playing=false;stopPad();
+   if(recording)window.stopRecording();
+   document.getElementById('hint').style.opacity=1;
+  }
+ }else if(!CUR){
+  render((now-idleStart)/1000,(now-idleStart)/1000);
+ }
+}
+/* wait for fonts so canvas text measures correctly */
+const fontJobs=[];
+FONTS.forEach(f=>{fontJobs.push(document.fonts.load(f.dw+' 40px '+f.d));fontJobs.push(document.fonts.load(f.bw+' 24px '+f.b));});
+Promise.race([Promise.all(fontJobs),new Promise(r=>setTimeout(r,6000))]).then(()=>{window._ready=true;}).catch(()=>{window._ready=true;});
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

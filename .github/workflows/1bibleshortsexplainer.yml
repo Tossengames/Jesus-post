@@ -1,4 +1,4 @@
-name: ✝️ Post Bible Short to Facebook
+name: Bible explainer
 
 on:
   workflow_dispatch:

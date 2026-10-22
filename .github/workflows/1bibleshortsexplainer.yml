@@ -1,4 +1,4 @@
-name: Bible explainer
+name: ✝️ Post Bible Short to Facebook
 
 on:
   workflow_dispatch:
@@ -362,6 +362,20 @@ jobs:
                 raise RuntimeError(f"Reel processing error: {st}")
             return video_id
 
+          def find_html():
+            """Find the video page by its content, so the file name does not matter."""
+            found = []
+            for p in glob.glob("**/*.html", recursive=True):
+              found.append(p)
+              try:
+                if "window.prepareScene" in open(p, encoding="utf-8", errors="ignore").read():
+                  print(f"Using page: {p}")
+                  return os.path.abspath(p)
+              except Exception:
+                pass
+            raise RuntimeError("No .html file containing window.prepareScene was found. "
+                               f"HTML files in repo: {found} | repo root: {os.listdir('.')}")
+
           # ---------------------------------------------------------------- MAIN
           def main():
             from selenium import webdriver
@@ -373,7 +387,7 @@ jobs:
             webm_file = f"/tmp/bible_{ts}.webm"
             mp4_file = f"/tmp/bible_{ts}.mp4"
             final_file = f"/tmp/bible_{ts}_final.mp4"
-            html_path = os.path.abspath(HTML_FILE)
+            html_path = find_html()
             fb_token = os.environ.get("FB_PAGE_TOKEN")
             fb_page_id = os.environ.get("FB_PAGE_ID")
             if not DRY_RUN and (not fb_token or not fb_page_id):

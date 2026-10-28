@@ -8,7 +8,7 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: "0 1 * * *"   # once a day. Add more cron lines for more posts (Reels API limit: 30 per 24h)
+ #   - cron: "0 1 * * *"   # once a day. Add more cron lines for more posts (Reels API limit: 30 per 24h)
 
 jobs:
   post:

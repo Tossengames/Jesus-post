@@ -10,7 +10,7 @@ name: faith-post
         type: choice
         options: [auto, understands, hold_on, season_poll, verse_blank]
   schedule:
-    - cron: "0 23 * * *"
+  #  - cron: "0 23 * * *"
 
 permissions:
   contents: write

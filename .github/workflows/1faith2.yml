@@ -5,7 +5,7 @@ on:
   schedule:
     # 5 posts a day. UTC times -> 8:07am / 12:07pm / 4:07pm / 8:07pm / 11:07pm Eastern
     #                           -> 5:07am / 9:07am / 1:07pm / 5:07pm / 8:07pm Pacific
-    - cron: "0 12 * * *"
+  #  - cron: "0 12 * * *"
 
 jobs:
   post:
